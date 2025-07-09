@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+PYTHONPATH="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+export PYTHONPATH
+
+exec python3 -B -m ezaz "$@"
