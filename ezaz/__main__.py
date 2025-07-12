@@ -42,7 +42,7 @@ class Main:
     def options(self):
         return self.parse_args(self._args)
 
-    @cached_propery
+    @cached_property
     def config(self):
         return Config(verbose=self.options.verbose, dry_run=self.options.dry_run)
 

@@ -44,7 +44,7 @@ class AccountCommand(Command):
                            help='Show login details')
 
     def _setup(self):
-        self._account = Account(config=self._config)
+        self._account = Account(self._config)
 
     def _run(self):
         if self._options.login:
@@ -97,7 +97,7 @@ class AccountCommand(Command):
     def show(self, already=False):
         logged = 'Already logged' if already else 'Logged'
         try:
-            info = self._account.accountinfo
+            info = self._account.account_info
             print(f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})")
         except NotLoggedIn:
             print(f"{logged} out")

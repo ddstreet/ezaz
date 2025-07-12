@@ -11,12 +11,20 @@ from .subscription import Subscription
 
 class Account(AzObject):
     def __init__(self, config, info=None):
-        self._config = config
+        self._top_config = config
         self._account_info = info
 
     @property
     def config(self):
-        return self._config.get_account(self.account_info.user.name)
+        return self._top_config.get_account(self.account_info.user.name)
+
+    @property
+    def verbose(self):
+        return self._top_config.verbose
+
+    @property
+    def dry_run(self):
+        return self._top_config.dry_run
 
     @contextmanager
     def _disable_subscription_selection(self):

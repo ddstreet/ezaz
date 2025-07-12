@@ -1,4 +1,7 @@
 
+from contextlib import suppress
+
+from ..exception import ResourceGroupConfigNotFound
 from . import AzObject
 from .resourcegroup import ResourceGroup
 
@@ -31,8 +34,10 @@ class Subscription(AzObject):
 
     @current_resource_group.setter
     def current_resource_group(self, resource_group):
-        if self.current_resource_group != resource_group:
-            self.config.current_resource_group = resource_group
+        with suppress(ResourceGroupConfigNotFound):
+            if self.current_resource_group == resource_group:
+                return
+        self.config.current_resource_group = resource_group
 
     def get_resource_group(self, resource_group, info=None):
         return ResourceGroup(resource_group, self, info=info)

@@ -29,10 +29,10 @@ class AzObject:
 
     def _exec(self, *args, check=True, text=True, **kwargs):
         self._trace(' '.join(args))
-        return None if self.dry_run else subprocess.run(args, **kwargs)
+        return None if self.dry_run else subprocess.run(args, check=check, text=text, **kwargs)
 
     def az(self, *args, capture_output=False, **kwargs):
-        return self._exec('az', *args, **kwargs)
+        return self._exec('az', *args, capture_output=capture_output, **kwargs)
 
     def az_stdout(self, *args, **kwargs):
         try:

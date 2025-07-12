@@ -14,10 +14,12 @@ class ResourceGroupCommand(Command):
 
     @classmethod
     def _parser_add_arguments(cls, parser):
+        parser.add_argument('--subscription',
+                            help='Use the specified subscription, instead of the current subscription')
+
         title_group = parser.add_argument_group('Action', 'Action to perform (default is --show)')
         group = title_group.add_mutually_exclusive_group()
         group.add_argument('--create',
-                           action='store_true',
                            help='Create a resource group')
         group.add_argument('--list',
                            action='store_true',
@@ -32,10 +34,20 @@ class ResourceGroupCommand(Command):
                            help='Show current resource group')
 
     def _setup(self):
-        self._resourcegroup = ResourceGroup(self._config)
+        self._account = Account(self._config)
+
+    @property
+    def _subscription(self):
+        if self._options.subscription:
+            return self._account.get_subscription(self._options.subscription)
+        else:
+            return self._account.get_current_subscription()
+
+    def _resource_group(self, resource_group):
+        return self._subscription.get_resource_group(resource_group)
 
     def _run(self):
-        elif self._options.list:
+        if self._options.list:
             self.list()
         elif self._options.clear:
             self.clear()
@@ -54,35 +66,29 @@ class ResourceGroupCommand(Command):
     def _filter_groups(self, groups):
         groups = [g for g in groups if self._filter_group(g)]
 
-
     def clear(self):
-        with suppress(AccountConfigNotFound):
-            del self._account.config.current_subscription
+        del self._subscription.current_resource_group
 
-    def set(self, subscription):
-        self._account.subscription = subscription
+    def set(self, resource_group):
+        self._subscription.current_resource_group = resource_group
 
     def list(self):
-        responses = self.az_responselist('group', 'list')
-        for response in responses:
-            self._show_group(response)
+        for resource_group in self._subscription.get_resource_groups():
+            self._show_group(resource_group)
 
-    def _show_group(self, group):
-        msg = group.name
+    def show(self):
+        self._show_group(self._subscription.get_current_resource_group())
+
+    def _show_group(self, resource_group):
+        info = resource_group.resource_group_info
+        msg = info.name
         if self.verbose:
-            msg += f' (location: {group.location})'
-            if group.tags:
+            msg += f' (location: {info.location})'
+            if info.tags:
                 tags = []
-                for k in group.tags:
-                    v = getattr(group.tags, k)
+                for k in info.tags:
+                    v = getattr(info.tags, k)
                     tags.append(k if not v else f'{k}={v}')
                 msg += f' [tags: {" ".join(tags)}]'
         print(msg)
-
-    def set(self):
-        pass
-
-    def show(self):
-        pass
-
 
