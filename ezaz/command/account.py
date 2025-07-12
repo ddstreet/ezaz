@@ -44,7 +44,7 @@ class AccountCommand(Command):
                            help='Show login details')
 
     def _setup(self):
-        self._account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
+        self._account = Account(config=self._config)
 
     def _run(self):
         if self._options.login:
@@ -61,12 +61,6 @@ class AccountCommand(Command):
             self.set(self._options.set)
         else: # default
             self.show()
-
-    def run(self):
-        try:
-            self._run()
-        except NotLoggedIn:
-            print('Not logged in, please log in and try again')
 
     def login(self):
         already = False

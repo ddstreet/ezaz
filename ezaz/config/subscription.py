@@ -2,10 +2,11 @@
 from contextlib import suppress
 
 from ..exception import ResourceGroupConfigNotFound
+from .subconfig import SubConfig
 from .resourcegroup import ResourceGroupConfig
 
 
-class SubscriptionConfig:
+class SubscriptionConfig(SubConfig):
     @classmethod
     def _CURRENT_RESOURCE_GROUP_KEY(cls):
         return 'current_resource_group'
@@ -13,13 +14,6 @@ class SubscriptionConfig:
     @classmethod
     def _RESOURCE_GROUP_KEY(cls, resource_group):
         return f'resource_group:{resource_group}'
-
-    def __init__(self, parent, config):
-        self._parent = parent
-        self._config = config
-
-    def _save(self):
-        self._parent._save()
 
     @property
     def current_resource_group(self):
@@ -50,3 +44,6 @@ class SubscriptionConfig:
         with suppress(KeyError):
             del self._config[k]
             self._save()
+
+    def get_current_resource_group(self):
+        return self.get_resource_group(self.current_resource_group)

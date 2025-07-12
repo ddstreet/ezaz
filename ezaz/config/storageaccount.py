@@ -2,10 +2,11 @@
 from contextlib import suppress
 
 from ..exception import StorageContainerConfigNotFound
+from .subconfig import SubConfig
 from .storagecontainer import StorageContainerConfig
 
 
-class StorageAccountConfig:
+class StorageAccountConfig(SubConfig):
     @classmethod
     def _CURRENT_STORAGE_CONTAINER_KEY(cls):
         return 'current_storage_container'
@@ -13,13 +14,6 @@ class StorageAccountConfig:
     @classmethod
     def _STORAGE_CONTAINER_KEY(cls, storage_container):
         return f'storage_container:{storage_container}'
-
-    def __init__(self, parent, config):
-        self._parent = parent
-        self._config = config
-
-    def _save(self):
-        self._parent._save()
 
     @property
     def current_storage_container(self):
@@ -50,3 +44,6 @@ class StorageAccountConfig:
         with suppress(KeyError):
             del self._config[k]
             self._save()
+
+    def get_current_storage_container(self):
+        return self.get_storage_container(self.current_storage_container)

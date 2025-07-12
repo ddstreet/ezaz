@@ -14,5 +14,5 @@ class ImageCommand(Command):
                             help='')
 
 
-    def run(self):
+    def _run(self):
         print(f'{self.name()} running')

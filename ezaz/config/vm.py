@@ -1,9 +1,6 @@
 
+from .subconfig import SubConfig
 
-class VMConfig:
-    def __init__(self, parent, config):
-        self._parent = parent
-        self._config = config
 
-    def _save(self):
-        self._parent._save()
+class VMConfig(SubConfig):
+    pass

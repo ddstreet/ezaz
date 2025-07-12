@@ -8,51 +8,40 @@ from abc import abstractmethod
 from ..response import lookup_response
 
 
-class AzObject(ABC):
-    @classmethod
+class AzObject:
+    @property
     @abstractmethod
-    def name(cls):
+    def config(self):
         pass
-
-    def __init__(self, config, verbose=False, dry_run=False):
-        self._config = config
-        self._verbose = verbose
-        self._dry_run = dry_run
-        self._setup()
 
     @property
     def verbose(self):
-        return self._verbose
+        return self.config.verbose
 
     @property
     def dry_run(self):
-        return self._dry_run
-
-    def _setup(self):
-        pass
+        return self.config.dry_run
 
     def _trace(self, msg):
         if self.verbose or self.dry_run:
             prefix = 'DRY-RUN: ' if self.dry_run else ''
             print(f'{prefix}{msg}')
 
-    def _exec(self, *args, **kwargs):
-        defaults = {
-            'check': True,
-            'text': True,
-            'capture_output': False,
-        }
+    def _exec(self, *args, check=True, text=True, **kwargs):
         self._trace(' '.join(args))
-        if self.dry_run:
-            return None
-        else:
-            return subprocess.run(args, **(defaults | kwargs))
+        return None if self.dry_run else subprocess.run(args, **kwargs)
 
-    def az(self, *args, **kwargs):
-        self._exec('az', *args, **kwargs)
+    def az(self, *args, capture_output=False, **kwargs):
+        return self._exec('az', *args, **kwargs)
 
     def az_stdout(self, *args, **kwargs):
-        cp = self._exec('az', *args, capture_output=True, **kwargs)
+        try:
+            cp = self.az(*args, capture_output=True, **kwargs)
+        except subprocess.CalledProcessError as cpe:
+            if "Please run 'az login' to setup account" in cpe.stderr:
+                raise NotLoggedIn()
+            else:
+                raise
         return cp.stdout if cp else ''
 
     def az_json(self, *args, **kwargs):

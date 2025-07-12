@@ -2,10 +2,11 @@
 from contextlib import suppress
 
 from ..exception import StorageBlobConfigNotFound
+from .subconfig import SubConfig
 from .storageblob import StorageBlobConfig
 
 
-class StorageContainerConfig:
+class StorageContainerConfig(SubConfig):
     @classmethod
     def _CURRENT_STORAGE_BLOB_KEY(cls):
         return 'current_storage_blob'
@@ -13,13 +14,6 @@ class StorageContainerConfig:
     @classmethod
     def _STORAGE_BLOB_KEY(cls, storage_blob):
         return f'storage_blob:{storage_blob}'
-
-    def __init__(self, parent, config):
-        self._parent = parent
-        self._config = config
-
-    def _save(self):
-        self._parent._save()
 
     @property
     def current_storage_blob(self):

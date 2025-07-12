@@ -11,5 +11,5 @@ class LogoutCommand(AccountCommand):
     def _parser_add_arguments(cls, parser):
         pass
 
-    def run(self):
+    def _run(self):
         self.logout()

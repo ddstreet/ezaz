@@ -1,6 +1,3 @@
-4
-import json
-import subprocess
 
 from contextlib import contextmanager
 
@@ -9,19 +6,17 @@ from ..exception import AlreadyLoggedOut
 from ..exception import ConfigNotFound
 from ..exception import NotLoggedIn
 from . import AzObject
+from .subscription import Subscription
 
 
 class Account(AzObject):
-    @classmethod
-    def name(cls):
-        return "account"
-
-    def _setup(self):
-        self._accountinfo = None
+    def __init__(self, config, info=None):
+        self._config = config
+        self._account_info = info
 
     @property
     def config(self):
-        return self._config.get_account(self.accountinfo.user.name)
+        return self._config.get_account(self.account_info.user.name)
 
     @contextmanager
     def _disable_subscription_selection(self):
@@ -52,51 +47,47 @@ class Account(AzObject):
         with self._disable_subscription_selection():
             self.az(*cmd)
 
-        try:
+        with suppress(ConfigNotFound):
             # Switch subscriptions, if needed
-            self.subscription = self.config.current_subscription
-        except ConfigNotFound:
-            # No saved subscription, save current one
-            self.config.current_subscription = self.subscription
+            self.current_subscription = self.config.current_subscription
 
     def logout(self):
         if not self.is_logged_in:
             raise AlreadyLoggedOut()
 
         self.az('logout')
-        self._accountinfo = None
+        self._account_info = None
 
     @property
     def is_logged_in(self):
         try:
-            self.accountinfo
+            self.account_info
             return True
         except NotLoggedIn:
             return False
 
     @property
-    def accountinfo(self):
-        if not self._accountinfo:
-            try:
-                self._accountinfo = self.az_response('account', 'show')
-            except subprocess.CalledProcessError:
-                raise NotLoggedIn()
-        return self._accountinfo
+    def account_info(self):
+        if not self._account_info:
+            self._account_info = self.az_response('account', 'show')
+        return self._account_info
 
     @property
-    def subscription(self):
-        return self.accountinfo.id
+    def current_subscription(self):
+        return self.account_info.id
 
-    @subscription.setter
-    def subscription(self, subscription):
-        if self.subscription != subscription:
-            self.az('set', '-s', subscription)
-            self._accountinfo = None
-            self.config.current_subscription = self.subscription
+    @current_subscription.setter
+    def current_subscription(self, subscription):
+        if self.current_subscription != subscription:
+            self.az('account', 'set', '-s', subscription)
+            self._account_info = None
 
-    @property
-    def subscriptions(self):
-        if not self.is_logged_in:
-            raise NotLoggedIn()
+    def get_subscription(self, subscription, info=None):
+        return Subscription(subscription, self, info=info)
 
-        return self.az_responselist('account', 'list')
+    def get_current_subscription(self):
+        return self.get_subscription(self.current_subscription)
+
+    def get_subscriptions(self):
+        return [self.get_subscription(info.id, info=info)
+                for info in self.az_responselist('account', 'list')]

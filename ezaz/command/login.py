@@ -13,5 +13,5 @@ class LoginCommand(AccountCommand):
                             action='store_true',
                             help='Instead of opening a browser window, show the URL and code')
 
-    def run(self):
+    def _run(self):
         self.login()

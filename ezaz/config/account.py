@@ -2,10 +2,11 @@
 from contextlib import suppress
 
 from ..exception import SubscriptionConfigNotFound
+from .subconfig import SubConfig
 from .subscription import SubscriptionConfig
 
 
-class AccountConfig:
+class AccountConfig(SubConfig):
     @classmethod
     def _CURRENT_SUBSCRIPTION_KEY(cls):
         return 'current_subscription'
@@ -13,13 +14,6 @@ class AccountConfig:
     @classmethod
     def _SUBSCRIPTION_KEY(cls, subscription):
         return f'subscription:{subscription}'
-
-    def __init__(self, parent, config):
-        self._parent = parent
-        self._config = config
-
-    def _save(self):
-        self._parent._save()
 
     @property
     def current_subscription(self):
@@ -50,3 +44,6 @@ class AccountConfig:
         with suppress(KeyError):
             del self._config[k]
             self._save()
+
+    def get_current_subscription(self):
+        return self.get_subscription(self.current_subscription)

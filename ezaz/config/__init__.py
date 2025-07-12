@@ -19,13 +19,25 @@ class Config:
     def _ACCOUNT_KEY(cls, account):
         return f'account:{account}'
 
-    def __init__(self, configfile=DEFAULT_CONFIGFILE):
+    def __init__(self, configfile=DEFAULT_CONFIGFILE, verbose=False, dry_run=False):
         self._configfile = Path(configfile).expanduser()
         self._config = json.loads(self._configfile.read_text()) if self._configfile.is_file() else {}
+
+        # verbose and dry_run are only valid for the current session, not saved to config file
+        self._verbose = verbose
+        self._dry_run = dry_run
 
         # TODO - check jsonschema instead
         if not isinstance(self._config, dict):
             raise RuntimeError(f"Invalid config: '{self._configfile}'")
+
+    @property
+    def verbose(self):
+        return self._verbose
+
+    @property
+    def dry_run(self):
+        return self._dry_run
 
     def _remove_empty_dicts(self, d):
         # Copy everything except empty dicts, which we don't need to save

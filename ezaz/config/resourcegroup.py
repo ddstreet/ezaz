@@ -5,13 +5,14 @@ from ..exception import ImageGalleryConfigNotFound
 from ..exception import SshKeyConfigNotFound
 from ..exception import StorageAccountConfigNotFound
 from ..exception import VMConfigNotFound
+from .subconfig import SubConfig
 from .imagegallery import ImageGalleryConfig
 from .sshkey import SshKeyConfig
 from .storageaccount import StorageAccountConfig
 from .vm import VMConfig
 
 
-class ResourceGroupConfig:
+class ResourceGroupConfig(SubConfig):
     @classmethod
     def _CURRENT_IMAGE_GALLERY_KEY(cls):
         return 'current_image_gallery'
@@ -44,13 +45,6 @@ class ResourceGroupConfig:
     def _VM_KEY(cls, vm):
         return f'vm:{vm}'
 
-    def __init__(self, parent, config):
-        self._parent = parent
-        self._config = config
-
-    def _save(self):
-        self._parent._save()
-
     @property
     def current_image_gallery(self):
         with suppress(KeyError):
@@ -80,6 +74,9 @@ class ResourceGroupConfig:
         with suppress(KeyError):
             del self._config[k]
             self._save()
+
+    def get_current_image_gallery(self):
+        return self.get_image_gallery(self.current_image_gallery)
 
     @property
     def current_ssh_key(self):
@@ -111,6 +108,9 @@ class ResourceGroupConfig:
             del self._config[k]
             self._save()
 
+    def get_current_ssh_key(self):
+        return self.get_ssh_key(self.current_ssh_key)
+
     @property
     def current_storage_account(self):
         with suppress(KeyError):
@@ -141,6 +141,9 @@ class ResourceGroupConfig:
             del self._config[k]
             self._save()
 
+    def get_current_storage_account(self):
+        return self.get_storage_account(self.current_storage_account)
+
     @property
     def current_vm(self):
         with suppress(KeyError):
@@ -170,3 +173,6 @@ class ResourceGroupConfig:
         with suppress(KeyError):
             del self._config[k]
             self._save()
+
+    def get_current_vm(self):
+        return self.get_vm(self.current_vm)

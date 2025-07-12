@@ -2,10 +2,11 @@
 from contextlib import suppress
 
 from ..exception import ImageDefinitionConfigNotFound
+from .subconfig import SubConfig
 from .imagedefinition import ImageDefinitionConfig
 
 
-class ImageGalleryConfig:
+class ImageGalleryConfig(SubConfig):
     @classmethod
     def _CURRENT_IMAGE_DEFINITION_KEY(cls):
         return 'current_image_definition'
@@ -13,13 +14,6 @@ class ImageGalleryConfig:
     @classmethod
     def _IMAGE_DEFINITION_KEY(cls, image_definition):
         return f'image_definition:{image_definition}'
-
-    def __init__(self, parent, config):
-        self._parent = parent
-        self._config = config
-
-    def _save(self):
-        self._parent._save()
 
     @property
     def current_image_definition(self):
@@ -50,3 +44,6 @@ class ImageGalleryConfig:
         with suppress(KeyError):
             del self._config[k]
             self._save()
+
+    def get_current_image_definition(self):
+        return self.get_image_definition(self.current_image_definition)

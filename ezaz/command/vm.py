@@ -7,5 +7,5 @@ class VMCommand(Command):
     def name(cls):
         return 'vm'
 
-    def run(self):
+    def _run(self):
         print(f'{self.name()} running')

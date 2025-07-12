@@ -5,6 +5,7 @@ import subprocess
 from abc import ABC
 from abc import abstractmethod
 
+from ..exception import NotLoggedIn
 from ..response import lookup_response
 
 
@@ -50,11 +51,11 @@ class Command(ABC):
 
     @property
     def verbose(self):
-        return self._options.verbose
+        return self._config.verbose
 
     @property
     def dry_run(self):
-        return self._options.dry_run
+        return self._config.dry_run
 
     def _trace(self, msg):
         if self.verbose or self.dry_run:
@@ -95,5 +96,11 @@ class Command(ABC):
         return cls(j) if j else []
 
     @abstractmethod
-    def run(self):
+    def _run(self):
         pass
+
+    def run(self):
+        try:
+            self._run()
+        except NotLoggedIn:
+            print('Not logged in, please log in and try again')
