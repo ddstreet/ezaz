@@ -34,11 +34,18 @@ class AccountCommand(Command):
         group.add_argument('--list',
                            action='store_true',
                            help='List available subscriptions')
-        group.add_argument('--clear',
+        group.add_argument('--clear-default',
                            action='store_true',
-                           help='Clear the current subscription; future logins will not switch the subscription')
+                           help='Clear the default subscription; future logins will not switch the subscription')
+        group.add_argument('--set-default',
+                           action='store_true',
+                           help='Set the default subscription; future logins will switch to this subscription if needed')
+        group.add_argument('--show-default',
+                           action='store_true',
+                           help='Show the default subscription')
         group.add_argument('--set',
-                           help='Set the current subscription; future logins will switch to this subscription if needed')
+                           action='store_true',
+                           help='Set the current subscription')
         group.add_argument('--show',
                            action='store_true',
                            help='Show login details')
@@ -88,11 +95,11 @@ class AccountCommand(Command):
             del self._account.config.current_subscription
 
     def set(self, subscription):
-        self._account.subscription = subscription
+        self._account.current_subscription = subscription
 
     def list(self):
-        for s in self._account.subscriptions:
-            print(f'{s.name} (id: {s.id})')
+        for s in self._account.get_subscriptions():
+            print(f'{s.subscription_info.name} (id: {s.subscription_info.id})')
 
     def show(self, already=False):
         logged = 'Already logged' if already else 'Logged'

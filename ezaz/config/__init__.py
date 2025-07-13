@@ -52,7 +52,10 @@ class Config:
 
     def _save(self):
         self._configfile.parent.mkdir(parents=True, exist_ok=True)
-        self._configfile.write_text(json.dumps(self._remove_empty_dicts(self._config), indent=2, sort_keys=True) + '\n')
+        self._configfile.write_text(str(self) + '\n')
+
+    def __repr__(self):
+        return json.dumps(self._remove_empty_dicts(self._config), indent=2, sort_keys=True)
 
     def get_account(self, account):
         k = self._ACCOUNT_KEY(account)

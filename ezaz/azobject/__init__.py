@@ -5,6 +5,7 @@ import subprocess
 from abc import ABC
 from abc import abstractmethod
 
+from ..exception import NotLoggedIn
 from ..response import lookup_response
 
 

@@ -1,10 +1,14 @@
 
+import subprocess
+
 from contextlib import contextmanager
+from contextlib import suppress
 
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import ConfigNotFound
 from ..exception import NotLoggedIn
+from ..exception import SubscriptionConfigNotFound
 from . import AzObject
 from .subscription import Subscription
 
@@ -76,12 +80,16 @@ class Account(AzObject):
 
     @property
     def account_info(self):
+        if self.dry_run:
+            raise NotLoggedIn()
         if not self._account_info:
             self._account_info = self.az_response('account', 'show')
         return self._account_info
 
     @property
     def current_subscription(self):
+        with suppress(SubscriptionConfigNotFound):
+            return self.config.current_subscription
         return self.account_info.id
 
     @current_subscription.setter
@@ -89,6 +97,10 @@ class Account(AzObject):
         if self.current_subscription != subscription:
             self.az('account', 'set', '-s', subscription)
             self._account_info = None
+
+    @current_subscription.deleter
+    def current_subscription(self, subscription):
+        del self.config.current_subscription
 
     def get_subscription(self, subscription, info=None):
         return Subscription(subscription, self, info=info)

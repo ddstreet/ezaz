@@ -1,30 +1,27 @@
 
-from .command import SubscriptionSubCommand
+from .command import ResourceGroupSubCommand
 from .command import StandardActionCommand
 
 
-class ResourceGroupCommand(StandardActionCommand, SubscriptionSubCommand):
+class ImageGalleryCommand(StandardActionCommand, ResourceGroupSubCommand):
     @classmethod
     def name(cls):
-        return 'resourcegroup'
+        return 'imagegallery'
 
     @classmethod
     def _action_target_name(cls):
-        return 'resource group'
+        return 'image gallery'
 
     @classmethod
     def _action_target_attr(self):
-        return 'resource_group'
+        return 'image_gallery'
 
     @classmethod
     def aliases(cls):
-        return ['group', 'rg']
+        return ['sig']
 
-    def _resource_group(self, resource_group):
-        return self._subscription.get_resource_group(resource_group)
-
-    def _show(self, resource_group):
-        info = resource_group.resource_group_info
+    def _show(self, image_gallery):
+        info = image_gallery.image_gallery_info
         msg = info.name
         if self.verbose:
             msg += f' (location: {info.location})'
