@@ -3,18 +3,14 @@ from .command import SubscriptionSubCommand
 from .command import StandardActionCommand
 
 
-class ResourceGroupCommand(StandardActionCommand, SubscriptionSubCommand):
+class ResourceGroupCommand(SubscriptionSubCommand, StandardActionCommand):
+    ACTION_ARGUMENT_NAME = 'resource group'
+    ACTION_ARGUMENT_METAVAR = 'GROUP'
+    ACTION_ATTR_NAME = 'resource_group'
+
     @classmethod
     def name(cls):
         return 'resourcegroup'
-
-    @classmethod
-    def _action_target_name(cls):
-        return 'resource group'
-
-    @classmethod
-    def _action_target_attr(self):
-        return 'resource_group'
 
     @classmethod
     def aliases(cls):

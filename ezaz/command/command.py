@@ -6,6 +6,7 @@ import subprocess
 from abc import ABC
 from abc import abstractmethod
 
+from ..azobject.account import Account
 from ..exception import NotLoggedIn
 from ..response import lookup_response
 
@@ -71,21 +72,6 @@ class Command(ABC):
 
 class StandardActionCommand(Command):
     @classmethod
-    @abstractmethod
-    def _action_target_name(self):
-        pass
-
-    @classmethod
-    @abstractmethod
-    def _action_parent_attr(self):
-        pass
-
-    @classmethod
-    @abstractmethod
-    def _action_target_attr(self):
-        pass
-
-    @classmethod
     def parser_add_arguments(cls, parser):
         super().parser_add_arguments(parser)
 
@@ -94,22 +80,30 @@ class StandardActionCommand(Command):
                 namespace.command_action = self.option_strings[-1].lstrip('-')
                 namespace.command_action_arguments = list(values)
 
-        name = cls._action_target_name()
+        assert cls.ACTION_ARGUMENT_NAME, f'Class {cls.__name__} does not implement ACTION_ARGUMENT_NAME'
+        assert cls.ACTION_ARGUMENT_METAVAR, f'Class {cls.__name__} does not implement ACTION_ARGUMENT_METAVAR'
+        name = cls.ACTION_ARGUMENT_NAME
+        metavar = cls.ACTION_ARGUMENT_METAVAR
         title_group = parser.add_argument_group('Action', 'Action to perform')
         group = title_group.add_mutually_exclusive_group()
-        group.add_argument('--create', action=CommandAction, metavar='GROUP',
+        group.add_argument('--create', action=CommandAction, metavar=metavar,
                            help=f'Create a {name}')
-        group.add_argument('--delete', action=CommandAction, metavar='GROUP',
+        group.add_argument('--delete', action=CommandAction, metavar=metavar,
                            help=f'Delete a {name}')
         group.add_argument('--list', action=CommandAction, nargs=0,
                            help=f'List {name}s')
         group.add_argument('--clear', action=CommandAction, nargs=0,
                            help=f'Clear the current {name}')
-        group.add_argument('--set', action=CommandAction, metavar='GROUP',
+        group.add_argument('--set', action=CommandAction, metavar=metavar,
                            help=f'Set the current {name}')
         group.add_argument('--show', action=CommandAction, nargs=0,
                            help=f'Show current {name} (default)')
         group.set_defaults(command_action='show', command_action_arguments=[])
+
+    def _setup(self):
+        super()._setup()
+        assert self.ACTION_ATTR_PARENT, f'Class {self.__class__.__name__} does not implement ACTION_ATTR_PARENT'
+        assert self.ACTION_ATTR_NAME, f'Class {self.__class__.__name__} does not implement ACTION_ATTR_NAME'
 
     def _run(self):
         run = getattr(self, self._options.command_action)
@@ -117,7 +111,7 @@ class StandardActionCommand(Command):
 
     @property
     def _parent(self):
-        return getattr(self, self._action_parent_attr)
+        return getattr(self, self.ACTION_ATTR_PARENT)
 
     def create(self, target):
         print('IMPLEMENT ME!')
@@ -126,17 +120,17 @@ class StandardActionCommand(Command):
         print('IMPLEMENT ME!')
 
     def list(self):
-        for target in getattr(self._parent, f'get_{self._action_target_attr}s')():
+        for target in getattr(self._parent, f'get_{self.ACTION_ATTR_NAME}s')():
             self._show(target)
 
     def clear(self):
-        delattr(self._parent, f'current_{self._action_target_attr}')
+        delattr(self._parent, f'current_{self.ACTION_ATTR_NAME}')
 
     def set(self, target):
-        setattr(self._parent, f'current_{self._action_target_attr}', target)
+        setattr(self._parent, f'current_{self.ACTION_ATTR_NAME}', target)
 
     def show(self):
-        self._show(getattr(self._parent, f'get_current_{self._action_target_attr}')())
+        self._show(getattr(self._parent, f'get_current_{self.ACTION_ATTR_NAME}')())
 
     @abstractmethod
     def _show(self, target):
@@ -144,9 +138,7 @@ class StandardActionCommand(Command):
 
 
 class SubscriptionSubCommand(Command):
-    @classmethod
-    def _action_parent_attr(self):
-        return '_account'
+    ACTION_ATTR_PARENT = '_subscription'
 
     @classmethod
     def parser_add_arguments(cls, parser):
@@ -168,9 +160,7 @@ class SubscriptionSubCommand(Command):
 
 
 class ResourceGroupSubCommand(SubscriptionSubCommand):
-    @classmethod
-    def _action_parent_attr(self):
-        return '_subscription'
+    ACTION_ATTR_PARENT = '_resource_group'
 
     @classmethod
     def parser_add_arguments(cls, parser):
@@ -188,9 +178,7 @@ class ResourceGroupSubCommand(SubscriptionSubCommand):
 
 
 class ImageGallerySubCommand(ResourceGroupSubCommand):
-    @classmethod
-    def _action_parent_attr(self):
-        return '_resource_group'
+    ACTION_ATTR_PARENT = '_image_gallery'
 
     @classmethod
     def parser_add_arguments(cls, parser):
@@ -208,9 +196,7 @@ class ImageGallerySubCommand(ResourceGroupSubCommand):
 
 
 class StorageAccountSubCommand(ResourceGroupSubCommand):
-    @classmethod
-    def _action_parent_attr(self):
-        return '_resource_group'
+    ACTION_ATTR_PARENT = '_storage_account'
 
     @classmethod
     def parser_add_arguments(cls, parser):
