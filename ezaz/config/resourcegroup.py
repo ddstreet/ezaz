@@ -14,55 +14,55 @@ from .vm import VMConfig
 
 class ResourceGroupConfig(SubConfig):
     @classmethod
-    def _CURRENT_IMAGE_GALLERY_KEY(cls):
-        return 'current_image_gallery'
+    def _DEFAULT_IMAGE_GALLERY_KEY(cls):
+        return 'default_image_gallery'
 
     @classmethod
     def _IMAGE_GALLERY_KEY(cls, image_gallery):
         return f'image_gallery:{image_gallery}'
 
     @classmethod
-    def _CURRENT_SSH_KEY_KEY(cls):
-        return 'current_ssh_key'
+    def _DEFAULT_SSH_KEY_KEY(cls):
+        return 'default_ssh_key'
 
     @classmethod
     def _SSH_KEY_KEY(cls, ssh_key):
         return f'ssh_key:{ssh_key}'
 
     @classmethod
-    def _CURRENT_STORAGE_ACCOUNT_KEY(cls):
-        return 'current_storage_account'
+    def _DEFAULT_STORAGE_ACCOUNT_KEY(cls):
+        return 'default_storage_account'
 
     @classmethod
     def _STORAGE_ACCOUNT_KEY(cls, storage_account):
         return f'storage_account:{storage_account}'
 
     @classmethod
-    def _CURRENT_VM_KEY(cls):
-        return 'current_vm'
+    def _DEFAULT_VM_KEY(cls):
+        return 'default_vm'
 
     @classmethod
     def _VM_KEY(cls, vm):
         return f'vm:{vm}'
 
     @property
-    def current_image_gallery(self):
+    def default_image_gallery(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_IMAGE_GALLERY_KEY()]
+            return self._config[self._DEFAULT_IMAGE_GALLERY_KEY()]
         raise ImageGalleryConfigNotFound
 
-    @current_image_gallery.setter
-    def current_image_gallery(self, image_gallery):
+    @default_image_gallery.setter
+    def default_image_gallery(self, image_gallery):
         if not image_gallery:
-            del self.current_image_gallery
+            del self.default_image_gallery
         else:
-            self._config[self._CURRENT_IMAGE_GALLERY_KEY()] = image_gallery
+            self._config[self._DEFAULT_IMAGE_GALLERY_KEY()] = image_gallery
             self._save()
 
-    @current_image_gallery.deleter
-    def current_image_gallery(self):
+    @default_image_gallery.deleter
+    def default_image_gallery(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_IMAGE_GALLERY_KEY()]
+            del self._config[self._DEFAULT_IMAGE_GALLERY_KEY()]
             self._save()
 
     def get_image_gallery(self, image_gallery):
@@ -75,27 +75,27 @@ class ResourceGroupConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_image_gallery(self):
-        return self.get_image_gallery(self.current_image_gallery)
+    def get_default_image_gallery(self):
+        return self.get_image_gallery(self.default_image_gallery)
 
     @property
-    def current_ssh_key(self):
+    def default_ssh_key(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_SSH_KEY_KEY()]
+            return self._config[self._DEFAULT_SSH_KEY_KEY()]
         raise SshKeyConfigNotFound
 
-    @current_ssh_key.setter
-    def current_ssh_key(self, ssh_key):
+    @default_ssh_key.setter
+    def default_ssh_key(self, ssh_key):
         if not ssh_key:
-            del self.current_ssh_key
+            del self.default_ssh_key
         else:
-            self._config[self._CURRENT_SSH_KEY_KEY()] = ssh_key
+            self._config[self._DEFAULT_SSH_KEY_KEY()] = ssh_key
             self._save()
 
-    @current_ssh_key.deleter
-    def current_ssh_key(self):
+    @default_ssh_key.deleter
+    def default_ssh_key(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_SSH_KEY_KEY()]
+            del self._config[self._DEFAULT_SSH_KEY_KEY()]
             self._save()
 
     def get_ssh_key(self, ssh_key):
@@ -108,27 +108,27 @@ class ResourceGroupConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_ssh_key(self):
-        return self.get_ssh_key(self.current_ssh_key)
+    def get_default_ssh_key(self):
+        return self.get_ssh_key(self.default_ssh_key)
 
     @property
-    def current_storage_account(self):
+    def default_storage_account(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_STORAGE_ACCOUNT_KEY()]
+            return self._config[self._DEFAULT_STORAGE_ACCOUNT_KEY()]
         raise StorageAccountConfigNotFound
 
-    @current_storage_account.setter
-    def current_storage_account(self, storage_account):
+    @default_storage_account.setter
+    def default_storage_account(self, storage_account):
         if not storage_account:
-            del self.current_storage_account
+            del self.default_storage_account
         else:
-            self._config[self._CURRENT_STORAGE_ACCOUNT_KEY()] = storage_account
+            self._config[self._DEFAULT_STORAGE_ACCOUNT_KEY()] = storage_account
             self._save()
 
-    @current_storage_account.deleter
-    def current_storage_account(self):
+    @default_storage_account.deleter
+    def default_storage_account(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_STORAGE_ACCOUNT_KEY()]
+            del self._config[self._DEFAULT_STORAGE_ACCOUNT_KEY()]
             self._save()
 
     def get_storage_account(self, storage_account):
@@ -141,27 +141,27 @@ class ResourceGroupConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_storage_account(self):
-        return self.get_storage_account(self.current_storage_account)
+    def get_default_storage_account(self):
+        return self.get_storage_account(self.default_storage_account)
 
     @property
-    def current_vm(self):
+    def default_vm(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_VM_KEY()]
+            return self._config[self._DEFAULT_VM_KEY()]
         raise VMConfigNotFound
 
-    @current_vm.setter
-    def current_vm(self, vm):
+    @default_vm.setter
+    def default_vm(self, vm):
         if not vm:
-            del self.current_vm
+            del self.default_vm
         else:
-            self._config[self._CURRENT_VM_KEY()] = vm
+            self._config[self._DEFAULT_VM_KEY()] = vm
             self._save()
 
-    @current_vm.deleter
-    def current_vm(self):
+    @default_vm.deleter
+    def default_vm(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_VM_KEY()]
+            del self._config[self._DEFAULT_VM_KEY()]
             self._save()
 
     def get_vm(self, vm):
@@ -174,5 +174,5 @@ class ResourceGroupConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_vm(self):
-        return self.get_vm(self.current_vm)
+    def get_default_vm(self):
+        return self.get_vm(self.default_vm)

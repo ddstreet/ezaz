@@ -8,31 +8,31 @@ from .imagedefinition import ImageDefinitionConfig
 
 class ImageGalleryConfig(SubConfig):
     @classmethod
-    def _CURRENT_IMAGE_DEFINITION_KEY(cls):
-        return 'current_image_definition'
+    def _DEFAULT_IMAGE_DEFINITION_KEY(cls):
+        return 'default_image_definition'
 
     @classmethod
     def _IMAGE_DEFINITION_KEY(cls, image_definition):
         return f'image_definition:{image_definition}'
 
     @property
-    def current_image_definition(self):
+    def default_image_definition(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_IMAGE_DEFINITION_KEY()]
+            return self._config[self._DEFAULT_IMAGE_DEFINITION_KEY()]
         raise ImageDefinitionConfigNotFound
 
-    @current_image_definition.setter
-    def current_image_definition(self, image_definition):
+    @default_image_definition.setter
+    def default_image_definition(self, image_definition):
         if not image_definition:
-            del self.current_image_definition
+            del self.default_image_definition
         else:
-            self._config[self._CURRENT_IMAGE_DEFINITION_KEY()] = image_definition
+            self._config[self._DEFAULT_IMAGE_DEFINITION_KEY()] = image_definition
             self._save()
 
-    @current_image_definition.deleter
-    def current_image_definition(self):
+    @default_image_definition.deleter
+    def default_image_definition(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_IMAGE_DEFINITION_KEY()]
+            del self._config[self._DEFAULT_IMAGE_DEFINITION_KEY()]
             self._save()
 
     def get_image_definition(self, image_definition):
@@ -45,5 +45,5 @@ class ImageGalleryConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_image_definition(self):
-        return self.get_image_definition(self.current_image_definition)
+    def get_default_image_definition(self):
+        return self.get_image_definition(self.default_image_definition)

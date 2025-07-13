@@ -8,31 +8,31 @@ from .subscription import SubscriptionConfig
 
 class AccountConfig(SubConfig):
     @classmethod
-    def _CURRENT_SUBSCRIPTION_KEY(cls):
-        return 'current_subscription'
+    def _DEFAULT_SUBSCRIPTION_KEY(cls):
+        return 'default_subscription'
 
     @classmethod
     def _SUBSCRIPTION_KEY(cls, subscription):
         return f'subscription:{subscription}'
 
     @property
-    def current_subscription(self):
+    def default_subscription(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_SUBSCRIPTION_KEY()]
+            return self._config[self._DEFAULT_SUBSCRIPTION_KEY()]
         raise SubscriptionConfigNotFound
 
-    @current_subscription.setter
-    def current_subscription(self, subscription):
+    @default_subscription.setter
+    def default_subscription(self, subscription):
         if not subscription:
-            del self.current_subscription
+            del self.default_subscription
         else:
-            self._config[self._CURRENT_SUBSCRIPTION_KEY()] = subscription
+            self._config[self._DEFAULT_SUBSCRIPTION_KEY()] = subscription
             self._save()
 
-    @current_subscription.deleter
-    def current_subscription(self):
+    @default_subscription.deleter
+    def default_subscription(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_SUBSCRIPTION_KEY()]
+            del self._config[self._DEFAULT_SUBSCRIPTION_KEY()]
             self._save()
 
     def get_subscription(self, subscription):
@@ -45,5 +45,5 @@ class AccountConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_subscription(self):
-        return self.get_subscription(self.current_subscription)
+    def get_default_subscription(self):
+        return self.get_subscription(self.default_subscription)

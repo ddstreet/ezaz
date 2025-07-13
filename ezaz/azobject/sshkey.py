@@ -1,36 +1,27 @@
 
-from . import AzObject
+from ..exception import SshKeyConfigNotFound
+from . import StandardAzObjectTemplate
 
 
-class SshKey(AzObject):
-    def __init__(self, name, resource_group, info=None):
-        if info:
-            assert info.name == name
-        self._name = name
-        self._resource_group = resource_group
-        self._ssh_key_info = info
+class SshKey(StandardAzObjectTemplate([])):
+    @classmethod
+    def _cls_type(cls):
+        return 'ssh_key'
 
-    @property
-    def subscription_id(self):
-        return self._resource_group.subscription_id
+    @classmethod   
+    def _cls_config_not_found(cls):
+        return SshKeyConfigNotFound
 
-    @property
-    def resource_group_name(self):
-        return self._resource_group.name
+    @classmethod
+    def _cls_show_info_cmd(cls):
+        return ['sshkey', 'show']
 
-    @property
-    def name(self):
-        return self._name
+    @classmethod
+    def _cls_list_info_cmd(cls):
+        return ['sshkey', 'list']
 
-    @property
-    def config(self):
-        return self._resource_group.config.get_ssh_key(self.name)
+    def _info_opts(self):
+        return self._subcommand_info_opts()
 
-    @property
-    def ssh_key_info(self):
-        if not self._ssh_key_info:
-            self._ssh_key_info = self.az_response('sshkey', 'show',
-                                                '--subscription', self.subscription_id,
-                                                '-g', self.resource_group_name,
-                                                '-n', self.name)
-        return self._ssh_key_info
+    def _subcommand_info_opts(self):
+        return super()._subcommand_info_opts() + ['--ssh-public-key-name', self.object_id]

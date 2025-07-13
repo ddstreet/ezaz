@@ -8,31 +8,31 @@ from .storagecontainer import StorageContainerConfig
 
 class StorageAccountConfig(SubConfig):
     @classmethod
-    def _CURRENT_STORAGE_CONTAINER_KEY(cls):
-        return 'current_storage_container'
+    def _DEFAULT_STORAGE_CONTAINER_KEY(cls):
+        return 'default_storage_container'
 
     @classmethod
     def _STORAGE_CONTAINER_KEY(cls, storage_container):
         return f'storage_container:{storage_container}'
 
     @property
-    def current_storage_container(self):
+    def default_storage_container(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_STORAGE_CONTAINER_KEY()]
+            return self._config[self._DEFAULT_STORAGE_CONTAINER_KEY()]
         raise StorageContainerConfigNotFound
 
-    @current_storage_container.setter
-    def current_storage_container(self, storage_container):
+    @default_storage_container.setter
+    def default_storage_container(self, storage_container):
         if not storage_container:
-            del self.current_storage_container
+            del self.default_storage_container
         else:
-            self._config[self._CURRENT_STORAGE_CONTAINER_KEY()] = storage_container
+            self._config[self._DEFAULT_STORAGE_CONTAINER_KEY()] = storage_container
             self._save()
 
-    @current_storage_container.deleter
-    def current_storage_container(self):
+    @default_storage_container.deleter
+    def default_storage_container(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_STORAGE_CONTAINER_KEY()]
+            del self._config[self._DEFAULT_STORAGE_CONTAINER_KEY()]
             self._save()
 
     def get_storage_container(self, storage_container):
@@ -45,5 +45,5 @@ class StorageAccountConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_storage_container(self):
-        return self.get_storage_container(self.current_storage_container)
+    def get_default_storage_container(self):
+        return self.get_storage_container(self.default_storage_container)

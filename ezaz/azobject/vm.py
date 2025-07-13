@@ -1,36 +1,24 @@
 
-from . import AzObject
+from ..exception import VMConfigNotFound
+from . import StandardAzObjectTemplate
 
 
-class VM(AzObject):
-    def __init__(self, name, resource_group, info=None):
-        if info:
-            assert info.name == name
-        self._name = name
-        self._resource_group = resource_group
-        self._vminfo = info
+class VM(StandardAzObjectTemplate([])):
+    @classmethod
+    def _cls_type(cls):
+        return 'vm'
 
-    @property
-    def subscription_id(self):
-        return self._resource_group.subscription_id
+    @classmethod   
+    def _cls_config_not_found(cls):
+        return VMConfigNotFound
 
-    @property
-    def resource_group_name(self):
-        return self._resource_group.name
+    @classmethod
+    def _cls_show_info_cmd(cls):
+        return ['vm', 'show']
 
-    @property
-    def name(self):
-        return self._name
+    @classmethod
+    def _cls_list_info_cmd(cls):
+        return ['vm', 'list']
 
-    @property
-    def config(self):
-        return self._resource_group.config.get_vm(self.name)
-
-    @property
-    def vminfo(self):
-        if not self._vminfo:
-            self._vminfo = self.az_response('vm', 'show',
-                                            '--subscription', self.subscription_id,
-                                            '-g', self.resource_group_name,
-                                            '-n', self.name)
-        return self._vminfo
+    def _info_opts(self):
+        return super()._subcommand_info_opts() + ['--name', self.object_id]

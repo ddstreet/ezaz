@@ -1,41 +1,38 @@
 
-from . import AzObject
+from contextlib import suppress
+
+from ..exception import StorageContainerConfigNotFound
+from . import StandardAzObjectTemplate
 
 
-class StorageContainer(AzObject):
-    def __init__(self, name, storage_account, info=None):
-        if info:
-            assert info.name == name
-        self._name = name
-        self._storage_account = storage_account
-        self._storage_container_info = info
+class StorageContainer(StandardAzObjectTemplate([])):
+    @classmethod
+    def _cls_type(cls):
+        return 'storage_container'
 
-    @property
-    def subscription_id(self):
-        return self._storage_account.subscription_id
+    @classmethod
+    def _cls_config_not_found(cls):
+        return StorageContainerConfigNotFound
 
-    @property
-    def resource_group_name(self):
-        return self._storage_account.resource_group_name
+    @classmethod
+    def _cls_show_info_cmd(cls):
+        return ['storage', 'container', 'show']
 
-    @property
-    def storage_account_name(self):
-        return self._storage_account.name
+    @classmethod
+    def _cls_list_info_cmd(cls):
+        return ['storage', 'container', 'list']
 
-    @property
-    def name(self):
-        return self._name
+    def _parent_info_opts(self):
+        # Unfortunately storage container cmds do *not* include the resource group :(
+        opts = super()._subcommand_info_opts()
+        for opt in ['-g', '--resource-group']:
+            with suppress(ValueError):
+                index = opts.index(opt)
+                opts = opts[0:index] + opts[index+2:]
+        return opts
 
-    @property
-    def config(self):
-        return self._storage_account.config.get_storage_container(self.name)
+    def _info_opts(self):
+        return self._parent_info_opts() + ['--auth-mode', 'login', '--name', self.object_id]
 
-    @property
-    def storage_container_info(self):
-        if not self._storage_container_info:
-            self._storage_container_info = self.az_response('storage', 'container', 'show',
-                                                            '--subscription', self.subscription_id,
-                                                            '--auth-mode', 'login',
-                                                            '--account-name', self.storage_account_name,
-                                                            '-n', self.name)
-        return self._storage_container_info
+    def _subcommand_info_opts(self):
+        return self._parent_info_opts() + ['--auth-mode', 'login', '--container-name', self.object_id]

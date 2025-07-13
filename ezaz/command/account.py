@@ -45,7 +45,7 @@ class AccountCommand(Command):
                            help='Show the default subscription')
         group.add_argument('--set',
                            action='store_true',
-                           help='Set the current subscription')
+                           help='Set the default subscription')
         group.add_argument('--show',
                            action='store_true',
                            help='Show login details')
@@ -92,10 +92,10 @@ class AccountCommand(Command):
 
     def clear(self):
         with suppress(AccountConfigNotFound):
-            del self._account.config.current_subscription
+            del self._account.config.default_subscription
 
     def set(self, subscription):
-        self._account.current_subscription = subscription
+        self._account.default_subscription = subscription
 
     def list(self):
         for s in self._account.get_subscriptions():

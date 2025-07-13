@@ -61,7 +61,7 @@ class Account(AzObject):
 
         with suppress(ConfigNotFound):
             # Switch subscriptions, if needed
-            self.current_subscription = self.config.current_subscription
+            self.default_subscription = self.config.default_subscription
 
     def logout(self):
         if not self.is_logged_in:
@@ -87,26 +87,26 @@ class Account(AzObject):
         return self._account_info
 
     @property
-    def current_subscription(self):
+    def default_subscription(self):
         with suppress(SubscriptionConfigNotFound):
-            return self.config.current_subscription
+            return self.config.default_subscription
         return self.account_info.id
 
-    @current_subscription.setter
-    def current_subscription(self, subscription):
-        if self.current_subscription != subscription:
+    @default_subscription.setter
+    def default_subscription(self, subscription):
+        if self.default_subscription != subscription:
             self.az('account', 'set', '-s', subscription)
             self._account_info = None
 
-    @current_subscription.deleter
-    def current_subscription(self, subscription):
-        del self.config.current_subscription
+    @default_subscription.deleter
+    def default_subscription(self, subscription):
+        del self.config.default_subscription
 
     def get_subscription(self, subscription, info=None):
         return Subscription(subscription, self, info=info)
 
-    def get_current_subscription(self):
-        return self.get_subscription(self.current_subscription)
+    def get_default_subscription(self):
+        return self.get_subscription(self.default_subscription)
 
     def get_subscriptions(self):
         return [self.get_subscription(info.id, info=info)

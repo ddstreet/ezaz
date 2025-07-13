@@ -8,31 +8,31 @@ from .resourcegroup import ResourceGroupConfig
 
 class SubscriptionConfig(SubConfig):
     @classmethod
-    def _CURRENT_RESOURCE_GROUP_KEY(cls):
-        return 'current_resource_group'
+    def _DEFAULT_RESOURCE_GROUP_KEY(cls):
+        return 'default_resource_group'
 
     @classmethod
     def _RESOURCE_GROUP_KEY(cls, resource_group):
         return f'resource_group:{resource_group}'
 
     @property
-    def current_resource_group(self):
+    def default_resource_group(self):
         with suppress(KeyError):
-            return self._config[self._CURRENT_RESOURCE_GROUP_KEY()]
+            return self._config[self._DEFAULT_RESOURCE_GROUP_KEY()]
         raise ResourceGroupConfigNotFound
 
-    @current_resource_group.setter
-    def current_resource_group(self, resource_group):
+    @default_resource_group.setter
+    def default_resource_group(self, resource_group):
         if not resource_group:
-            del self.current_resource_group
+            del self.default_resource_group
         else:
-            self._config[self._CURRENT_RESOURCE_GROUP_KEY()] = resource_group
+            self._config[self._DEFAULT_RESOURCE_GROUP_KEY()] = resource_group
             self._save()
 
-    @current_resource_group.deleter
-    def current_resource_group(self):
+    @default_resource_group.deleter
+    def default_resource_group(self):
         with suppress(KeyError):
-            del self._config[self._CURRENT_RESOURCE_GROUP_KEY()]
+            del self._config[self._DEFAULT_RESOURCE_GROUP_KEY()]
             self._save()
 
     def get_resource_group(self, resource_group):
@@ -45,5 +45,5 @@ class SubscriptionConfig(SubConfig):
             del self._config[k]
             self._save()
 
-    def get_current_resource_group(self):
-        return self.get_resource_group(self.current_resource_group)
+    def get_default_resource_group(self):
+        return self.get_resource_group(self.default_resource_group)

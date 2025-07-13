@@ -1,41 +1,27 @@
 
-from . import AzObject
+from ..exception import ImageDefinitionConfigNotFound
+from . import StandardAzObjectTemplate
 
 
-class ImageDefinition(AzObject):
-    def __init__(self, name, image_gallery, info=None):
-        if info:
-            assert info.name == name
-        self._name = name
-        self._image_gallery = image_gallery
-        self._image_definition_info = info
+class ImageDefinition(StandardAzObjectTemplate()):
+    @classmethod
+    def _cls_type(cls):
+        return 'image_definition'
 
-    @property
-    def subscription_id(self):
-        return self._image_gallery.subscription_id
+    @classmethod
+    def _cls_config_not_found(cls):
+        return ImageDefinitionConfigNotFound
 
-    @property
-    def resource_group_name(self):
-        return self._image_gallery.resource_group_name
+    @classmethod
+    def _cls_show_info_cmd(cls):
+        return ['sig', 'image-definition', 'show']
 
-    @property
-    def image_gallery_name(self):
-        return self._image_gallery.name
+    @classmethod
+    def _cls_list_info_cmd(cls):
+        return ['sig', 'image-definition', 'list']
 
-    @property
-    def name(self):
-        return self._name
+    def _info_opts(self):
+        return self._subcommand_info_opts()
 
-    @property
-    def config(self):
-        return self._image_gallery.config.get_image_definition(self.name)
-
-    @property
-    def image_definition_info(self):
-        if not self._image_definition_info:
-            self._image_definition_info = self.az_response('sig', 'image-definition', 'show',
-                                                            '--subscription', self.subscription_id,
-                                                            '-g', self.resource_group_name,
-                                                            '-r', self.image_gallery_name,
-                                                            '-n', self.name)
-        return self._image_definition_info
+    def _subcommand_info_opts(self):
+        return super()._subcommand_info_opts() + ['--gallery-image-definition', self.object_id]

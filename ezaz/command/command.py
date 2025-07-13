@@ -93,11 +93,11 @@ class StandardActionCommand(Command):
         group.add_argument('--list', action=CommandAction, nargs=0,
                            help=f'List {name}s')
         group.add_argument('--clear', action=CommandAction, nargs=0,
-                           help=f'Clear the current {name}')
+                           help=f'Clear the default {name}')
         group.add_argument('--set', action=CommandAction, metavar=metavar,
-                           help=f'Set the current {name}')
+                           help=f'Set the default {name}')
         group.add_argument('--show', action=CommandAction, nargs=0,
-                           help=f'Show current {name} (default)')
+                           help=f'Show default {name} (default)')
         group.set_defaults(command_action='show', command_action_arguments=[])
 
     def _setup(self):
@@ -124,13 +124,13 @@ class StandardActionCommand(Command):
             self._show(target)
 
     def clear(self):
-        delattr(self._parent, f'current_{self.ACTION_ATTR_NAME}')
+        delattr(self._parent, f'default_{self.ACTION_ATTR_NAME}')
 
     def set(self, target):
-        setattr(self._parent, f'current_{self.ACTION_ATTR_NAME}', target)
+        setattr(self._parent, f'default_{self.ACTION_ATTR_NAME}', target)
 
     def show(self):
-        self._show(getattr(self._parent, f'get_current_{self.ACTION_ATTR_NAME}')())
+        self._show(getattr(self._parent, f'get_default_{self.ACTION_ATTR_NAME}')())
 
     @abstractmethod
     def _show(self, target):
@@ -145,7 +145,7 @@ class SubscriptionSubCommand(Command):
         super().parser_add_arguments(parser)
 
         parser.add_argument('--subscription',
-                            help='Use the specified subscription, instead of the current subscription')
+                            help='Use the specified subscription, instead of the default subscription')
 
     def _setup(self):
         super()._setup()
@@ -156,7 +156,7 @@ class SubscriptionSubCommand(Command):
         if self._options.subscription:
             return self._account.get_subscription(self._options.subscription)
         else:
-            return self._account.get_current_subscription()
+            return self._account.get_default_subscription()
 
 
 class ResourceGroupSubCommand(SubscriptionSubCommand):
@@ -167,14 +167,14 @@ class ResourceGroupSubCommand(SubscriptionSubCommand):
         super().parser_add_arguments(parser)
 
         parser.add_argument('--resource-group',
-                            help='Use the specified resource group, instead of the current resource group')
+                            help='Use the specified resource group, instead of the default resource group')
 
     @property
     def _resource_group(self):
         if self._options.resource_group:
             return self._subscription.get_resource_group(self._options.resource_group)
         else:
-            return self._subscription.get_current_resource_group()
+            return self._subscription.get_default_resource_group()
 
 
 class ImageGallerySubCommand(ResourceGroupSubCommand):
@@ -185,14 +185,14 @@ class ImageGallerySubCommand(ResourceGroupSubCommand):
         super().parser_add_arguments(parser)
 
         parser.add_argument('--image-gallery',
-                            help='Use the specified image gallery, instead of the current image gallery')
+                            help='Use the specified image gallery, instead of the default image gallery')
 
     @property
     def _image_gallery(self):
         if self._options.image_gallery:
             return self._resource_group.get_image_gallery(self._options.image_gallery)
         else:
-            return self._resource_group.get_current_image_gallery()
+            return self._resource_group.get_default_image_gallery()
 
 
 class StorageAccountSubCommand(ResourceGroupSubCommand):
@@ -203,11 +203,11 @@ class StorageAccountSubCommand(ResourceGroupSubCommand):
         super().parser_add_arguments(parser)
 
         parser.add_argument('--storage-account',
-                            help='Use the specified storage account, instead of the current storage account')
+                            help='Use the specified storage account, instead of the default storage account')
 
     @property
     def _storage_account(self):
         if self._options.storage_account:
             return self._resource_group.get_storage_account(self._options.storage_account)
         else:
-            return self._resource_group.get_current_storage_account()
+            return self._resource_group.get_default_storage_account()

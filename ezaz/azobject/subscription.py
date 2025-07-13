@@ -1,51 +1,32 @@
 
-from contextlib import suppress
-
-from ..exception import ResourceGroupConfigNotFound
-from . import AzObject
+from ..exception import SubscriptionConfigNotFound
+from . import StandardAzObjectTemplate
 from .resourcegroup import ResourceGroup
 
 
-class Subscription(AzObject):
-    def __init__(self, sid, account, info=None):
-        if info:
-            assert info.id == sid
-        self._sid = sid
-        self._account = account
-        self._subscription_info = info
+class Subscription(StandardAzObjectTemplate([ResourceGroup])):
+    @classmethod
+    def _cls_type(cls):
+        return 'subscription'
 
-    @property
-    def subscription_id(self):
-        return self._sid
+    @classmethod
+    def _cls_info_id(cls, info):
+        return info.id
 
-    @property
-    def config(self):
-        return self._account.config.get_subscription(self.subscription_id)
+    @classmethod
+    def _cls_config_not_found(cls):
+        return SubscriptionConfigNotFound
 
-    @property
-    def subscription_info(self):
-        if not self._subscription_info:
-            self._subscription_info = self.az_response('account', 'show', '--subscription', self.subscription_id)
-        return self._subscription_info
+    @classmethod
+    def _cls_show_info_cmd(cls):
+        return ['account', 'show']
 
-    @property
-    def current_resource_group(self):
-        return self.config.current_resource_group
+    @classmethod
+    def _cls_list_info_cmd(cls):
+        return ['account', 'list']
 
-    @current_resource_group.setter
-    def current_resource_group(self, resource_group):
-        with suppress(ResourceGroupConfigNotFound):
-            if self.current_resource_group == resource_group:
-                return
-        self.config.current_resource_group = resource_group
+    def _info_opts(self):
+        return self._subcommand_info_opts()
 
-    def get_resource_group(self, resource_group, info=None):
-        return ResourceGroup(resource_group, self, info=info)
-
-    def get_current_resource_group(self):
-        return self.get_resource_group(self.current_resource_group)
-
-    def get_resource_groups(self):
-        return [self.get_resource_group(info.name, info=info)
-                for info in self.az_responselist('group', 'list',
-                                                 '--subscription', self.subscription_id)]
+    def _subcommand_info_opts(self):
+        return super()._subcommand_info_opts() + ['--subscription', self.object_id]
