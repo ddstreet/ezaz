@@ -7,7 +7,7 @@ def OBJ(**properties):
         "required": list(properties.keys()),
     }
 
-def ARY(items):
+def ARRY(items):
     return {
         "type": "array",
         "items": items,
@@ -16,6 +16,7 @@ def ARY(items):
 def ANY(*anyOf):
     return { "anyOf": list(anyOf), }
 
+BOOL = { "type": "boolean" }
 STR = { "type": "string" }
 NUM = { "type": "number" }
-NUL = { "type": "null" }
+NULL = { "type": "null" }

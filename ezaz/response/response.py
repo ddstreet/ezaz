@@ -20,53 +20,105 @@ def RL(schema):
     return _RL
 
 
-AccountInfo = OBJ(id=STR,
-                  name=STR,
-                  user=OBJ(name=STR))
+AccountInfo = OBJ(
+    id=STR,
+    name=STR,
+    user=OBJ(
+        name=STR,
+    ),
+)
 
-ConfigVar = OBJ(name=STR,
-                source=STR,
-                value=STR)
+ConfigVar = OBJ(
+    name=STR,
+    source=STR,
+    value=STR,
+)
 
-GroupInfo = OBJ(id=STR,
-                name=STR,
-                location=STR,
-                tags=ANY(OBJ(), NUL))
+GroupInfo = OBJ(
+    id=STR,
+    name=STR,
+    location=STR,
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+)
 
-ImageGalleryInfo = OBJ(id=STR,
-                       name=STR,
-                       location=STR,
-                       resourceGroup=STR,
-                       provisioningState=STR,
-                       type=STR)
+ImageGalleryInfo = OBJ(
+    id=STR,
+    name=STR,
+    location=STR,
+    resourceGroup=STR,
+    provisioningState=STR,
+    type=STR,
+)
 
-ImageDefinitionInfo = OBJ(id=STR,
-                          name=STR,
-                          location=STR,
-                          resourceGroup=STR,
-                          identifier=OBJ(offer=STR, publisher=STR, sku=STR),
-                          architecture=STR,
-                          hyperVGeneration=STR,
-                          osState=STR,
-                          osType=STR,
-                          tags=ANY(OBJ(), NUL))
+ImageDefinitionInfo = OBJ(
+    id=STR,
+    name=STR,
+    location=STR,
+    resourceGroup=STR,
+    identifier=OBJ(
+        offer=STR,
+        publisher=STR,
+        sku=STR,
+    ),
+    architecture=STR,
+    hyperVGeneration=STR,
+    osState=STR,
+    osType=STR,
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+)
 
-StorageAccountInfo = OBJ(id=STR,
-                         name=STR,
-                         location=STR,
-                         resourceGroup=STR,
-                         creationTime=STR,
-                         tags=ANY(OBJ(), NUL),
-                         type=STR)
+StorageAccountInfo = OBJ(
+    id=STR,
+    name=STR,
+    location=STR,
+    resourceGroup=STR,
+    creationTime=STR,
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+)
 
-StorageContainerInfo = OBJ(name=STR)
+StorageContainerInfo = OBJ(
+    name=STR,
+)
 
-SshKeyInfo = OBJ(id=STR,
-                 name=STR,
-                 location=STR,
-                 publicKey=STR,
-                 resourceGroup=STR,
-                 tags=ANY(OBJ(), NUL))
+SshKeyInfo = OBJ(
+    id=STR,
+    name=STR,
+    location=STR,
+    publicKey=STR,
+    resourceGroup=STR,
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+)
+
+VMInfo = OBJ(
+    id=STR,
+    name=STR,
+    location=STR,
+    resourceGroup=STR,
+    securityProfile=OBJ(
+        securityType=STR,
+        uefiSettings=OBJ(
+            secureBootEnabled=BOOL,
+            vTpmEnabled=BOOL,
+        ),
+    timeCreated=STR,
+    vmId:STR,
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+)
 
 RESPONSES = {
     "account": {
@@ -101,5 +153,9 @@ RESPONSES = {
     "sshkey": {
         "show": R(SshKeyInfo),
         "list": RL(SshKeyInfo),
+    },
+    "vm": {
+        "show": R(VMInfo),
+        "list": RL(VMInfo),
     },
 }
