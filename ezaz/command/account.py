@@ -45,7 +45,7 @@ class AccountCommand(Command):
                            help='Show the default subscription')
         group.add_argument('--set',
                            action='store_true',
-                           help='Set the default subscription')
+                           help='Set the current subscription')
         group.add_argument('--show',
                            action='store_true',
                            help='Show login details')
@@ -62,7 +62,7 @@ class AccountCommand(Command):
             self.relogin()
         elif self._options.list:
             self.list()
-        elif self._options.clear:
+        elif self._options.clear_default:
             self.clear()
         elif self._options.set:
             self.set(self._options.set)
@@ -99,12 +99,12 @@ class AccountCommand(Command):
 
     def list(self):
         for s in self._account.get_subscriptions():
-            print(f'{s.subscription_info.name} (id: {s.subscription_info.id})')
+            print(f'{s.info.name} (id: {s.info.id})')
 
     def show(self, already=False):
         logged = 'Already logged' if already else 'Logged'
         try:
-            info = self._account.account_info
+            info = self._account.info
             print(f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})")
         except NotLoggedIn:
             print(f"{logged} out")

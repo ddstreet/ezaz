@@ -13,7 +13,7 @@ class StorageContainerCommand(StorageAccountSubCommand, StandardActionCommand):
         return 'storagecontainer'
 
     def _show(self, storage_containter):
-        info = storage_containter.storage_containter_info
+        info = storage_containter.info
         msg = info.name
         if self.verbose:
             msg += f' (location: {info.location})'

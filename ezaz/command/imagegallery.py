@@ -17,15 +17,9 @@ class ImageGalleryCommand(ResourceGroupSubCommand, StandardActionCommand):
         return ['sig']
 
     def _show(self, image_gallery):
-        info = image_gallery.image_gallery_info
+        info = image_gallery.info
         msg = info.name
         if self.verbose:
             msg += f' (location: {info.location})'
-            if info.tags:
-                tags = []
-                for k in info.tags:
-                    v = getattr(info.tags, k)
-                    tags.append(k if not v else f'{k}={v}')
-                msg += f' [tags: {" ".join(tags)}]'
         print(msg)
 

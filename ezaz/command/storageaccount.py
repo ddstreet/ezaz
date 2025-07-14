@@ -13,7 +13,7 @@ class StorageAccountCommand(ResourceGroupSubCommand, StandardActionCommand):
         return 'storageaccount'
 
     def _show(self, image_gallery):
-        info = image_gallery.image_gallery_info
+        info = image_gallery.info
         msg = info.name
         if self.verbose:
             msg += f' (location: {info.location})'

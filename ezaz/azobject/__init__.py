@@ -4,6 +4,8 @@ import subprocess
 
 from abc import ABC
 from abc import abstractmethod
+from contextlib import suppress
+from functools import partialmethod
 
 from ..exception import NotLoggedIn
 from ..response import lookup_response
@@ -153,15 +155,13 @@ def StandardAzObjectTemplate(subclasses=[]):
     for cls in subclasses:
         assert issubclass(cls, StandardAzObjectSubclass)
         setattr(StandardAzObject, f'default_{cls._cls_type()}',
-                property(fget=lambda o: o._get_default(cls),
-                         fset=lambda o, value: o._set_default(cls, value)))
+                property(fget=partialmethod(StandardAzObject._get_default, cls),
+                         fset=partialmethod(StandardAzObject._set_default, cls)))
         setattr(StandardAzObject, f'get_{cls._cls_type()}',
-                lambda o, name, info=None: o._get_object(cls, name, info=info))
+                partialmethod(StandardAzObject._get_object, cls))
         setattr(StandardAzObject, f'get_default_{cls._cls_type()}',
-                lambda o: o._get_default_object(cls))
+                partialmethod(StandardAzObject._get_default_object, cls))
         setattr(StandardAzObject, f'get_{cls._cls_type()}s',
-                lambda o: o._get_objects(cls))
-        if cls._cls_type() == 'resource_group':
-            print(f'standard sub class: {dir(StandardAzObject)}')
+                partialmethod(StandardAzObject._get_objects, cls))
 
     return StandardAzObject

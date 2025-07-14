@@ -3,7 +3,7 @@ from ..exception import VMConfigNotFound
 from . import StandardAzObjectTemplate
 
 
-class VM(StandardAzObjectTemplate([])):
+class VM(StandardAzObjectTemplate()):
     @classmethod
     def _cls_type(cls):
         return 'vm'
@@ -22,3 +22,6 @@ class VM(StandardAzObjectTemplate([])):
 
     def _info_opts(self):
         return super()._subcommand_info_opts() + ['--name', self.object_id]
+
+    def _subcommand_info_opts(self):
+        return super()._subcommand_info_opts() + ['--FIXME-name', self.object_id]

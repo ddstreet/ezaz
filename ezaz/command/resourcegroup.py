@@ -20,7 +20,7 @@ class ResourceGroupCommand(SubscriptionSubCommand, StandardActionCommand):
         return self._subscription.get_resource_group(resource_group)
 
     def _show(self, resource_group):
-        info = resource_group.resource_group_info
+        info = resource_group.info
         msg = info.name
         if self.verbose:
             msg += f' (location: {info.location})'

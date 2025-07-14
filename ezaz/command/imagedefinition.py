@@ -13,7 +13,7 @@ class ImageDefinitionCommand(ImageGallerySubCommand, StandardActionCommand):
         return 'imagedefinition'
 
     def _show(self, image_definition):
-        info = image_definition.image_definition_info
+        info = image_definition.info
         msg = info.name
         if self.verbose:
             msg += f' (location: {info.location})'

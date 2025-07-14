@@ -16,11 +16,11 @@ from .subscription import Subscription
 class Account(AzObject):
     def __init__(self, config, info=None):
         self._top_config = config
-        self._account_info = info
+        self._info = info
 
     @property
     def config(self):
-        return self._top_config.get_account(self.account_info.user.name)
+        return self._top_config.get_account(self.info.user.name)
 
     @property
     def verbose(self):
@@ -68,35 +68,35 @@ class Account(AzObject):
             raise AlreadyLoggedOut()
 
         self.az('logout')
-        self._account_info = None
+        self._info = None
 
     @property
     def is_logged_in(self):
         try:
-            self.account_info
+            self.info
             return True
         except NotLoggedIn:
             return False
 
     @property
-    def account_info(self):
+    def info(self):
         if self.dry_run:
             raise NotLoggedIn()
-        if not self._account_info:
-            self._account_info = self.az_response('account', 'show')
-        return self._account_info
+        if not self._info:
+            self._info = self.az_response('account', 'show')
+        return self._info
 
     @property
     def default_subscription(self):
         with suppress(SubscriptionConfigNotFound):
             return self.config.default_subscription
-        return self.account_info.id
+        return self.info.id
 
     @default_subscription.setter
     def default_subscription(self, subscription):
         if self.default_subscription != subscription:
             self.az('account', 'set', '-s', subscription)
-            self._account_info = None
+            self._info = None
 
     @default_subscription.deleter
     def default_subscription(self, subscription):
