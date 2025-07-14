@@ -8,6 +8,7 @@ from .logout import LogoutCommand
 from .resourcegroup import ResourceGroupCommand
 from .storageaccount import StorageAccountCommand
 from .storagecontainer import StorageContainerCommand
+from .subscription import SubscriptionCommand
 from .vm import VMCommand
 
 
@@ -21,5 +22,6 @@ COMMANDS = [
     ResourceGroupCommand,
     StorageAccountCommand,
     StorageContainerCommand,
+    SubscriptionCommand,
     VMCommand,
 ]

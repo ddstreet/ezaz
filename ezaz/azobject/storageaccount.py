@@ -1,10 +1,10 @@
 
 from ..exception import StorageAccountConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 from .storagecontainer import StorageContainer
 
 
-class StorageAccount(StandardAzObjectTemplate([StorageContainer])):
+class StorageAccount(AzObjectTemplate([StorageContainer])):
     @classmethod
     def _cls_type(cls):
         return 'storage_account'

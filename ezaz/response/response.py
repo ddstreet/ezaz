@@ -112,8 +112,9 @@ VMInfo = OBJ(
             secureBootEnabled=BOOL,
             vTpmEnabled=BOOL,
         ),
+    ),
     timeCreated=STR,
-    vmId:STR,
+    vmId=STR,
     tags=ANY(
         OBJ(),
         NULL,

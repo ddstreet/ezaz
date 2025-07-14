@@ -1,9 +1,9 @@
 
 from ..exception import ImageDefinitionConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 
 
-class ImageDefinition(StandardAzObjectTemplate()):
+class ImageDefinition(AzObjectTemplate()):
     @classmethod
     def _cls_type(cls):
         return 'image_definition'

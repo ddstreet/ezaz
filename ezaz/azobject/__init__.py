@@ -62,7 +62,7 @@ class AzObject(ABC):
         return cls(j) if j else []
 
 
-class StandardAzObjectSubclass(AzObject):
+class AzObjectSubclass(AzObject):
     @classmethod
     @abstractmethod
     def _cls_type(cls):
@@ -89,8 +89,8 @@ class StandardAzObjectSubclass(AzObject):
         pass
 
 
-def StandardAzObjectTemplate(subclasses=[]):
-    class StandardAzObject(StandardAzObjectSubclass):
+def AzObjectTemplate(subclasses=[]):
+    class InnerAzObject(AzObjectSubclass):
         def __init__(self, obj_id, parent, info=None):
             self._obj_id = obj_id
             self._parent = parent
@@ -153,15 +153,15 @@ def StandardAzObjectTemplate(subclasses=[]):
                     for info in self._list_info(cls)]
 
     for cls in subclasses:
-        assert issubclass(cls, StandardAzObjectSubclass)
-        setattr(StandardAzObject, f'default_{cls._cls_type()}',
-                property(fget=partialmethod(StandardAzObject._get_default, cls),
-                         fset=partialmethod(StandardAzObject._set_default, cls)))
-        setattr(StandardAzObject, f'get_{cls._cls_type()}',
-                partialmethod(StandardAzObject._get_object, cls))
-        setattr(StandardAzObject, f'get_default_{cls._cls_type()}',
-                partialmethod(StandardAzObject._get_default_object, cls))
-        setattr(StandardAzObject, f'get_{cls._cls_type()}s',
-                partialmethod(StandardAzObject._get_objects, cls))
+        assert issubclass(cls, AzObjectSubclass)
+        setattr(InnerAzObject, f'default_{cls._cls_type()}',
+                property(fget=partialmethod(InnerAzObject._get_default, cls),
+                         fset=partialmethod(InnerAzObject._set_default, cls)))
+        setattr(InnerAzObject, f'get_{cls._cls_type()}',
+                partialmethod(InnerAzObject._get_object, cls))
+        setattr(InnerAzObject, f'get_default_{cls._cls_type()}',
+                partialmethod(InnerAzObject._get_default_object, cls))
+        setattr(InnerAzObject, f'get_{cls._cls_type()}s',
+                partialmethod(InnerAzObject._get_objects, cls))
 
-    return StandardAzObject
+    return InnerAzObject

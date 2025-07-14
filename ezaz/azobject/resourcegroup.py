@@ -1,13 +1,13 @@
 
 from ..exception import ResourceGroupConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 from .imagegallery import ImageGallery
 from .sshkey import SshKey
 from .storageaccount import StorageAccount
 from .vm import VM
 
 
-class ResourceGroup(StandardAzObjectTemplate([ImageGallery, SshKey, StorageAccount, VM])):
+class ResourceGroup(AzObjectTemplate([ImageGallery, SshKey, StorageAccount, VM])):
     @classmethod
     def _cls_type(cls):
         return 'resource_group'

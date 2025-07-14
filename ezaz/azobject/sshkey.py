@@ -1,9 +1,9 @@
 
 from ..exception import SshKeyConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 
 
-class SshKey(StandardAzObjectTemplate()):
+class SshKey(AzObjectTemplate()):
     @classmethod
     def _cls_type(cls):
         return 'ssh_key'

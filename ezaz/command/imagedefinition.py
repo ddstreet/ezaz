@@ -1,16 +1,11 @@
 
 from .command import ImageGallerySubCommand
-from .command import StandardActionCommand
 
 
-class ImageDefinitionCommand(ImageGallerySubCommand, StandardActionCommand):
-    ACTION_ARGUMENT_NAME = 'image definition'
-    ACTION_ARGUMENT_METAVAR = 'DEFINITION'
-    ACTION_ATTR_NAME = 'image_definition'
-
+class ImageDefinitionCommand(ImageGallerySubCommand):
     @classmethod
-    def name(cls):
-        return 'imagedefinition'
+    def _cls_type_list(cls):
+        return ['image', 'definition']
 
     def _show(self, image_definition):
         info = image_definition.info

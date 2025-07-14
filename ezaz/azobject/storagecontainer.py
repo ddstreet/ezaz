@@ -2,10 +2,10 @@
 from contextlib import suppress
 
 from ..exception import StorageContainerConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 
 
-class StorageContainer(StandardAzObjectTemplate([])):
+class StorageContainer(AzObjectTemplate([])):
     @classmethod
     def _cls_type(cls):
         return 'storage_container'

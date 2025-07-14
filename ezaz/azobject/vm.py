@@ -1,9 +1,9 @@
 
 from ..exception import VMConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 
 
-class VM(StandardAzObjectTemplate()):
+class VM(AzObjectTemplate()):
     @classmethod
     def _cls_type(cls):
         return 'vm'

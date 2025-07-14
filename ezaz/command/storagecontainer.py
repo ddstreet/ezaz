@@ -1,16 +1,11 @@
 
 from .command import StorageAccountSubCommand
-from .command import StandardActionCommand
 
 
-class StorageContainerCommand(StorageAccountSubCommand, StandardActionCommand):
-    ACTION_ARGUMENT_NAME = 'storage container'
-    ACTION_ARGUMENT_METAVAR = 'CONTAINER'
-    ACTION_ATTR_NAME = 'storage_container'
-
+class StorageContainerCommand(StorageAccountSubCommand):
     @classmethod
-    def name(cls):
-        return 'storagecontainer'
+    def _cls_type_list(cls):
+        return ['storage', 'container']
 
     def _show(self, storage_containter):
         info = storage_containter.info

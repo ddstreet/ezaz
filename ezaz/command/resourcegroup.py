@@ -1,23 +1,15 @@
 
 from .command import SubscriptionSubCommand
-from .command import StandardActionCommand
 
 
-class ResourceGroupCommand(SubscriptionSubCommand, StandardActionCommand):
-    ACTION_ARGUMENT_NAME = 'resource group'
-    ACTION_ARGUMENT_METAVAR = 'GROUP'
-    ACTION_ATTR_NAME = 'resource_group'
-
+class ResourceGroupCommand(SubscriptionSubCommand):
     @classmethod
-    def name(cls):
-        return 'resourcegroup'
+    def _cls_type_list(cls):
+        return ['resource', 'group']
 
     @classmethod
     def aliases(cls):
         return ['group', 'rg']
-
-    def _resource_group(self, resource_group):
-        return self._subscription.get_resource_group(resource_group)
 
     def _show(self, resource_group):
         info = resource_group.info

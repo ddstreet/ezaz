@@ -1,10 +1,10 @@
 
 from ..exception import ImageGalleryConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 from .imagedefinition import ImageDefinition
 
 
-class ImageGallery(StandardAzObjectTemplate([ImageDefinition])):
+class ImageGallery(AzObjectTemplate([ImageDefinition])):
     @classmethod
     def _cls_type(cls):
         return 'image_gallery'

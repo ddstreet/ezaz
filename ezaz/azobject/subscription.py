@@ -1,10 +1,10 @@
 
 from ..exception import SubscriptionConfigNotFound
-from . import StandardAzObjectTemplate
+from . import AzObjectTemplate
 from .resourcegroup import ResourceGroup
 
 
-class Subscription(StandardAzObjectTemplate([ResourceGroup])):
+class Subscription(AzObjectTemplate([ResourceGroup])):
     @classmethod
     def _cls_type(cls):
         return 'subscription'
