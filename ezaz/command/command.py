@@ -46,7 +46,7 @@ class Command(ABC):
     def __init__(self, config, options):
         self._config = config
         self._options = options
-        self._account = Account(self._config)
+        self._account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
         self._setup()
 
     def _setup(self):
@@ -54,11 +54,11 @@ class Command(ABC):
 
     @property
     def verbose(self):
-        return self._config.verbose
+        return self._options.verbose
 
     @property
     def dry_run(self):
-        return self._config.dry_run
+        return self._options.dry_run
 
     @abstractmethod
     def _run(self):
@@ -93,7 +93,7 @@ class AccountSubCommand(Command):
         class CommandAction(argparse.Action):
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.command_action = self.option_strings[-1].lstrip('-')
-                namespace.command_action_arguments = list(values)
+                namespace.command_action_arguments = values
 
         clstype = cls._cls_type(sep=' ')
         metavar = cls._cls_type_list()[-1].upper()
@@ -116,7 +116,10 @@ class AccountSubCommand(Command):
 
     def _run(self):
         run = getattr(self, self._options.command_action)
-        run(*self._options.command_action_arguments)
+        if self._options.command_action_arguments:
+            run(self._options.command_action_arguments)
+        else:
+            run()
 
     @property
     def _parent(self):

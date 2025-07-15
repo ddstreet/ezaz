@@ -44,7 +44,7 @@ class Main:
 
     @cached_property
     def config(self):
-        return Config(verbose=self.options.verbose, dry_run=self.options.dry_run)
+        return Config()
 
     @cached_property
     def command(self):

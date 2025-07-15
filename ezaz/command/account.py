@@ -72,3 +72,16 @@ class AccountCommand(Command):
             print(f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})")
         except NotLoggedIn:
             print(f"{logged} out")
+
+    @property
+    def default_subscription(self):
+        print('get default sub')
+        return None
+
+    @default_subscription.setter
+    def default_subscription(self, subscription):
+        print('set default sub to {subscription}')
+
+    @default_subscription.deleter
+    def default_subscription(self):
+        print('del default sub')

@@ -8,27 +8,33 @@ from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import ConfigNotFound
 from ..exception import NotLoggedIn
-from ..exception import SubscriptionConfigNotFound
-from . import AzObject
+from . import AzSubObjectContainer
 from .subscription import Subscription
 
 
-class Account(AzObject):
-    def __init__(self, config, info=None):
-        self._top_config = config
-        self._info = info
+class Account(AzSubObjectContainer([Subscription])):
+    def __init__(self, config, verbose=False, dry_run=False):
+        super().__init__(config)
+        self._verbose = verbose
+        self._dry_run = dry_run
 
     @property
     def config(self):
-        return self._top_config.get_account(self.info.user.name)
+        return self._config.get_object(self.info.user.name)
 
     @property
     def verbose(self):
-        return self._top_config.verbose
+        return self._verbose
 
     @property
     def dry_run(self):
-        return self._top_config.dry_run
+        return self._dry_run
+
+    def show_cmd(self):
+        return ['account', 'show']
+
+    def cmd_opts(self):
+        return []
 
     @contextmanager
     def _disable_subscription_selection(self):
@@ -59,9 +65,9 @@ class Account(AzObject):
         with self._disable_subscription_selection():
             self.az(*cmd)
 
-        with suppress(ConfigNotFound):
+        with suppress(KeyError):
             # Switch subscriptions, if needed
-            self.default_subscription = self.config.default_subscription
+            self.default_subscription = self.config['default_subscription']
 
     def logout(self):
         if not self.is_logged_in:
@@ -79,35 +85,20 @@ class Account(AzObject):
             return False
 
     @property
-    def info(self):
-        if self.dry_run:
-            raise NotLoggedIn()
-        if not self._info:
-            self._info = self.az_response('account', 'show')
-        return self._info
-
-    @property
     def default_subscription(self):
-        with suppress(SubscriptionConfigNotFound):
-            return self.config.default_subscription
+        with suppress(KeyError):
+            return self.config['default_subscription']
         return self.info.id
 
     @default_subscription.setter
     def default_subscription(self, subscription):
-        if self.default_subscription != subscription:
+        if self.config.get('default_subscription') != subscription:
             self.az('account', 'set', '-s', subscription)
+            self.config['default_subscription'] = subscription
             self._info = None
 
     @default_subscription.deleter
-    def default_subscription(self, subscription):
-        del self.config.default_subscription
-
-    def get_subscription(self, subscription, info=None):
-        return Subscription(subscription, self, info=info)
-
-    def get_default_subscription(self):
-        return self.get_subscription(self.default_subscription)
-
-    def get_subscriptions(self):
-        return [self.get_subscription(info.id, info=info)
-                for info in self.az_responselist('account', 'list')]
+    def default_subscription(self):
+        with suppress(KeyError):
+            del self.config['default_subscription']
+            self._info = None

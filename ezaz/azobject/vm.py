@@ -1,27 +1,22 @@
 
-from ..exception import VMConfigNotFound
-from . import AzObjectTemplate
+from . import AzSubObject
 
 
-class VM(AzObjectTemplate()):
+class VM(AzSubObject):
     @classmethod
-    def _cls_type(cls):
-        return 'vm'
-
-    @classmethod   
-    def _cls_config_not_found(cls):
-        return VMConfigNotFound
+    def subobject_name_list(cls):
+        return ['vm']
 
     @classmethod
-    def _cls_show_info_cmd(cls):
+    def show_cmd(cls):
         return ['vm', 'show']
 
     @classmethod
-    def _cls_list_info_cmd(cls):
+    def list_cmd(cls):
         return ['vm', 'list']
 
-    def _info_opts(self):
-        return super()._subcommand_info_opts() + ['--name', self.object_id]
+    def cmd_opts(self):
+        return super().subcmd_opts() + ['--name', self.object_id]
 
-    def _subcommand_info_opts(self):
-        return super()._subcommand_info_opts() + ['--FIXME-name', self.object_id]
+    def subcmd_opts(self):
+        return super().subcmd_opts() + ['--FIXME-name', self.object_id]
