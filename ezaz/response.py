@@ -1,23 +1,38 @@
 
 import jsonschema
 
-from ..dictnamespace import DictNamespace
-from ..schema import *
+from .dictnamespace import DictNamespace
+from .schema import *
 
+
+def _lookup_response(*args, responses):
+    if not args:
+        return None
+
+    v = responses.get(args[0])
+    if isinstance(v, dict):
+        return _lookup_response(*args[1:], responses=v)
+    return v
+
+def lookup_response(*args):
+    v = _lookup_response(*args, responses=RESPONSES)
+    if v:
+        return v
+    raise RuntimeError(f'No Response type found for cmd: {args}')
 
 def R(schema):
-    class _R(DictNamespace):
+    class Response(DictNamespace):
         def __init__(self, response):
             super().__init__(response)
             jsonschema.validate(response, schema)
-    return _R
+    return Response
 
 def RL(schema):
     cls = R(schema)
-    class _RL(list):
+    class ResponseList(list):
         def __init__(self, responses):
             super().__init__([cls(r) for r in responses])
-    return _RL
+    return ResponseList
 
 
 AccountInfo = OBJ(
