@@ -85,20 +85,11 @@ class Account(AzSubObjectContainer([Subscription])):
             return False
 
     @property
-    def default_subscription(self):
-        with suppress(KeyError):
-            return self.config['default_subscription']
+    def current_subscription(self):
         return self.info.id
 
-    @default_subscription.setter
-    def default_subscription(self, subscription):
-        if self.config.get('default_subscription') != subscription:
+    @current_subscription.setter
+    def current_subscription(self, subscription):
+        if self.current_subscription != subscription:
             self.az('account', 'set', '-s', subscription)
-            self.config['default_subscription'] = subscription
-            self._info = None
-
-    @default_subscription.deleter
-    def default_subscription(self):
-        with suppress(KeyError):
-            del self.config['default_subscription']
             self._info = None

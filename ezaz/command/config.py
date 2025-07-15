@@ -4,8 +4,8 @@ from .command import Command
 
 class ConfigCommand(Command):
     @classmethod
-    def name(cls):
-        return 'config'
+    def command_name_list(cls):
+        return ['config']
 
     @classmethod
     def _parser_add_arguments(cls, parser):

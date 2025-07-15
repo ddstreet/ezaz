@@ -1,10 +1,11 @@
 
-from .command import ResourceGroupSubCommand
+from .command import DefineSubCommand
+from .resourcegroup import ResourceGroupSubCommand
 
 
 class StorageAccountCommand(ResourceGroupSubCommand):
     @classmethod
-    def _cls_type_list(cls):
+    def command_name_list(cls):
         return ['storage', 'account']
 
     def _show(self, image_gallery):
@@ -14,3 +15,5 @@ class StorageAccountCommand(ResourceGroupSubCommand):
             msg += f' (location: {info.location})'
         print(msg)
 
+
+StorageAccountSubCommand = DefineSubCommand(ResourceGroupSubCommand, StorageAccountCommand)

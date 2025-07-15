@@ -1,10 +1,11 @@
 
-from .command import ImageGallerySubCommand
+from .command import DefineSubCommand
+from .imagegallery import ImageGallerySubCommand
 
 
 class ImageDefinitionCommand(ImageGallerySubCommand):
     @classmethod
-    def _cls_type_list(cls):
+    def command_name_list(cls):
         return ['image', 'definition']
 
     def _show(self, image_definition):
@@ -20,3 +21,5 @@ class ImageDefinitionCommand(ImageGallerySubCommand):
                 msg += f' [tags: {" ".join(tags)}]'
         print(msg)
 
+
+ImageDefinitionSubCommand = DefineSubCommand(ImageGallerySubCommand, ImageDefinitionCommand)

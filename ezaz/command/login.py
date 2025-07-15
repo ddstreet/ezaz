@@ -4,8 +4,8 @@ from .account import AccountCommand
 
 class LoginCommand(AccountCommand):
     @classmethod
-    def name(cls):
-        return 'login'
+    def command_name_list(cls):
+        return ['login']
 
     @classmethod
     def _parser_add_arguments(cls, parser):

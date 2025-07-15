@@ -6,43 +6,31 @@ from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import NotLoggedIn
 from .command import Command
+from .command import DefineSubCommand
+from .command import SubCommand
 
 
 class AccountCommand(Command):
     @classmethod
-    def name(cls):
-        return 'account'
+    def command_name_list(cls):
+        return ['account']
 
     @classmethod
-    def _parser_add_arguments(cls, parser):
+    def parser_add_subclass_arguments(cls, parser):
         parser.add_argument('--use-device-code',
                             action='store_true',
                             help='Instead of opening a browser window, show the URL and code')
 
-        title_group = parser.add_argument_group('Action', 'Action to perform')
-        group = title_group.add_mutually_exclusive_group()
-        group.add_argument('--login',
-                           action='store_true',
-                           help='Login (if needed)')
-        group.add_argument('--logout',
-                           action='store_true',
-                           help='Logout (if needed)')
-        group.add_argument('--relogin',
-                           action='store_true',
-                           help='Logout (if needed), then login')
-        group.add_argument('--show',
-                           action='store_true',
-                           help='Show login details (default)')
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        cls._parser_add_action_argument(group, ['--login'], help=f'Login')
+        cls._parser_add_action_argument(group, ['--logout'], help=f'Logout')
+        cls._parser_add_action_argument(group, ['--relogin'], help=f'Logout (if needed), then login')
+        cls._parser_add_action_argument(group, ['--show'], help=f'Show login details (default)')
 
-    def _run(self):
-        if self._options.login:
-            self.login()
-        elif self._options.logout:
-            self.logout()
-        elif self._options.relogin:
-            self.relogin()
-        else: # default
-            self.show()
+    @classmethod
+    def parser_add_argument_obj_id(cls, parser):
+        pass
 
     def login(self):
         already = False
@@ -85,3 +73,13 @@ class AccountCommand(Command):
     @default_subscription.deleter
     def default_subscription(self):
         print('del default sub')
+
+
+class AccountSubCommand(DefineSubCommand(SubCommand, AccountCommand)):
+    @property
+    def azobject(self):
+        return self._account
+
+    @classmethod
+    def parser_add_argument_all_obj_id(cls, parser):
+        pass

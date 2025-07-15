@@ -1,10 +1,11 @@
 
-from .command import SubscriptionSubCommand
+from .command import DefineSubCommand
+from .subscription import SubscriptionSubCommand
 
 
 class ResourceGroupCommand(SubscriptionSubCommand):
     @classmethod
-    def _cls_type_list(cls):
+    def command_name_list(cls):
         return ['resource', 'group']
 
     @classmethod
@@ -24,3 +25,5 @@ class ResourceGroupCommand(SubscriptionSubCommand):
                 msg += f' [tags: {" ".join(tags)}]'
         print(msg)
 
+
+ResourceGroupSubCommand = DefineSubCommand(SubscriptionSubCommand, ResourceGroupCommand)

@@ -57,4 +57,5 @@ class AlreadyLoggedOut(Exception):
 
 
 class NotLoggedIn(Exception):
-    pass
+    def __init__(self):
+        super().__init__('Not logged in, please login and try again.')
