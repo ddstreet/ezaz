@@ -20,8 +20,10 @@ class ImportVenv:
         self.venvdir = Path(venvdir).expanduser().absolute()
         self.verbose = verbose
 
-        if not self.venvdir.is_dir() or clear:
+        if not all((not clear, self.venvdir.is_dir(), self.venvdir.joinpath('bin').joinpath('pip').exists(), self.venvdir.joinpath('bin').joinpath('python').exists())):
+            print('Virtual environment needs to be recreated, please wait...')
             venv.create(str(self.venvdir), clear=clear, with_pip=True)
+            print('Virtual environment recreated.')
 
         # This assumes the package name can be directly converted to an import path
         # e.g. 'azure-identity' -> 'azure/identity'
@@ -66,6 +68,7 @@ class ImportVenv:
         cmd.append('install')
 
         if self.packages:
+            print(f'Installing packages in virtual environment: {",".join(self.packages)}')
             subprocess.run(cmd + self.packages, text=True, check=True)
 
     def __exit__(self, exc_type, exc_value, traceback):
