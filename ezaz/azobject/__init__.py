@@ -115,7 +115,7 @@ class AzSubObject(AzObject):
         pass
 
     @classmethod
-    def filter_parent_opts(cls, opts):
+    def filter_parent_opts(cls, *opts):
         return opts
 
     def __init__(self, parent, obj_id, config, info=None):
