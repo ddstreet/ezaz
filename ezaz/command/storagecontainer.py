@@ -1,9 +1,9 @@
 
-from .command import SubCommand
+from .command import AllActionCommand
 from .storageaccount import StorageAccountCommand
 
 
-class StorageContainerCommand(SubCommand):
+class StorageContainerCommand(AllActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return StorageAccountCommand
@@ -11,8 +11,3 @@ class StorageContainerCommand(SubCommand):
     @classmethod
     def command_name_list(cls):
         return ['storage', 'container']
-
-    def _show(self, storage_containter):
-        info = storage_containter.info
-        msg = info.name
-        print(msg)

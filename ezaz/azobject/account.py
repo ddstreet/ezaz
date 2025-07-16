@@ -30,12 +30,6 @@ class Account(AzSubObjectContainer([Subscription])):
     def dry_run(self):
         return self._dry_run
 
-    def show_cmd(self):
-        return ['account', 'show']
-
-    def cmd_opts(self):
-        return []
-
     @contextmanager
     def _disable_subscription_selection(self):
         v = None
@@ -93,3 +87,10 @@ class Account(AzSubObjectContainer([Subscription])):
         if self.current_subscription != subscription:
             self.az('account', 'set', '-s', subscription)
             self._info = None
+
+    def get_show_cmd(self):
+        return ['account', 'show']
+
+    def get_cmd_opts(self):
+        return []
+

@@ -1,9 +1,12 @@
 
 from .account import AccountCommand
-from .command import SubCommand
+from .command import ClearActionCommand
+from .command import ListActionCommand
+from .command import SetActionCommand
+from .command import ShowActionCommand
 
 
-class SubscriptionCommand(SubCommand):
+class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionCommand, ShowActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return AccountCommand
@@ -23,8 +26,8 @@ class SubscriptionCommand(SubCommand):
 
     @classmethod
     def parser_add_action_argument_set(cls, group):
-        cls._parser_add_action_argument(group, ['-S', '--set'], nargs=1,
-                                        help=f'Set default subscription (current and future logins will switch to this subscription)')
+        cls._parser_add_action_argument(group, ['-S', '--set'],
+                                        help=f'Set default subscription to current subscription (future logins will automatically switch to this subscription)')
 
     @classmethod
     def parser_add_action_argument_clear(cls, group):
@@ -37,8 +40,3 @@ class SubscriptionCommand(SubCommand):
 
     def set_current(self, subscription):
         self.parent_azobject.current_subscription = subscription
-
-    def _show(self, subscription):
-        info = subscription.info
-        print(f'{info.name} (id: {info.id})')
-

@@ -9,6 +9,8 @@ from contextlib import suppress
 from functools import partial
 from functools import partialmethod
 
+from ..exception import NotCreatable
+from ..exception import NotDeletable
 from ..exception import NotLoggedIn
 from ..response import lookup_response
 
@@ -67,6 +69,19 @@ class AzObject(AzAction):
         # Most use their 'name' as their obj_id
         return info.name
 
+    @classmethod
+    @abstractmethod
+    def get_show_cmd(self):
+        pass
+
+    @classmethod
+    def get_create_cmd(self):
+        raise NotCreatable()
+
+    @classmethod
+    def get_delete_cmd(self):
+        raise NotDeletable()
+
     def __init__(self, config, info=None):
         self._config = config
         self._info = info
@@ -75,30 +90,37 @@ class AzObject(AzAction):
     def config(self):
         return self._config
 
-    #@abstractmethod
-    def create_cmd(self):
-        pass
+    def get_cmd_opts(self):
+        return []
 
-    #@abstractmethod
-    def delete_cmd(self):
-        pass
+    def get_show_cmd_opts(self):
+        return self.get_cmd_opts()
 
-    @abstractmethod
-    def show_cmd(self):
-        pass
+    def get_create_cmd_opts(self):
+        return self.get_cmd_opts()
 
-    @abstractmethod
-    def cmd_opts(self):
-        pass
+    def get_delete_cmd_opts(self):
+        return self.get_cmd_opts()
 
     def _get_info(self):
-        return self.az_response(*self.show_cmd(), *self.cmd_opts())
+        return self.az_response(*self.get_show_cmd(), *self.get_show_cmd_opts())
 
     @property
     def info(self):
         if not self._info:
             self._info = self._get_info()
         return self._info
+
+    def show(self):
+        if self.verbose:
+            print(f'{self.info.name} (id: {self.info_id(self.info)})')
+        print(self.info.name)
+
+    def create(self):
+        self.az_response(*self.get_create_cmd(), *self.get_create_cmd_opts())
+
+    def delete(self):
+        self.az_response(*self.get_delete_cmd(), *self.get_delete_cmd_opts())
 
 
 class AzSubObject(AzObject):
@@ -121,7 +143,7 @@ class AzSubObject(AzObject):
 
     @classmethod
     @abstractmethod
-    def list_cmd(cls):
+    def get_list_cmd(cls):
         pass
 
     @classmethod
@@ -152,10 +174,16 @@ class AzSubObject(AzObject):
 
 def AzSubObjectContainer(subclasses=[]):
     class InnerAzObject(AzObject):
-        def subcmd_opts(self):
+        def get_subcmd_opts(self):
             with suppress(AttributeError):
-                return self.parent.subcmd_opts()
+                return self.parent.get_subcmd_opts()
             return []
+
+        def get_list_cmd_opts(self, cls):
+            return cls.filter_parent_opts(*self.get_subcmd_opts())
+
+        def list(self, cls):
+            return self.az_responselist(*cls.get_list_cmd(), *self.get_list_cmd_opts(cls))
 
     for cls in subclasses:
         assert issubclass(cls, AzSubObject)
@@ -192,7 +220,7 @@ def AzSubObjectContainer(subclasses=[]):
 
         def get_objects(self, cls):
             return [getattr(self, f'get_{cls.subobject_name()}')(cls.info_id(info), info=info)
-                    for info in self.az_responselist(*cls.list_cmd(), *cls.filter_parent_opts(*self.subcmd_opts()))]
+                    for info in self.list(cls)]
 
         setattr(InnerAzObject, f'get_{cls.subobject_name()}s', partialmethod(get_objects, cls))
 

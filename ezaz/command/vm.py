@@ -1,9 +1,9 @@
 
-from .command import SubCommand
+from .command import AllActionCommand
 from .resourcegroup import ResourceGroupCommand
 
 
-class VMCommand(SubCommand):
+class VMCommand(AllActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ResourceGroupCommand

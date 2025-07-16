@@ -23,12 +23,16 @@ class SimpleCommand(ABC):
         return sep.join(cls.command_name_list())
 
     @classmethod
+    def command_text(cls):
+        return cls.command_name(' ')
+
+    @classmethod
     def aliases(cls):
         return []
 
     @classmethod
     def parser_add_subparser(cls, subparsers):
-        parser = subparsers.add_parser(cls.command_name(sep=''), aliases=cls.aliases())
+        parser = subparsers.add_parser(cls.command_name(''), aliases=cls.aliases())
         cls.parser_add_arguments(parser)
         parser.set_defaults(command_class=cls)
         return parser
@@ -78,11 +82,13 @@ class SimpleCommand(ABC):
         pass
 
 
-class ActionCommand(SimpleCommand):
-    @classmethod
-    def command_metavar(cls):
-        return cls.command_name_list()[-1].upper()
+class CommandArgumentAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        namespace.command_action = self.option_strings[-1].lstrip('-')
+        namespace.command_action_arguments = values
 
+
+class ActionCommand(SimpleCommand):
     @classmethod
     def parser_add_arguments(cls, parser):
         super().parser_add_arguments(parser)
@@ -105,6 +111,10 @@ class ActionCommand(SimpleCommand):
     @classmethod
     def parser_add_action_subclass_arguments(cls, group):
         pass
+
+    @classmethod
+    def command_metavar(cls):
+        return cls.command_name_list()[-1].upper()
 
     @classmethod
     def _parser_add_action_argument(cls, group, opts, nargs=0, help=None):
@@ -130,7 +140,7 @@ class ActionCommand(SimpleCommand):
             print(str(nli))
 
 
-class Command(ActionCommand):
+class AzObjectCommand(SimpleCommand):
     @classmethod
     def parser_add_common_arguments(cls, parser):
         super().parser_add_common_arguments(parser)
@@ -138,45 +148,16 @@ class Command(ActionCommand):
 
     @classmethod
     def parser_add_argument_obj_id(cls, parser):
-        cls._parser_add_argument_obj_id(parser)
-
-    @classmethod
-    def _parser_add_argument_obj_id(cls, parser):
         parser.add_argument(f'--{cls.command_name("-")}',
-                            help=f'Use the specified {cls.command_name(" ")}, instead of the default')
-
-    @classmethod
-    def parser_add_action_arguments(cls, group):
-        cls.parser_add_action_argument_show(group)
-
-    @classmethod
-    def parser_add_action_argument_show(cls, group):
-        cls._parser_add_action_argument(group, ['--show'],
-                                        help=f'Show default {cls.command_name(sep=" ")} (default)')
-
-    @classmethod
-    def parser_set_action_default(cls, group):
-        cls._parser_set_action_default(group, 'show')
+                            help=f'Use the specified {cls.command_text()}, instead of the default')
 
     @property
     @abstractmethod
     def azobject(self):
         pass
 
-    def _show(self, target):
-        print(target.info_id(target.info))
 
-    def show(self):
-        self._show(self.azobject)
-
-
-class CommandArgumentAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        namespace.command_action = self.option_strings[-1].lstrip('-')
-        namespace.command_action_arguments = values
-
-
-class SubCommand(Command):
+class SubAzObjectCommand(AzObjectCommand):
     @classmethod
     @abstractmethod
     def parent_command_cls(cls):
@@ -185,46 +166,12 @@ class SubCommand(Command):
     @classmethod
     def parser_add_argument_obj_id(cls, parser):
         cls.parent_command_cls().parser_add_argument_obj_id(parser)
-        cls._parser_add_argument_obj_id(parser)
-
-    @classmethod
-    def parser_add_action_arguments(cls, group):
-        cls.parser_add_action_argument_set(group)
-        cls.parser_add_action_argument_clear(group)
-        cls.parser_add_action_argument_create(group)
-        cls.parser_add_action_argument_delete(group)
-        cls.parser_add_action_argument_list(group)
-        cls.parser_add_action_argument_show(group)
-
-    @classmethod
-    def parser_add_action_argument_set(cls, group):
-        cls._parser_add_action_argument(group, ['-S', '--set'], nargs=1,
-                                        help=f'Set default {cls.command_name(sep=" ")}')
-
-    @classmethod
-    def parser_add_action_argument_clear(cls, group):
-        cls._parser_add_action_argument(group, ['-C', '--clear'],
-                                        help=f'Clear default {cls.command_name(sep=" ")}')
-
-    @classmethod
-    def parser_add_action_argument_create(cls, group):
-        cls._parser_add_action_argument(group, ['-c', '--create'], nargs=1,
-                                        help=f'Create a {cls.command_name(sep=" ")}')
-
-    @classmethod
-    def parser_add_action_argument_delete(cls, group):
-        cls._parser_add_action_argument(group, ['-d', '--delete'], nargs=1,
-                                        help=f'Delete a {cls.command_name(sep=" ")}')
-
-    @classmethod
-    def parser_add_action_argument_list(cls, group):
-        cls._parser_add_action_argument(group, ['-l', '--list'],
-                                        help=f'List {cls.command_name(sep=" ")}s')
+        super().parser_add_argument_obj_id(parser)
 
     def _setup(self):
         super()._setup()
         _parent_command = self.parent_command_cls()(self._config, self._options)
-        assert isinstance(_parent_command, Command)
+        assert isinstance(_parent_command, AzObjectCommand)
         self._parent_azobject = _parent_command.azobject
 
     @property
@@ -247,18 +194,103 @@ class SubCommand(Command):
     def azobject(self):
         return getattr(self.parent_azobject, f'get_{self.command_name()}')(self._azobject_id)
 
-    def create(self, target):
-        print('IMPLEMENT ME!')
 
-    def delete(self, target):
-        print('IMPLEMENT ME!')
+class ShowActionCommand(ActionCommand, AzObjectCommand):
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        super().parser_add_action_arguments(group)
+        cls.parser_add_action_argument_show(group)
+
+    @classmethod
+    def parser_add_action_argument_show(cls, group):
+        cls._parser_add_action_argument(group, ['--show'],
+                                        help=f'Show default {cls.command_text()} (default)')
+
+    @classmethod
+    def parser_set_action_default(cls, group):
+        cls._parser_set_action_default(group, 'show')
+
+    def show(self):
+        self.azobject.show()
+
+
+class CreateActionCommand(ActionCommand, AzObjectCommand):
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        super().parser_add_action_arguments(group)
+        cls.parser_add_action_argument_create(group)
+
+    @classmethod
+    def parser_add_action_argument_create(cls, group):
+        cls._parser_add_action_argument(group, ['-c', '--create'],
+                                        help=f'Create a {cls.command_text()}')
+
+    def create(self):
+        assert self.azobject.is_creatable()
+        self.azobject.create()
+
+
+class DeleteActionCommand(ActionCommand, AzObjectCommand):
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        super().parser_add_action_arguments(group)
+        cls.parser_add_action_argument_delete(group)
+
+    @classmethod
+    def parser_add_action_argument_delete(cls, group):
+        cls._parser_add_action_argument(group, ['-d', '--delete'],
+                                        help=f'Delete a {cls.command_text()}')
+
+    def delete(self):
+        assert self.azobject.is_deletable()
+        self.azobject.delete()
+
+
+class ListActionCommand(ActionCommand, SubAzObjectCommand):
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        super().parser_add_action_arguments(group)
+        cls.parser_add_action_argument_list(group)
+
+    @classmethod
+    def parser_add_action_argument_list(cls, group):
+        cls._parser_add_action_argument(group, ['-l', '--list'],
+                                        help=f'List {cls.command_text()}s')
 
     def list(self):
-        for target in getattr(self.parent_azobject, f'get_{self.command_name()}s')():
-            self._show(target)
+        for azobject in getattr(self.parent_azobject, f'get_{self.command_name()}s')():
+            azobject.show()
+
+
+class SetActionCommand(ActionCommand, SubAzObjectCommand):
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        super().parser_add_action_arguments(group)
+        cls.parser_add_action_argument_set(group)
+
+    @classmethod
+    def parser_add_action_argument_set(cls, group):
+        cls._parser_add_action_argument(group, ['-S', '--set'],
+                                        help=f'Set default {cls.command_text()}')
+
+    def set(self):
+        setattr(self.parent_azobject, self._default_azobject_id_key, self.azobject_id)
+
+
+class ClearActionCommand(ActionCommand, SubAzObjectCommand):
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        super().parser_add_action_arguments(group)
+        cls.parser_add_action_argument_clear(group)
+
+    @classmethod
+    def parser_add_action_argument_clear(cls, group):
+        cls._parser_add_action_argument(group, ['-C', '--clear'],
+                                        help=f'Clear default {cls.command_text()}')
 
     def clear(self):
         delattr(self.parent_azobject, self._default_azobject_id_key)
 
-    def set(self, target):
-        setattr(self.parent_azobject, self._default_azobject_id_key, target)
+
+class AllActionCommand(CreateActionCommand, DeleteActionCommand, SetActionCommand, ClearActionCommand, ListActionCommand, ShowActionCommand):
+    pass

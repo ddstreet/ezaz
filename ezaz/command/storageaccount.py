@@ -1,9 +1,9 @@
 
-from .command import SubCommand
+from .command import AllActionCommand
 from .resourcegroup import ResourceGroupCommand
 
 
-class StorageAccountCommand(SubCommand):
+class StorageAccountCommand(AllActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ResourceGroupCommand
@@ -11,10 +11,3 @@ class StorageAccountCommand(SubCommand):
     @classmethod
     def command_name_list(cls):
         return ['storage', 'account']
-
-    def _show(self, image_gallery):
-        info = image_gallery.info
-        msg = info.name
-        if self.verbose:
-            msg += f' (location: {info.location})'
-        print(msg)

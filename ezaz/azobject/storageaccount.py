@@ -10,15 +10,23 @@ class StorageAccount(AzSubObject, AzSubObjectContainer([StorageContainer])):
         return ['storage', 'account']
 
     @classmethod
-    def show_cmd(cls):
+    def get_show_cmd(cls):
         return ['storage', 'account', 'show']
 
     @classmethod
-    def list_cmd(cls):
+    def get_create_cmd(self):
+        raise NotCreatable()
+
+    @classmethod
+    def get_delete_cmd(self):
+        raise NotDeletable()
+
+    @classmethod
+    def get_list_cmd(cls):
         return ['storage', 'account', 'list']
 
-    def cmd_opts(self):
-        return super().subcmd_opts() + ['--name', self.object_id]
+    def get_cmd_opts(self):
+        return super().get_subcmd_opts() + ['--name', self.object_id]
 
-    def subcmd_opts(self):
-        return super().subcmd_opts() + ['--account-name', self.object_id]
+    def get_subcmd_opts(self):
+        return super().get_subcmd_opts() + ['--account-name', self.object_id]

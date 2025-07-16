@@ -14,15 +14,15 @@ class Subscription(AzSubObject, AzSubObjectContainer([ResourceGroup])):
         return info.id
 
     @classmethod
-    def show_cmd(cls):
+    def get_show_cmd(cls):
         return ['account', 'show']
 
     @classmethod
-    def list_cmd(cls):
+    def get_list_cmd(cls):
         return ['account', 'list']
 
-    def cmd_opts(self):
-        return super().subcmd_opts() + ['--subscription', self.object_id]
+    def get_cmd_opts(self):
+        return super().get_subcmd_opts() + ['--subscription', self.object_id]
 
-    def subcmd_opts(self):
-        return super().subcmd_opts() + ['--subscription', self.object_id]
+    def get_subcmd_opts(self):
+        return super().get_subcmd_opts() + ['--subscription', self.object_id]

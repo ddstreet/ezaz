@@ -11,11 +11,19 @@ class StorageContainer(AzSubObject, AzSubObjectContainer([])):
         return ['storage', 'container']
 
     @classmethod
-    def show_cmd(cls):
+    def get_show_cmd(cls):
         return ['storage', 'container', 'show']
 
     @classmethod
-    def list_cmd(cls):
+    def get_create_cmd(self):
+        raise NotCreatable()
+
+    @classmethod
+    def get_delete_cmd(self):
+        raise NotDeletable()
+
+    @classmethod
+    def get_list_cmd(cls):
         return ['storage', 'container', 'list']
 
     @classmethod
@@ -27,8 +35,8 @@ class StorageContainer(AzSubObject, AzSubObjectContainer([])):
                 opts = opts[0:index] + opts[index+2:]
         return list(opts) + ['--auth-mode', 'login']
 
-    def cmd_opts(self):
-        return self.filter_parent_opts(super().subcmd_opts()) + ['--name', self.object_id]
+    def get_cmd_opts(self):
+        return self.filter_parent_opts(super().get_subcmd_opts()) + ['--name', self.object_id]
 
-    def subcmd_opts(self):
-        return self.filter_parent_opts(super().subcmd_opts()) + ['--container-name', self.object_id]
+    def get_subcmd_opts(self):
+        return self.filter_parent_opts(super().get_subcmd_opts()) + ['--container-name', self.object_id]

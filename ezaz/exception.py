@@ -59,3 +59,11 @@ class AlreadyLoggedOut(Exception):
 class NotLoggedIn(Exception):
     def __init__(self):
         super().__init__('Not logged in, please login and try again.')
+
+
+class NotCreatable(Exception):
+    pass
+
+
+class NotDeletable(Exception):
+    pass

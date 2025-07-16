@@ -1,9 +1,9 @@
 
-from .command import SubCommand
+from .command import AllActionCommand
 from .subscription import SubscriptionCommand
 
 
-class ResourceGroupCommand(SubCommand):
+class ResourceGroupCommand(AllActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return SubscriptionCommand
@@ -16,8 +16,8 @@ class ResourceGroupCommand(SubCommand):
     def aliases(cls):
         return ['group', 'rg']
 
-    def _show(self, resource_group):
-        info = resource_group.info
+    def show(self):
+        info = self.azobject.info
         msg = info.name
         if self.verbose:
             msg += f' (location: {info.location})'

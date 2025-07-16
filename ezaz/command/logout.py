@@ -1,15 +1,17 @@
 
+from ..azobject.account import Account
 from .account import AccountCommand
+from .command import SimpleCommand
 
 
-class LogoutCommand(AccountCommand):
+class LogoutCommand(SimpleCommand):
     @classmethod
     def command_name_list(cls):
         return ['logout']
 
-    @classmethod
-    def _parser_add_arguments(cls, parser):
-        pass
+    def _setup(self):
+        super()._setup()
+        self._account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
 
-    def _run(self):
-        self.logout()
+    def run(self):
+        AccountCommand.cls_logout(self._account)

@@ -10,15 +10,23 @@ class ImageGallery(AzSubObject, AzSubObjectContainer([ImageDefinition])):
         return ['image', 'gallery']
 
     @classmethod
-    def show_cmd(cls):
+    def get_show_cmd(cls):
         return ['sig', 'show']
 
     @classmethod
-    def list_cmd(cls):
+    def get_create_cmd(self):
+        raise NotCreatable()
+
+    @classmethod
+    def get_delete_cmd(self):
+        raise NotDeletable()
+
+    @classmethod
+    def get_list_cmd(cls):
         return ['sig', 'list']
 
-    def cmd_opts(self):
-        return self.subcmd_opts()
+    def get_cmd_opts(self):
+        return self.get_subcmd_opts()
 
-    def subcmd_opts(self):
-        return super().subcmd_opts() + ['--gallery-name', self.object_id]
+    def get_subcmd_opts(self):
+        return super().get_subcmd_opts() + ['--gallery-name', self.object_id]
