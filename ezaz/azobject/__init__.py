@@ -13,62 +13,32 @@ from ..exception import NotLoggedIn
 from ..response import lookup_response
 
 
-class AzObject(ABC):
-    @classmethod
-    def info_id(cls, info):
-        # Most use their 'name' as their obj_id
-        return info.name
-
-    def __init__(self, config, info=None):
-        self._config = config
-        self._info = info
-
-    @property
-    def config(self):
-        return self._config
-
-    @abstractmethod
-    def show_cmd(self):
-        pass
-
-    @abstractmethod
-    def cmd_opts(self):
-        pass
-
-    def _get_info(self):
-        return self.az_response(*self.show_cmd(), *self.cmd_opts())
-
-    @property
-    def info(self):
-        if not self._info:
-            self._info = self._get_info()
-        return self._info
-
+class AzAction(ABC):
     @property
     @abstractmethod
     def verbose(self):
-        pass
+        return self.verbose
 
     @property
     @abstractmethod
     def dry_run(self):
-        pass
+        return self._dry_run
 
     def _trace(self, msg):
         if self.verbose or self.dry_run:
             prefix = 'DRY-RUN: ' if self.dry_run else ''
             print(f'{prefix}{msg}')
 
-    def _exec(self, *args, check=True, text=True, **kwargs):
+    def _exec(self, *args, check=True, **kwargs):
         self._trace(' '.join(args))
-        return None if self.dry_run else subprocess.run(args, check=check, text=text, **kwargs)
+        return None if self.dry_run else subprocess.run(args, check=check, **kwargs)
 
     def az(self, *args, capture_output=False, **kwargs):
         return self._exec('az', *args, capture_output=capture_output, **kwargs)
 
     def az_stdout(self, *args, **kwargs):
         try:
-            cp = self.az(*args, capture_output=True, **kwargs)
+            cp = self.az(*args, capture_output=True, text=True, **kwargs)
         except subprocess.CalledProcessError as cpe:
             if any(s in cpe.stderr for s in ["Please run 'az login' to setup account",
                                              "Interactive authentication is needed"]):
@@ -89,6 +59,46 @@ class AzObject(ABC):
         cls = lookup_response(*args)
         j = self.az_json(*args, **kwargs)
         return cls(j) if j else []
+
+
+class AzObject(AzAction):
+    @classmethod
+    def info_id(cls, info):
+        # Most use their 'name' as their obj_id
+        return info.name
+
+    def __init__(self, config, info=None):
+        self._config = config
+        self._info = info
+
+    @property
+    def config(self):
+        return self._config
+
+    #@abstractmethod
+    def create_cmd(self):
+        pass
+
+    #@abstractmethod
+    def delete_cmd(self):
+        pass
+
+    @abstractmethod
+    def show_cmd(self):
+        pass
+
+    @abstractmethod
+    def cmd_opts(self):
+        pass
+
+    def _get_info(self):
+        return self.az_response(*self.show_cmd(), *self.cmd_opts())
+
+    @property
+    def info(self):
+        if not self._info:
+            self._info = self._get_info()
+        return self._info
 
 
 class AzSubObject(AzObject):

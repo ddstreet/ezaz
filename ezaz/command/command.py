@@ -27,10 +27,6 @@ class SimpleCommand(ABC):
         return []
 
     @classmethod
-    def command_metavar(cls):
-        return cls.command_name_list()[-1].upper()
-
-    @classmethod
     def parser_add_subparser(cls, subparsers):
         parser = subparsers.add_parser(cls.command_name(sep=''), aliases=cls.aliases())
         cls.parser_add_arguments(parser)
@@ -41,11 +37,6 @@ class SimpleCommand(ABC):
     def parser_add_arguments(cls, parser):
         cls.parser_add_common_arguments(parser)
         cls.parser_add_subclass_arguments(parser)
-
-        group = cls.parser_add_action_group(parser)
-        cls.parser_add_action_arguments(group)
-        cls.parser_add_action_subclass_arguments(group)
-        cls.parser_set_action_default(group)
 
     @classmethod
     def parser_add_common_arguments(cls, parser):
@@ -65,6 +56,41 @@ class SimpleCommand(ABC):
     @classmethod
     def parser_add_subclass_arguments(cls, parser):
         pass
+
+    def __init__(self, config, options):
+        self._config = config
+        self._options = options
+        self._setup()
+
+    def _setup(self):
+        pass
+
+    @property
+    def verbose(self):
+        return self._options.verbose
+
+    @property
+    def dry_run(self):
+        return self._options.dry_run
+
+    @abstractmethod
+    def run(self):
+        pass
+
+
+class ActionCommand(SimpleCommand):
+    @classmethod
+    def command_metavar(cls):
+        return cls.command_name_list()[-1].upper()
+
+    @classmethod
+    def parser_add_arguments(cls, parser):
+        super().parser_add_arguments(parser)
+
+        group = cls.parser_add_action_group(parser)
+        cls.parser_add_action_arguments(group)
+        cls.parser_add_action_subclass_arguments(group)
+        cls.parser_set_action_default(group)
 
     @classmethod
     def parser_add_action_group(cls, parser):
@@ -93,22 +119,6 @@ class SimpleCommand(ABC):
     def _parser_set_action_default(cls, group, action, *args):
         group.set_defaults(command_action=action, command_action_arguments=args)
 
-    def __init__(self, config, options):
-        self._config = config
-        self._options = options
-        self._setup()
-
-    def _setup(self):
-        pass
-
-    @property
-    def verbose(self):
-        return self._options.verbose
-
-    @property
-    def dry_run(self):
-        return self._options.dry_run
-
     def _run(self):
         run = getattr(self, self._options.command_action)
         run(*self._options.command_action_arguments)
@@ -120,7 +130,7 @@ class SimpleCommand(ABC):
             print(str(nli))
 
 
-class Command(SimpleCommand):
+class Command(ActionCommand):
     @classmethod
     def parser_add_common_arguments(cls, parser):
         super().parser_add_common_arguments(parser)

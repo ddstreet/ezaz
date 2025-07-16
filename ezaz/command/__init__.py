@@ -1,6 +1,7 @@
 
 from .account import AccountCommand
 from .config import ConfigCommand
+from .direct import DirectCommand
 from .imagegallery import ImageGalleryCommand
 from .imagedefinition import ImageDefinitionCommand
 from .login import LoginCommand
@@ -15,6 +16,7 @@ from .vm import VMCommand
 COMMANDS = [
     AccountCommand,
     ConfigCommand,
+    DirectCommand,
     ImageGalleryCommand,
     ImageDefinitionCommand,
     LoginCommand,
