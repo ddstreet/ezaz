@@ -14,6 +14,11 @@ from ..response import lookup_response
 
 
 class AzObject(ABC):
+    @classmethod
+    def info_id(cls, info):
+        # Most use their 'name' as their obj_id
+        return info.name
+
     def __init__(self, config, info=None):
         self._config = config
         self._info = info
@@ -65,10 +70,10 @@ class AzObject(ABC):
         try:
             cp = self.az(*args, capture_output=True, **kwargs)
         except subprocess.CalledProcessError as cpe:
-            if "Please run 'az login' to setup account" in cpe.stderr:
+            if any(s in cpe.stderr for s in ["Please run 'az login' to setup account",
+                                             "Interactive authentication is needed"]):
                 raise NotLoggedIn()
-            else:
-                raise
+            raise
         return cp.stdout if cp else ''
 
     def az_json(self, *args, **kwargs):
@@ -105,14 +110,13 @@ class AzSubObject(AzObject):
         return f'{cls.subobject_name()}.{obj_id}'
 
     @classmethod
-    def info_id(cls, info):
-        # Most use their 'name' as their obj_id
-        return info.name
-
-    @classmethod
     @abstractmethod
     def list_cmd(cls):
         pass
+
+    @classmethod
+    def filter_parent_opts(cls, opts):
+        return opts
 
     def __init__(self, parent, obj_id, config, info=None):
         super().__init__(config, info=info)
@@ -178,7 +182,7 @@ def AzSubObjectContainer(subclasses=[]):
 
         def get_objects(self, cls):
             return [getattr(self, f'get_{cls.subobject_name()}')(cls.info_id(info), info=info)
-                    for info in self.az_responselist(*cls.list_cmd(), *self.subcmd_opts())]
+                    for info in self.az_responselist(*cls.list_cmd(), *cls.filter_parent_opts(*self.subcmd_opts()))]
 
         setattr(InnerAzObject, f'get_{cls.subobject_name()}s', partialmethod(get_objects, cls))
 

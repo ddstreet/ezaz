@@ -1,9 +1,13 @@
 
-from .command import DefineSubCommand
-from .resourcegroup import ResourceGroupSubCommand
+from .command import SubCommand
+from .resourcegroup import ResourceGroupCommand
 
 
-class StorageAccountCommand(ResourceGroupSubCommand):
+class StorageAccountCommand(SubCommand):
+    @classmethod
+    def parent_command_cls(cls):
+        return ResourceGroupCommand
+
     @classmethod
     def command_name_list(cls):
         return ['storage', 'account']
@@ -14,6 +18,3 @@ class StorageAccountCommand(ResourceGroupSubCommand):
         if self.verbose:
             msg += f' (location: {info.location})'
         print(msg)
-
-
-StorageAccountSubCommand = DefineSubCommand(ResourceGroupSubCommand, StorageAccountCommand)

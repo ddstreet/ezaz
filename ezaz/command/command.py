@@ -6,13 +6,13 @@ import subprocess
 from abc import ABC
 from abc import abstractmethod
 from contextlib import suppress
+from operator import methodcaller
 
-from ..azobject.account import Account
 from ..exception import NotLoggedIn
 from ..response import lookup_response
 
 
-class Command(ABC):
+class SimpleCommand(ABC):
     @classmethod
     @abstractmethod
     def command_name_list(cls):
@@ -23,12 +23,12 @@ class Command(ABC):
         return sep.join(cls.command_name_list())
 
     @classmethod
-    def command_metavar(cls):
-        return cls.command_name_list()[-1].upper()
-
-    @classmethod
     def aliases(cls):
         return []
+
+    @classmethod
+    def command_metavar(cls):
+        return cls.command_name_list()[-1].upper()
 
     @classmethod
     def parser_add_subparser(cls, subparsers):
@@ -39,15 +39,18 @@ class Command(ABC):
 
     @classmethod
     def parser_add_arguments(cls, parser):
-        cls.parser_add_argument_verbose(parser)
-        cls.parser_add_argument_dry_run(parser)
-        cls.parser_add_argument_obj_id(parser)
-
+        cls.parser_add_common_arguments(parser)
         cls.parser_add_subclass_arguments(parser)
 
         group = cls.parser_add_action_group(parser)
         cls.parser_add_action_arguments(group)
+        cls.parser_add_action_subclass_arguments(group)
         cls.parser_set_action_default(group)
+
+    @classmethod
+    def parser_add_common_arguments(cls, parser):
+        cls.parser_add_argument_verbose(parser)
+        cls.parser_add_argument_dry_run(parser)
 
     @classmethod
     def parser_add_argument_verbose(cls, parser):
@@ -58,15 +61,6 @@ class Command(ABC):
     def parser_add_argument_dry_run(cls, parser):
         parser.add_argument('-n', '--dry-run', action='store_true',
                             help='Only print what would be done, do not run commands')
-
-    @classmethod
-    def parser_add_argument_obj_id(cls, parser):
-        cls._parser_add_argument_obj_id(parser)
-
-    @classmethod
-    def _parser_add_argument_obj_id(cls, parser):
-        parser.add_argument(f'--{cls.command_name("-")}',
-                            help=f'Use the specified {cls.command_name(" ")}, instead of the default')
 
     @classmethod
     def parser_add_subclass_arguments(cls, parser):
@@ -80,6 +74,10 @@ class Command(ABC):
     @classmethod
     @abstractmethod
     def parser_add_action_arguments(cls, group):
+        pass
+
+    @classmethod
+    def parser_add_action_subclass_arguments(cls, group):
         pass
 
     @classmethod
@@ -98,7 +96,6 @@ class Command(ABC):
     def __init__(self, config, options):
         self._config = config
         self._options = options
-        self._account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
         self._setup()
 
     def _setup(self):
@@ -123,6 +120,46 @@ class Command(ABC):
             print(str(nli))
 
 
+class Command(SimpleCommand):
+    @classmethod
+    def parser_add_common_arguments(cls, parser):
+        super().parser_add_common_arguments(parser)
+        cls.parser_add_argument_obj_id(parser)
+
+    @classmethod
+    def parser_add_argument_obj_id(cls, parser):
+        cls._parser_add_argument_obj_id(parser)
+
+    @classmethod
+    def _parser_add_argument_obj_id(cls, parser):
+        parser.add_argument(f'--{cls.command_name("-")}',
+                            help=f'Use the specified {cls.command_name(" ")}, instead of the default')
+
+    @classmethod
+    def parser_add_action_arguments(cls, group):
+        cls.parser_add_action_argument_show(group)
+
+    @classmethod
+    def parser_add_action_argument_show(cls, group):
+        cls._parser_add_action_argument(group, ['--show'],
+                                        help=f'Show default {cls.command_name(sep=" ")} (default)')
+
+    @classmethod
+    def parser_set_action_default(cls, group):
+        cls._parser_set_action_default(group, 'show')
+
+    @property
+    @abstractmethod
+    def azobject(self):
+        pass
+
+    def _show(self, target):
+        print(target.info_id(target.info))
+
+    def show(self):
+        self._show(self.azobject)
+
+
 class CommandArgumentAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         namespace.command_action = self.option_strings[-1].lstrip('-')
@@ -130,6 +167,16 @@ class CommandArgumentAction(argparse.Action):
 
 
 class SubCommand(Command):
+    @classmethod
+    @abstractmethod
+    def parent_command_cls(cls):
+        pass
+
+    @classmethod
+    def parser_add_argument_obj_id(cls, parser):
+        cls.parent_command_cls().parser_add_argument_obj_id(parser)
+        cls._parser_add_argument_obj_id(parser)
+
     @classmethod
     def parser_add_action_arguments(cls, group):
         cls.parser_add_action_argument_set(group)
@@ -164,22 +211,31 @@ class SubCommand(Command):
         cls._parser_add_action_argument(group, ['-l', '--list'],
                                         help=f'List {cls.command_name(sep=" ")}s')
 
-    @classmethod
-    def parser_add_action_argument_show(cls, group):
-        cls._parser_add_action_argument(group, ['--show'],
-                                        help=f'Show default {cls.command_name(sep=" ")} (default)')
+    def _setup(self):
+        super()._setup()
+        _parent_command = self.parent_command_cls()(self._config, self._options)
+        assert isinstance(_parent_command, Command)
+        self._parent_azobject = _parent_command.azobject
 
-    @classmethod
-    def parser_set_action_default(cls, group):
-        cls._parser_set_action_default(group, 'show')
+    @property
+    def parent_azobject(self):
+        return self._parent_azobject
+
+    @property
+    def _default_azobject_id_key(self):
+        return f'default_{self.command_name()}'
+
+    @property
+    def _default_azobject_id(self):
+        return getattr(self.parent_azobject, self._default_azobject_id_key)
+
+    @property
+    def _azobject_id(self):
+        return getattr(self._options, self.command_name()) or self._default_azobject_id
 
     @property
     def azobject(self):
-        obj_id = getattr(self._options, self.command_name())
-        if obj_id:
-            return getattr(super().azobject, f'get_{self.command_name()}')(obj_id)
-        else:
-            return getattr(super().azobject, f'get_default_{self.command_name()}')()
+        return getattr(self.parent_azobject, f'get_{self.command_name()}')(self._azobject_id)
 
     def create(self, target):
         print('IMPLEMENT ME!')
@@ -187,37 +243,12 @@ class SubCommand(Command):
     def delete(self, target):
         print('IMPLEMENT ME!')
 
-    @abstractmethod
-    def _show(self, target):
-        pass
-
-    def show(self):
-        self._show(self.azobject)
-
     def list(self):
-        for target in getattr(self.azobject.parent, f'get_{self.command_name()}s')():
+        for target in getattr(self.parent_azobject, f'get_{self.command_name()}s')():
             self._show(target)
 
     def clear(self):
-        delattr(self.azobject.parent, f'default_{self.command_name()}')
+        delattr(self.parent_azobject, self._default_azobject_id_key)
 
     def set(self, target):
-        setattr(self.azobject.parent, f'default_{self.command_name()}', target)
-
-
-def DefineSubCommand(superclass, parentclass):
-    class InnerSubCommand(superclass):
-        @classmethod
-        def parent_command_cls(cls):
-            return parentclass
-
-        @classmethod
-        def parser_add_argument_all_obj_id(cls, parser):
-            cls.parent_command_cls().parser_add_argument_all_obj_id(parser)
-            cls._parser_add_argument_obj_id(parser)
-
-        @classmethod
-        def parser_add_argument_obj_id(cls, parser):
-            cls.parser_add_argument_all_obj_id(parser)
-            
-    return InnerSubCommand
+        setattr(self.parent_azobject, self._default_azobject_id_key, target)

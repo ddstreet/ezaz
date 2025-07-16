@@ -18,17 +18,17 @@ class StorageContainer(AzSubObject, AzSubObjectContainer([])):
     def list_cmd(cls):
         return ['storage', 'container', 'list']
 
-    def _subcmd_opts_without_rg(self):
+    @classmethod
+    def filter_parent_opts(cls, *opts):
         # Unfortunately storage container cmds do *not* include the resource group :(
-        opts = super().subcmd_opts()
         for opt in ['-g', '--resource-group']:
             with suppress(ValueError):
                 index = opts.index(opt)
                 opts = opts[0:index] + opts[index+2:]
-        return opts
+        return list(opts) + ['--auth-mode', 'login']
 
     def cmd_opts(self):
-        return self._subcmd_opts_without_rg() + ['--auth-mode', 'login', '--name', self.object_id]
+        return self.filter_parent_opts(super().subcmd_opts()) + ['--name', self.object_id]
 
     def subcmd_opts(self):
-        return self._subcmd_opts_without_rg() + ['--auth-mode', 'login', '--container-name', self.object_id]
+        return self.filter_parent_opts(super().subcmd_opts()) + ['--container-name', self.object_id]

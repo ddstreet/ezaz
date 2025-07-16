@@ -1,9 +1,13 @@
 
-from .command import DefineSubCommand
-from .resourcegroup import ResourceGroupSubCommand
+from .command import SubCommand
+from .resourcegroup import ResourceGroupCommand
 
 
-class ImageGalleryCommand(ResourceGroupSubCommand):
+class ImageGalleryCommand(SubCommand):
+    @classmethod
+    def parent_command_cls(cls):
+        return ResourceGroupCommand
+
     @classmethod
     def command_name_list(cls):
         return ['image', 'gallery']
@@ -18,6 +22,3 @@ class ImageGalleryCommand(ResourceGroupSubCommand):
         if self.verbose:
             msg += f' (location: {info.location})'
         print(msg)
-
-
-ImageGallerySubCommand = DefineSubCommand(ResourceGroupSubCommand, ImageGalleryCommand)

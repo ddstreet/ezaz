@@ -1,17 +1,24 @@
 
-from .command import Command
+from .command import SimpleCommand
 
 
-class ConfigCommand(Command):
+class ConfigCommand(SimpleCommand):
     @classmethod
     def command_name_list(cls):
         return ['config']
 
     @classmethod
-    def _parser_add_arguments(cls, parser):
-        parser.add_argument('--show',
-                            action='store_true',
-                            help='Show config (default)')
+    def parser_add_action_arguments(cls, group):
+        cls.parser_add_action_argument_show(group)
 
-    def _run(self):
+    @classmethod
+    def parser_add_action_argument_show(cls, group):
+        cls._parser_add_action_argument(group, ['--show'],
+                                        help=f'Show config (default)')
+
+    @classmethod
+    def parser_set_action_default(cls, group):
+        cls._parser_set_action_default(group, 'show')
+
+    def show(self):
         print(self._config)

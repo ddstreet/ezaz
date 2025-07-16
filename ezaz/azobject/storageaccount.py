@@ -17,7 +17,7 @@ class StorageAccount(AzSubObject, AzSubObjectContainer([StorageContainer])):
     def list_cmd(cls):
         return ['storage', 'account', 'list']
 
-    def _info_opts(self):
+    def cmd_opts(self):
         return super().subcmd_opts() + ['--name', self.object_id]
 
     def subcmd_opts(self):

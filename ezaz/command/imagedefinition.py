@@ -1,9 +1,13 @@
 
-from .command import DefineSubCommand
-from .imagegallery import ImageGallerySubCommand
+from .command import SubCommand
+from .imagegallery import ImageGalleryCommand
 
 
-class ImageDefinitionCommand(ImageGallerySubCommand):
+class ImageDefinitionCommand(SubCommand):
+    @classmethod
+    def parent_command_cls(cls):
+        return ImageGalleryCommand
+
     @classmethod
     def command_name_list(cls):
         return ['image', 'definition']
@@ -20,6 +24,3 @@ class ImageDefinitionCommand(ImageGallerySubCommand):
                     tags.append(k if not v else f'{k}={v}')
                 msg += f' [tags: {" ".join(tags)}]'
         print(msg)
-
-
-ImageDefinitionSubCommand = DefineSubCommand(ImageGallerySubCommand, ImageDefinitionCommand)
