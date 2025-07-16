@@ -16,7 +16,7 @@ class DictNamespace(SimpleNamespace, Iterable):
     def __init__(self, obj):
         assert isinstance(obj, dict), f'Unexpected obj type {type(obj)}'
 
-        super().__init__({k: convert_item(v) for k, v in obj.items()})
+        super().__init__(**{k: convert_item(v) for k, v in obj.items()})
 
     def __iter__(self):
         return iter(self.__dict__)
