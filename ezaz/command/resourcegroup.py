@@ -16,6 +16,12 @@ class ResourceGroupCommand(AllActionCommand):
     def aliases(cls):
         return ['group', 'rg']
 
+    @classmethod
+    def parser_add_common_arguments(cls, parser):
+        super().parser_add_common_arguments(parser)
+        parser.add_argument('--location',
+                            help='Location (required for --create)')
+
     def show(self):
         info = self.azobject.info
         msg = info.name

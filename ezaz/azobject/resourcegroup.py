@@ -13,23 +13,12 @@ class ResourceGroup(AzSubObject, AzSubObjectContainer([ImageGallery, SshKey, Sto
         return ['resource', 'group']
 
     @classmethod
-    def get_show_cmd(cls):
-        return ['group', 'show']
+    def get_base_cmd(cls):
+        return ['group']
 
-    @classmethod
-    def get_create_cmd(self):
-        return ['group', 'create']
+    def get_my_subcmd_opts(self, **kwargs):
+        return ['--resource-group', self.object_id]
 
-    @classmethod
-    def get_delete_cmd(self):
-        raise NotDeletable()
-
-    @classmethod
-    def get_list_cmd(cls):
-        return ['group', 'list']
-
-    def get_cmd_opts(self):
-        return self.get_subcmd_opts()
-
-    def get_subcmd_opts(self):
-        return super().get_subcmd_opts() + ['--resource-group', self.object_id]
+    def get_my_create_cmd_opts(self, **kwargs):
+        location = self._required_param('location', f'The --create parameter requires --location', **kwargs)
+        return self.get_my_subcmd_opts() + ['--location', location]

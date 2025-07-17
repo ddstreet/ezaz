@@ -1,4 +1,6 @@
 
+from ..exception import NotCreatable
+from ..exception import NotDeletable
 from . import AzSubObject
 from . import AzSubObjectContainer
 from .resourcegroup import ResourceGroup
@@ -14,15 +16,16 @@ class Subscription(AzSubObject, AzSubObjectContainer([ResourceGroup])):
         return info.id
 
     @classmethod
-    def get_show_cmd(cls):
-        return ['account', 'show']
+    def get_base_cmd(cls):
+        return ['account']
 
     @classmethod
-    def get_list_cmd(cls):
-        return ['account', 'list']
+    def get_create_cmd(cls):
+        raise NotCreatable('subscription')
 
-    def get_cmd_opts(self):
-        return super().get_subcmd_opts() + ['--subscription', self.object_id]
+    @classmethod
+    def get_delete_cmd(cls):
+        raise NotDeletable('subscription')
 
-    def get_subcmd_opts(self):
-        return super().get_subcmd_opts() + ['--subscription', self.object_id]
+    def get_my_subcmd_opts(self, **kwargs):
+        return ['--subscription', self.object_id]

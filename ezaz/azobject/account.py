@@ -7,12 +7,26 @@ from contextlib import suppress
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import ConfigNotFound
+from ..exception import NotCreatable
+from ..exception import NotDeletable
 from ..exception import NotLoggedIn
 from . import AzSubObjectContainer
 from .subscription import Subscription
 
 
 class Account(AzSubObjectContainer([Subscription])):
+    @classmethod
+    def get_base_cmd(cls):
+        return ['account']
+
+    @classmethod
+    def get_create_cmd(cls):
+        raise NotCreatable('account')
+
+    @classmethod
+    def get_delete_cmd(cls):
+        raise NotDeletable('account')
+
     def __init__(self, config, verbose=False, dry_run=False):
         super().__init__(config)
         self._verbose = verbose
@@ -85,12 +99,5 @@ class Account(AzSubObjectContainer([Subscription])):
     @current_subscription.setter
     def current_subscription(self, subscription):
         if self.current_subscription != subscription:
-            self.az('account', 'set', '-s', subscription)
+            self.az('account', 'set', '-s', subscription, dry_runnable=False)
             self._info = None
-
-    def get_show_cmd(self):
-        return ['account', 'show']
-
-    def get_cmd_opts(self):
-        return []
-

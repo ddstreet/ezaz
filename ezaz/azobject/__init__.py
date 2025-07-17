@@ -9,9 +9,8 @@ from contextlib import suppress
 from functools import partial
 from functools import partialmethod
 
-from ..exception import NotCreatable
-from ..exception import NotDeletable
 from ..exception import NotLoggedIn
+from ..exception import RequiredParameter
 from ..response import lookup_response
 
 
@@ -27,13 +26,21 @@ class AzAction(ABC):
         return self._dry_run
 
     def _trace(self, msg):
-        if self.verbose or self.dry_run:
-            prefix = 'DRY-RUN: ' if self.dry_run else ''
-            print(f'{prefix}{msg}')
+        if self.verbose:
+            print(msg)
 
-    def _exec(self, *args, check=True, **kwargs):
+    def _required_param(self, param, msg, **kwargs):
+        try:
+            return kwargs[param]
+        except KeyError:
+            raise RequiredParameter(param, msg)
+
+    def _exec(self, *args, check=True, dry_runnable=True, **kwargs):
+        if self.dry_run and not dry_runnable:
+            print(f'DRY-RUN (not running): {" ".join(args)}')
+            return None
         self._trace(' '.join(args))
-        return None if self.dry_run else subprocess.run(args, check=check, **kwargs)
+        return subprocess.run(args, check=check, **kwargs)
 
     def az(self, *args, capture_output=False, **kwargs):
         return self._exec('az', *args, capture_output=capture_output, **kwargs)
@@ -71,16 +78,20 @@ class AzObject(AzAction):
 
     @classmethod
     @abstractmethod
-    def get_show_cmd(self):
+    def get_base_cmd(cls):
         pass
 
     @classmethod
-    def get_create_cmd(self):
-        raise NotCreatable()
+    def get_show_cmd(cls):
+        return cls.get_base_cmd() + ['show']
 
     @classmethod
-    def get_delete_cmd(self):
-        raise NotDeletable()
+    def get_create_cmd(cls):
+        return cls.get_base_cmd() + ['create']
+
+    @classmethod
+    def get_delete_cmd(cls):
+        return cls.get_base_cmd() + ['delete']
 
     def __init__(self, config, info=None):
         self._config = config
@@ -90,17 +101,17 @@ class AzObject(AzAction):
     def config(self):
         return self._config
 
-    def get_cmd_opts(self):
+    def get_cmd_opts(self, **kwargs):
         return []
 
-    def get_show_cmd_opts(self):
-        return self.get_cmd_opts()
+    def get_show_cmd_opts(self, **kwargs):
+        return self.get_cmd_opts(**kwargs)
 
-    def get_create_cmd_opts(self):
-        return self.get_cmd_opts()
+    def get_create_cmd_opts(self, **kwargs):
+        return self.get_cmd_opts(**kwargs)
 
-    def get_delete_cmd_opts(self):
-        return self.get_cmd_opts()
+    def get_delete_cmd_opts(self, **kwargs):
+        return self.get_cmd_opts(**kwargs)
 
     def _get_info(self):
         return self.az_response(*self.get_show_cmd(), *self.get_show_cmd_opts())
@@ -112,15 +123,16 @@ class AzObject(AzAction):
         return self._info
 
     def show(self):
-        if self.verbose:
-            print(f'{self.info.name} (id: {self.info_id(self.info)})')
-        print(self.info.name)
+        if self.verbose and hasattr(self.info, 'id'):
+            print(f'{self.info.name} (id: {self.info.id})')
+        else:
+            print(self.info.name)
 
-    def create(self):
-        self.az_response(*self.get_create_cmd(), *self.get_create_cmd_opts())
+    def create(self, **kwargs):
+        self.az(*self.get_create_cmd(), *self.get_create_cmd_opts(**kwargs), dry_runnable=False)
 
-    def delete(self):
-        self.az_response(*self.get_delete_cmd(), *self.get_delete_cmd_opts())
+    def delete(self, **kwargs):
+        self.az(*self.get_delete_cmd(), *self.get_delete_cmd_opts(**kwargs), dry_runnable=False)
 
 
 class AzSubObject(AzObject):
@@ -134,6 +146,10 @@ class AzSubObject(AzObject):
         return sep.join(cls.subobject_name_list())
 
     @classmethod
+    def get_base_cmd(cls):
+        return cls.subobject_name_list()
+
+    @classmethod
     def default_key(cls):
         return f'default_{cls.subobject_name()}'
 
@@ -142,9 +158,8 @@ class AzSubObject(AzObject):
         return f'{cls.subobject_name()}.{obj_id}'
 
     @classmethod
-    @abstractmethod
     def get_list_cmd(cls):
-        pass
+        return cls.get_base_cmd() + ['list']
 
     @classmethod
     def filter_parent_opts(cls, *opts):
@@ -174,16 +189,47 @@ class AzSubObject(AzObject):
 
 def AzSubObjectContainer(subclasses=[]):
     class InnerAzObject(AzObject):
-        def get_subcmd_opts(self):
-            with suppress(AttributeError):
-                return self.parent.get_subcmd_opts()
+        def get_my_cmd_opts(self, **kwargs):
+            return self.get_my_subcmd_opts(**kwargs)
+
+        def get_my_subcmd_opts(self, **kwargs):
             return []
 
-        def get_list_cmd_opts(self, cls):
-            return cls.filter_parent_opts(*self.get_subcmd_opts())
+        def get_my_show_cmd_opts(self, **kwargs):
+            return self.get_my_cmd_opts(**kwargs)
 
-        def list(self, cls):
-            return self.az_responselist(*cls.get_list_cmd(), *self.get_list_cmd_opts(cls))
+        def get_my_create_cmd_opts(self, **kwargs):
+            return self.get_my_cmd_opts(**kwargs)
+
+        def get_my_delete_cmd_opts(self, **kwargs):
+            return self.get_my_cmd_opts(**kwargs)
+
+        def get_parent_subcmd_opts(self, **kwargs):
+            with suppress(AttributeError):
+                return self.parent.get_subcmd_opts(**kwargs)
+            return []
+
+        def get_cmd_opts(self, **kwargs):
+            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_cmd_opts(**kwargs)
+
+        def get_subcmd_opts(self, **kwargs):
+            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_subcmd_opts(**kwargs)
+
+        def get_show_cmd_opts(self, **kwargs):
+            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_show_cmd_opts(**kwargs)
+
+        def get_create_cmd_opts(self, **kwargs):
+            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_create_cmd_opts(**kwargs)
+
+        def get_delete_cmd_opts(self, **kwargs):
+            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_delete_cmd_opts(**kwargs)
+
+        def get_list_cmd_opts(self, cls, **kwargs):
+            return cls.filter_parent_opts(*self.get_subcmd_opts(**kwargs))
+
+        # TODO - rework this to directly call classmethod cls.list()
+        def list(self, cls, **kwargs):
+            return self.az_responselist(*cls.get_list_cmd(), *self.get_list_cmd_opts(cls, **kwargs))
 
     for cls in subclasses:
         assert issubclass(cls, AzSubObject)
@@ -218,9 +264,9 @@ def AzSubObjectContainer(subclasses=[]):
 
         setattr(InnerAzObject, f'get_default_{cls.subobject_name()}', partialmethod(get_default_object, cls))
 
-        def get_objects(self, cls):
+        def get_objects(self, cls, **kwargs):
             return [getattr(self, f'get_{cls.subobject_name()}')(cls.info_id(info), info=info)
-                    for info in self.list(cls)]
+                    for info in self.list(cls, **kwargs)]
 
         setattr(InnerAzObject, f'get_{cls.subobject_name()}s', partialmethod(get_objects, cls))
 

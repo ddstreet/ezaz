@@ -14,3 +14,6 @@ class DirectAction(AzAction):
     @property
     def dry_run(self):
         return self._dry_run
+
+    def az(self, *args):
+        return super().az(*args, dry_runnable=False)

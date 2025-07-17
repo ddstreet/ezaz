@@ -1,6 +1,10 @@
 
 
-class ConfigError(Exception):
+class EzazException(Exception):
+    pass
+
+
+class ConfigError(EzazException):
     pass
 
 
@@ -48,22 +52,29 @@ class VMConfigNotFound(ConfigNotFound):
     pass
 
 
-class AlreadyLoggedIn(Exception):
+class AlreadyLoggedIn(EzazException):
     pass
 
 
-class AlreadyLoggedOut(Exception):
+class AlreadyLoggedOut(EzazException):
     pass
 
 
-class NotLoggedIn(Exception):
+class NotLoggedIn(EzazException):
     def __init__(self):
         super().__init__('Not logged in, please login and try again.')
 
 
-class NotCreatable(Exception):
-    pass
+class NotCreatable(EzazException):
+    def __init__(self, object_type):
+        super().__init__(f'Object type {object_type} is not creatable.')
 
 
-class NotDeletable(Exception):
-    pass
+class NotDeletable(EzazException):
+    def __init__(self, object_type):
+        super().__init__(f'Object type {object_type} is not deletable.')
+
+
+class RequiredParameter(EzazException):
+    def __init__(self, param, msg=None):
+        super().__init__(msg if msg else f'The parameter --{param} is required.')

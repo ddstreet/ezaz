@@ -40,7 +40,6 @@ class SimpleCommand(ABC):
     @classmethod
     def parser_add_arguments(cls, parser):
         cls.parser_add_common_arguments(parser)
-        cls.parser_add_subclass_arguments(parser)
 
     @classmethod
     def parser_add_common_arguments(cls, parser):
@@ -56,10 +55,6 @@ class SimpleCommand(ABC):
     def parser_add_argument_dry_run(cls, parser):
         parser.add_argument('-n', '--dry-run', action='store_true',
                             help='Only print what would be done, do not run commands')
-
-    @classmethod
-    def parser_add_subclass_arguments(cls, parser):
-        pass
 
     def __init__(self, config, options):
         self._config = config
@@ -95,7 +90,6 @@ class ActionCommand(SimpleCommand):
 
         group = cls.parser_add_action_group(parser)
         cls.parser_add_action_arguments(group)
-        cls.parser_add_action_subclass_arguments(group)
         cls.parser_set_action_default(group)
 
     @classmethod
@@ -106,10 +100,6 @@ class ActionCommand(SimpleCommand):
     @classmethod
     @abstractmethod
     def parser_add_action_arguments(cls, group):
-        pass
-
-    @classmethod
-    def parser_add_action_subclass_arguments(cls, group):
         pass
 
     @classmethod
@@ -226,8 +216,7 @@ class CreateActionCommand(ActionCommand, AzObjectCommand):
                                         help=f'Create a {cls.command_text()}')
 
     def create(self):
-        assert self.azobject.is_creatable()
-        self.azobject.create()
+        self.azobject.create(**vars(self._options))
 
 
 class DeleteActionCommand(ActionCommand, AzObjectCommand):
@@ -242,8 +231,7 @@ class DeleteActionCommand(ActionCommand, AzObjectCommand):
                                         help=f'Delete a {cls.command_text()}')
 
     def delete(self):
-        assert self.azobject.is_deletable()
-        self.azobject.delete()
+        self.azobject.delete(**vars(self._options))
 
 
 class ListActionCommand(ActionCommand, SubAzObjectCommand):
@@ -258,7 +246,7 @@ class ListActionCommand(ActionCommand, SubAzObjectCommand):
                                         help=f'List {cls.command_text()}s')
 
     def list(self):
-        for azobject in getattr(self.parent_azobject, f'get_{self.command_name()}s')():
+        for azobject in getattr(self.parent_azobject, f'get_{self.command_name()}s')(**vars(self._options)):
             azobject.show()
 
 

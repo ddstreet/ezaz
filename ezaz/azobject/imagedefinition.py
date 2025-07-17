@@ -9,23 +9,14 @@ class ImageDefinition(AzSubObject, AzSubObjectContainer()):
         return ['image', 'definition']
 
     @classmethod
-    def get_show_cmd(cls):
-        return ['sig', 'image-definition', 'show']
+    def get_base_cmd(cls):
+        return ['sig', 'image-definition']
 
-    @classmethod
-    def get_create_cmd(self):
-        raise NotCreatable()
+    def get_my_cmd_opts(self):
+        return ['--gallery-image-definition', self.object_id]
 
-    @classmethod
-    def get_delete_cmd(self):
-        raise NotDeletable()
-
-    @classmethod
-    def get_list_cmd(cls):
-        return ['sig', 'image-definition', 'list']
-
-    def get_cmd_opts(self):
-        return self.get_subcmd_opts()
-
-    def get_subcmd_opts(self):
-        return super().get_subcmd_opts() + ['--gallery-image-definition', self.object_id]
+    def get_my_create_cmd_opts(self, **kwargs):
+        return self.get_my_cmd_opts(**kwargs) + ['--offer', kwargs.get('offer'),
+                                                 '--os-type', kwargs.get('os_type'),
+                                                 '--publisher', kwargs.get('publisher'),
+                                                 '--sku', kwargs.get('sku')]

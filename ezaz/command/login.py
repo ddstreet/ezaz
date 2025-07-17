@@ -10,7 +10,8 @@ class LoginCommand(SimpleCommand):
         return ['login']
 
     @classmethod
-    def parser_add_subclass_arguments(cls, parser):
+    def parser_add_common_arguments(cls, parser):
+        super().parser_add_common_arguments(parser)
         parser.add_argument('--use-device-code',
                             action='store_true',
                             help='Instead of opening a browser window, show the URL and code')

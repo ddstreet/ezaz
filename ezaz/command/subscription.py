@@ -20,7 +20,8 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
         return ['sub']
 
     @classmethod
-    def parser_add_action_subclass_arguments(cls, group):
+    def parser_add_action_arguments(cls, group):
+        super().parser_add_action_arguments(group)
         cls._parser_add_action_argument(group, ['--set-current'], nargs=1,
                                         help=f'Set current subscription (does not affect future logins)')
 
