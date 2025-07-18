@@ -12,7 +12,7 @@ class ImageDefinition(AzSubObject, AzSubObjectContainer()):
     def get_base_cmd(cls):
         return ['sig', 'image-definition']
 
-    def get_my_cmd_args(self):
+    def get_my_cmd_args(self, **kwargs):
         return ['--gallery-image-definition', self.object_id]
 
     def get_my_create_cmd_args(self, **kwargs):
