@@ -25,7 +25,12 @@ class Main:
                             action='store_true',
                             help='Only print what would be done, do not run commands')
 
-        subparsers = parser.add_subparsers(required=True,
+        cmds = [c.command_name_short() + (f' ({", ".join(c.aliases())})' if c.aliases() else '')
+                for c in COMMANDS]
+        description = f'Available subcommands (and aliases): {", ".join(cmds)}'
+        subparsers = parser.add_subparsers(description=description,
+                                           required=True,
+                                           metavar='SUBCOMMAND',
                                            help='Subcommand to run')
 
         for c in COMMANDS:

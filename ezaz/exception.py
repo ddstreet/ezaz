@@ -75,6 +75,6 @@ class NotDeletable(EzazException):
         super().__init__(f'Object type {object_type} is not deletable.')
 
 
-class RequiredParameter(EzazException):
-    def __init__(self, param, msg=None):
-        super().__init__(msg if msg else f'The parameter --{param} is required.')
+class RequiredArgument(EzazException):
+    def __init__(self, arg, msg=None):
+        super().__init__(msg if msg else f'The argument --{arg.replace("_", "-")} is required.')

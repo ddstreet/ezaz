@@ -23,6 +23,10 @@ class SimpleCommand(ABC):
         return sep.join(cls.command_name_list())
 
     @classmethod
+    def command_name_short(cls):
+        return cls.command_name('')
+
+    @classmethod
     def command_text(cls):
         return cls.command_name(' ')
 
@@ -32,7 +36,7 @@ class SimpleCommand(ABC):
 
     @classmethod
     def parser_add_subparser(cls, subparsers):
-        parser = subparsers.add_parser(cls.command_name(''), aliases=cls.aliases())
+        parser = subparsers.add_parser(cls.command_name_short(), aliases=cls.aliases())
         cls.parser_add_arguments(parser)
         parser.set_defaults(command_class=cls)
         return parser
@@ -107,8 +111,8 @@ class ActionCommand(SimpleCommand):
         return cls.command_name_list()[-1].upper()
 
     @classmethod
-    def _parser_add_action_argument(cls, group, opts, nargs=0, help=None):
-        group.add_argument(*opts, action=CommandArgumentAction, nargs=nargs, metavar=cls.command_metavar(), help=help)
+    def _parser_add_action_argument(cls, group, *args, nargs=0, help=None):
+        group.add_argument(*args, action=CommandArgumentAction, nargs=nargs, metavar=cls.command_metavar(), help=help)
 
     @classmethod
     @abstractmethod
@@ -193,7 +197,7 @@ class ShowActionCommand(ActionCommand, AzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_show(cls, group):
-        cls._parser_add_action_argument(group, ['--show'],
+        cls._parser_add_action_argument(group, '--show',
                                         help=f'Show default {cls.command_text()} (default)')
 
     @classmethod
@@ -212,7 +216,7 @@ class CreateActionCommand(ActionCommand, AzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_create(cls, group):
-        cls._parser_add_action_argument(group, ['-c', '--create'],
+        cls._parser_add_action_argument(group, '-c', '--create',
                                         help=f'Create a {cls.command_text()}')
 
     def create(self):
@@ -227,7 +231,7 @@ class DeleteActionCommand(ActionCommand, AzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_delete(cls, group):
-        cls._parser_add_action_argument(group, ['-d', '--delete'],
+        cls._parser_add_action_argument(group, '-d', '--delete',
                                         help=f'Delete a {cls.command_text()}')
 
     def delete(self):
@@ -242,7 +246,7 @@ class ListActionCommand(ActionCommand, SubAzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_list(cls, group):
-        cls._parser_add_action_argument(group, ['-l', '--list'],
+        cls._parser_add_action_argument(group, '-l', '--list',
                                         help=f'List {cls.command_text()}s')
 
     def list(self):
@@ -258,7 +262,7 @@ class SetActionCommand(ActionCommand, SubAzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_set(cls, group):
-        cls._parser_add_action_argument(group, ['-S', '--set'],
+        cls._parser_add_action_argument(group, '-S', '--set',
                                         help=f'Set default {cls.command_text()}')
 
     def set(self):
@@ -273,7 +277,7 @@ class ClearActionCommand(ActionCommand, SubAzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_clear(cls, group):
-        cls._parser_add_action_argument(group, ['-C', '--clear'],
+        cls._parser_add_action_argument(group, '-C', '--clear',
                                         help=f'Clear default {cls.command_text()}')
 
     def clear(self):

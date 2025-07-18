@@ -23,9 +23,9 @@ class AccountCommand(ShowActionCommand):
     @classmethod
     def parser_add_action_arguments(cls, group):
         super().parser_add_action_arguments(group)
-        cls._parser_add_action_argument(group, ['--login'], help=f'Login')
-        cls._parser_add_action_argument(group, ['--logout'], help=f'Logout')
-        cls._parser_add_action_argument(group, ['--relogin'], help=f'Logout (if needed), then login')
+        cls._parser_add_action_argument(group, '--login', help=f'Login')
+        cls._parser_add_action_argument(group, '--logout', help=f'Logout')
+        cls._parser_add_action_argument(group, '--relogin', help=f'Logout (if needed), then login')
 
     @classmethod
     def parser_add_argument_obj_id(cls, parser):

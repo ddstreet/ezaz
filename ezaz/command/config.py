@@ -13,7 +13,7 @@ class ConfigCommand(SimpleCommand):
 
     @classmethod
     def parser_add_action_argument_show(cls, group):
-        cls._parser_add_action_argument(group, ['--show'],
+        cls._parser_add_action_argument(group, '--show',
                                         help=f'Show config (default)')
 
     @classmethod

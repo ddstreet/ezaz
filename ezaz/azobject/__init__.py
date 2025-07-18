@@ -10,7 +10,7 @@ from functools import partial
 from functools import partialmethod
 
 from ..exception import NotLoggedIn
-from ..exception import RequiredParameter
+from ..exception import RequiredArgument
 from ..response import lookup_response
 
 
@@ -29,11 +29,18 @@ class AzAction(ABC):
         if self.verbose:
             print(msg)
 
-    def _required_param(self, param, msg, **kwargs):
+    def _required_arg(self, arg, msg, **kwargs):
         try:
-            return kwargs[param]
+            return kwargs[arg]
         except KeyError:
-            raise RequiredParameter(param, msg)
+            raise RequiredArgument(arg, msg)
+
+    def required_arg_by_arg(self, arg, requiring_arg, **kwargs):
+        msg = f'The --{requiring_arg.replace("_", "-")} argument requires --{arg.replace("_", "-")}'
+        return self._required_arg(arg, msg, **kwargs)
+
+    def required_arg(self, arg, **kwargs):
+        return self._required_arg(arg, msg=None, **kwargs)
 
     def _exec(self, *args, check=True, dry_runnable=True, **kwargs):
         if self.dry_run and not dry_runnable:
@@ -186,43 +193,45 @@ class AzSubObject(AzObject):
     def dry_run(self):
         return self.parent.dry_run
 
+    def get_parent_subcmd_opts(self, **kwargs):
+        with suppress(AttributeError):
+            return self.parent.get_subcmd_opts(**kwargs)
+        return []
 
-def AzSubObjectContainer(subclasses=[]):
+    def get_my_cmd_opts(self, **kwargs):
+        return []
+
+    def get_my_show_cmd_opts(self, **kwargs):
+        return self.get_my_cmd_opts(**kwargs)
+
+    def get_my_create_cmd_opts(self, **kwargs):
+        return self.get_my_cmd_opts(**kwargs)
+
+    def get_my_delete_cmd_opts(self, **kwargs):
+        return self.get_my_cmd_opts(**kwargs)
+
+    def get_cmd_opts(self, **kwargs):
+        return self.get_parent_subcmd_opts(**kwargs) + self.get_my_cmd_opts(**kwargs)
+
+    def get_show_cmd_opts(self, **kwargs):
+        return self.get_parent_subcmd_opts(**kwargs) + self.get_my_show_cmd_opts(**kwargs)
+
+    def get_create_cmd_opts(self, **kwargs):
+        return self.get_parent_subcmd_opts(**kwargs) + self.get_my_create_cmd_opts(**kwargs)
+
+    def get_delete_cmd_opts(self, **kwargs):
+        return self.get_parent_subcmd_opts(**kwargs) + self.get_my_delete_cmd_opts(**kwargs)
+
+
+def AzSubObjectContainer(children=[]):
     class InnerAzObject(AzObject):
-        def get_my_cmd_opts(self, **kwargs):
-            return self.get_my_subcmd_opts(**kwargs)
-
         def get_my_subcmd_opts(self, **kwargs):
-            return []
-
-        def get_my_show_cmd_opts(self, **kwargs):
             return self.get_my_cmd_opts(**kwargs)
-
-        def get_my_create_cmd_opts(self, **kwargs):
-            return self.get_my_cmd_opts(**kwargs)
-
-        def get_my_delete_cmd_opts(self, **kwargs):
-            return self.get_my_cmd_opts(**kwargs)
-
-        def get_parent_subcmd_opts(self, **kwargs):
-            with suppress(AttributeError):
-                return self.parent.get_subcmd_opts(**kwargs)
-            return []
-
-        def get_cmd_opts(self, **kwargs):
-            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_cmd_opts(**kwargs)
 
         def get_subcmd_opts(self, **kwargs):
-            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_subcmd_opts(**kwargs)
-
-        def get_show_cmd_opts(self, **kwargs):
-            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_show_cmd_opts(**kwargs)
-
-        def get_create_cmd_opts(self, **kwargs):
-            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_create_cmd_opts(**kwargs)
-
-        def get_delete_cmd_opts(self, **kwargs):
-            return self.get_parent_subcmd_opts(**kwargs) + self.get_my_delete_cmd_opts(**kwargs)
+            if isinstance(self, AzSubObject):
+                return self.get_parent_subcmd_opts(**kwargs) + self.get_my_subcmd_opts(**kwargs)
+            return self.get_my_subcmd_opts(**kwargs)
 
         def get_list_cmd_opts(self, cls, **kwargs):
             return cls.filter_parent_opts(*self.get_subcmd_opts(**kwargs))
@@ -231,7 +240,7 @@ def AzSubObjectContainer(subclasses=[]):
         def list(self, cls, **kwargs):
             return self.az_responselist(*cls.get_list_cmd(), *self.get_list_cmd_opts(cls, **kwargs))
 
-    for cls in subclasses:
+    for cls in children:
         assert issubclass(cls, AzSubObject)
 
         def get_default(cls, self):

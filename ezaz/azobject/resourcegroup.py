@@ -20,5 +20,5 @@ class ResourceGroup(AzSubObject, AzSubObjectContainer([ImageGallery, SshKey, Sto
         return ['--resource-group', self.object_id]
 
     def get_my_create_cmd_opts(self, **kwargs):
-        location = self._required_param('location', f'The --create parameter requires --location', **kwargs)
-        return self.get_my_subcmd_opts() + ['--location', location]
+        location = self.required_arg_by_arg('location', 'create', **kwargs)
+        return super().get_my_create_cmd_opts(**kwargs) + ['--location', location]
