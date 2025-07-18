@@ -13,5 +13,5 @@ class ImageGallery(AzSubObject, AzSubObjectContainer([ImageDefinition])):
     def get_base_cmd(cls):
         return ['sig']
 
-    def get_my_cmd_opts(self, **kwargs):
+    def get_my_cmd_args(self, **kwargs):
         return ['--gallery-name', self.object_id]

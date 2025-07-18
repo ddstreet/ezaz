@@ -11,5 +11,5 @@ class SshKey(AzSubObject):
     def get_base_cmd(cls):
         return ['sshkey']
 
-    def get_subcmd_opts(self, **kwargs):
+    def get_subcmd_args(self, **kwargs):
         return ['--ssh-public-key-name', self.object_id]
