@@ -3,10 +3,11 @@ from ..exception import NotCreatable
 from ..exception import NotDeletable
 from . import AzSubObject
 from . import AzSubObjectContainer
+from . import AzSubObjectContainerChildren
 from .resourcegroup import ResourceGroup
 
 
-class Subscription(AzSubObject, AzSubObjectContainer([ResourceGroup])):
+class Subscription(AzSubObject, AzSubObjectContainer, *AzSubObjectContainerChildren([ResourceGroup])):
     @classmethod
     def subobject_name_list(cls):
         return ['subscription']

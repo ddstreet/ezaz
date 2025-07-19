@@ -5,7 +5,7 @@ from . import AzSubObject
 from . import AzSubObjectContainer
 
 
-class StorageContainer(AzSubObject, AzSubObjectContainer([])):
+class StorageContainer(AzSubObject):
     @classmethod
     def subobject_name_list(cls):
         return ['storage', 'container']

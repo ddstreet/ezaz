@@ -184,7 +184,7 @@ class AzSubObject(AzObject):
         super().__init__(config, info=info)
         self._obj_id = obj_id
         self._parent = parent
-        assert isinstance(self._parent, _AzSubObjectContainer)
+        assert isinstance(self._parent, AzSubObjectContainer)
 
     @property
     def object_id(self):
@@ -234,71 +234,69 @@ class AzSubObject(AzObject):
                                     self.get_my_delete_cmd_args(opts))
 
 
-# Needed so we can check isinstance(..., _AzSubObjectContainer)
-class _AzSubObjectContainer:
-    pass
+class AzSubObjectContainer(AzObject):
+    def get_parent_subcmd_args(self, opts):
+        if isinstance(self, AzSubObject):
+            return super().get_parent_subcmd_args(opts)
+        return {}
+
+    def get_my_subcmd_args(self, opts):
+        if isinstance(self, AzSubObject):
+            return self.get_my_cmd_args(opts)
+        return self.get_cmd_args(opts)
+
+    def get_subcmd_args(self, opts):
+        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
+                                    self.get_my_subcmd_args(opts))
+
+    def get_list_cmd_args(self, cls, opts):
+        return cls.filter_parent_args(self.get_subcmd_args(opts))
+
+    # TODO - rework this to directly call classmethod cls.list()
+    def list(self, cls, **kwargs):
+        return self.az_responselist(*cls.get_list_cmd(), cmd_args=self.get_list_cmd_args(cls, kwargs))
+
+    def get_default_azobject_id(self, cls):
+        try:
+            return self.config[cls.default_key()]
+        except KeyError:
+            not_found = getattr(importlib.import_module('..exception', __name__),
+                                f'{cls.__name__}DefaultConfigNotFound')
+            raise not_found()
+
+    def set_default_azobject_id(self, cls, value):
+        if self.config.get(cls.default_key()) != value:
+            self.config[cls.default_key()] = value
+
+    def del_default_azobject_id(self, cls):
+        with suppress(KeyError):
+            del self.config[cls.default_key()]
+
+    def get_azobject(self, cls, obj_id, info=None):
+        return cls(self, obj_id, self.config.get_object(cls.object_key(obj_id)), info=info)
+
+    def get_default_azobject(self, cls):
+        return getattr(self, f'get_{cls.subobject_name()}')(getattr(self, cls.default_key()))
+
+    def get_azobjects(self, cls, **kwargs):
+        return [getattr(self, f'get_{cls.subobject_name()}')(cls.info_id(info), info=info)
+                for info in self.list(cls, **kwargs)]
 
 
-def AzSubObjectContainer(children=[]):
-    class InnerAzObject(_AzSubObjectContainer, AzObject):
-        def get_parent_subcmd_args(self, opts):
-            if isinstance(self, AzSubObject):
-                return super().get_parent_subcmd_args(opts)
-            return {}
-
-        def get_my_subcmd_args(self, opts):
-            if isinstance(self, AzSubObject):
-                return self.get_my_cmd_args(opts)
-            return self.get_cmd_args(opts)
-
-        def get_subcmd_args(self, opts):
-            return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
-                                        self.get_my_subcmd_args(opts))
-
-        def get_list_cmd_args(self, cls, opts):
-            return cls.filter_parent_args(self.get_subcmd_args(opts))
-
-        # TODO - rework this to directly call classmethod cls.list()
-        def list(self, cls, **kwargs):
-            return self.az_responselist(*cls.get_list_cmd(), cmd_args=self.get_list_cmd_args(cls, kwargs))
+# TODO - remove this and just call the generic methods from command classes
+def AzSubObjectContainerChildren(children=[]):
+    containerclasses = []
 
     for cls in children:
         assert issubclass(cls, AzSubObject)
 
-        def get_default(cls, self):
-            try:
-                return self.config[cls.default_key()]
-            except KeyError:
-                not_found = getattr(importlib.import_module('..exception', __name__),
-                                    f'{cls.__name__}DefaultConfigNotFound')
-                raise not_found()
+        containerclasses.append(type(f'{cls.__name__}Container',
+                                     (),
+                                     {cls.default_key(): property(fget=lambda self: self.get_default_azobject_id(cls),
+                                                                  fset=lambda self, value: self.set_default_azobject_id(cls, value),
+                                                                  fdel=lambda self: self.del_default_azobject_id(cls)),
+                                      f'get_{cls.subobject_name()}': lambda self, obj_id, info=None: self.get_azobject(cls, obj_id, info=info),
+                                      f'get_default_{cls.subobject_name()}': lambda self: self.get_default_azobject(cls),
+                                      f'get_{cls.subobject_name()}s': lambda self, **kwargs: self.get_azobjects(cls, **kwargs)}))
 
-        def set_default(cls, self, value):
-            if self.config.get(cls.default_key()) != value:
-                self.config[cls.default_key()] = value
-
-        def del_default(cls, self):
-            with suppress(KeyError):
-                del self.config[cls.default_key()]
-
-        setattr(InnerAzObject, cls.default_key(), property(fget=partial(get_default, cls),
-                                                           fset=partial(set_default, cls),
-                                                           fdel=partial(del_default, cls)))
-
-        def get_object(self, cls, obj_id, info=None):
-            return cls(self, obj_id, self.config.get_object(cls.object_key(obj_id)), info=info)
-
-        setattr(InnerAzObject, f'get_{cls.subobject_name()}', partialmethod(get_object, cls))
-
-        def get_default_object(self, cls):
-            return getattr(self, f'get_{cls.subobject_name()}')(getattr(self, cls.default_key()))
-
-        setattr(InnerAzObject, f'get_default_{cls.subobject_name()}', partialmethod(get_default_object, cls))
-
-        def get_objects(self, cls, **kwargs):
-            return [getattr(self, f'get_{cls.subobject_name()}')(cls.info_id(info), info=info)
-                    for info in self.list(cls, **kwargs)]
-
-        setattr(InnerAzObject, f'get_{cls.subobject_name()}s', partialmethod(get_objects, cls))
-
-    return InnerAzObject
+    return containerclasses

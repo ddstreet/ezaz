@@ -3,7 +3,7 @@ from . import AzSubObject
 from . import AzSubObjectContainer
 
 
-class ImageDefinition(AzSubObject, AzSubObjectContainer()):
+class ImageDefinition(AzSubObject):
     @classmethod
     def subobject_name_list(cls):
         return ['image', 'definition']

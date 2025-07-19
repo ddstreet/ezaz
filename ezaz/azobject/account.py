@@ -11,10 +11,11 @@ from ..exception import NotCreatable
 from ..exception import NotDeletable
 from ..exception import NotLoggedIn
 from . import AzSubObjectContainer
+from . import AzSubObjectContainerChildren
 from .subscription import Subscription
 
 
-class Account(AzSubObjectContainer([Subscription])):
+class Account(AzSubObjectContainer, *AzSubObjectContainerChildren([Subscription])):
     @classmethod
     def get_base_cmd(cls):
         return ['account']
