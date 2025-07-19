@@ -11,19 +11,18 @@ class StorageContainer(AzSubObject, AzSubObjectContainer([])):
         return ['storage', 'container']
 
     @classmethod
-    def filter_parent_args(cls, *args):
+    def filter_parent_args(cls, args):
         # Unfortunately storage container cmds do *not* accept the resource group arg :(
-        for arg in ['-g', '--resource-group']:
-            with suppress(ValueError):
-                index = args.index(arg)
-                args = args[0:index] + args[index+2:]
-        return list(args) + ['--auth-mode', 'login']
+        args.pop('-g', None)
+        args.pop('--resource-group', None)
+        return args
 
-    def get_parent_subcmd_args(self, **kwargs):
-        return self.filter_parent_args(super().get_parent_subcmd_args(**kwargs))
+    def get_parent_subcmd_args(self, opts):
+        return self.filter_parent_args(super().get_parent_subcmd_args(opts))
 
-    def get_my_cmd_args(self, **kwargs):
-        return ['--name', self.object_id]
+    def get_my_cmd_args(self, opts):
+        return {'--name': self.object_id}
 
-    def get_my_subcmd_args(self, **kwargs):
-        return ['--container-name', self.object_id]
+    def get_my_subcmd_args(self, opts):
+        return {'--container-name': self.object_id,
+                '--auth-mode': 'login'}

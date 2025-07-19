@@ -1,4 +1,6 @@
 
+import types
+
 
 class EzazException(Exception):
     pass
@@ -12,44 +14,16 @@ class ConfigNotFound(ConfigError):
     pass
 
 
-class AccountConfigNotFound(ConfigNotFound):
-    pass
+class DefaultConfigNotFound(ConfigNotFound):
+    def __init__(self):
+        super().__init__(f"Default configuration for {getattr(self, 'azobjectname', 'Config')} not found.")
 
 
-class SubscriptionConfigNotFound(ConfigNotFound):
-    pass
+AZOBJECT_TYPES = ['Account', 'Subscription', 'ResourceGroup', 'ImageGallery', 'ImageDefinition', 'StorageAccount', 'StorageContainer', 'StorageBlob', 'SshKey', 'VM']
 
-
-class ResourceGroupConfigNotFound(ConfigNotFound):
-    pass
-
-
-class ImageGalleryConfigNotFound(ConfigNotFound):
-    pass
-
-
-class ImageDefinitionConfigNotFound(ConfigNotFound):
-    pass
-
-
-class StorageAccountConfigNotFound(ConfigNotFound):
-    pass
-
-
-class StorageContainerConfigNotFound(ConfigNotFound):
-    pass
-
-
-class StorageBlobConfigNotFound(ConfigNotFound):
-    pass
-
-
-class SshKeyConfigNotFound(ConfigNotFound):
-    pass
-
-
-class VMConfigNotFound(ConfigNotFound):
-    pass
+for cls in AZOBJECT_TYPES:
+    clsdfltname = f'{cls}DefaultConfigNotFound'
+    globals()[clsdfltname] = type(clsdfltname, (DefaultConfigNotFound,), {'azobjectname': cls})
 
 
 class AlreadyLoggedIn(EzazException):
@@ -75,6 +49,17 @@ class NotDeletable(EzazException):
         super().__init__(f'Object type {object_type} is not deletable.')
 
 
-class RequiredArgument(EzazException):
-    def __init__(self, arg, msg=None):
-        super().__init__(msg if msg else f'The argument --{arg.replace("_", "-")} is required.')
+class ArgumentError(EzazException):
+    def _arg(arg):
+        return f"--{arg.replace('_', '-')}"
+
+
+class RequiredArgument(ArgumentError):
+    def __init__(self, arg, required_by):
+        by = f' by {self._arg(required_by)}' if required_by else ''
+        super().__init__(f'The argument {self._arg(arg)} is required{by}.')
+
+
+class DuplicateArgument(ArgumentError):
+    def __init__(self, arg, value_a, value_b):
+        super().__init__(f'The argument {self._arg(arg)} was added multiple times: {value_a} and {value_b}')

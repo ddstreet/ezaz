@@ -67,11 +67,9 @@ class Account(AzSubObjectContainer([Subscription])):
         if self.is_logged_in:
             raise AlreadyLoggedIn()
 
-        cmd = ['login']
-        if use_device_code:
-            cmd.append('--use-device-code')
+        cmd_args = {'--use-device-code': None} if use_device_code else {}
         with self._disable_subscription_selection():
-            self.az(*cmd)
+            self.az('login', cmd_args=cmd_args)
 
         with suppress(KeyError):
             # Switch subscriptions, if needed
@@ -99,5 +97,5 @@ class Account(AzSubObjectContainer([Subscription])):
     @current_subscription.setter
     def current_subscription(self, subscription):
         if self.current_subscription != subscription:
-            self.az('account', 'set', '-s', subscription, dry_runnable=False)
+            self.az('account', 'set', cmd_args={'-s': subscription}, dry_runnable=False)
             self._info = None

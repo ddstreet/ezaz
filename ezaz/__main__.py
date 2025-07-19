@@ -6,6 +6,11 @@ from functools import cached_property
 
 from .command import COMMANDS
 from .config import Config
+from .exception import ArgumentError
+from .exception import ConfigError
+from .exception import NotLoggedIn
+from .exception import NotCreatable
+from .exception import NotDeletable
 from .importvenv import ImportVenv
 
 
@@ -65,4 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--venv-refresh', action='store_true')
     options = parser.parse_known_args(sys.argv[1:])[0]
     with ImportVenv(verbose=options.verbose, clear=options.venv_refresh):
-        Main().run()
+        try:
+            Main().run()
+        except (ArgumentError, ConfigError, NotLoggedIn, NotCreatable, NotDeletable) as e:
+            print(f'ERROR: {e}')

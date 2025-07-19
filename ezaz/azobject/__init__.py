@@ -5,9 +5,11 @@ import subprocess
 
 from abc import ABC
 from abc import abstractmethod
+from collections import ChainMap
 from contextlib import suppress
 from functools import partial
 from functools import partialmethod
+from itertools import chain
 
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
@@ -29,20 +31,19 @@ class AzAction(ABC):
         if self.verbose:
             print(msg)
 
-    def _required_arg(self, arg, msg, **kwargs):
+    def required_arg(self, arg, _requiring_arg=None, **kwargs):
         try:
             return kwargs[arg]
         except KeyError:
-            raise RequiredArgument(arg, msg)
+            raise RequiredArgument(arg, _requiring_arg)
 
-    def required_arg_by_arg(self, arg, requiring_arg, **kwargs):
-        msg = f'The --{requiring_arg.replace("_", "-")} argument requires --{arg.replace("_", "-")}'
-        return self._required_arg(arg, msg, **kwargs)
+    def _expand_cmd_args(self, cmd_args):
+        expanded = ([([k] + (v if isinstance(v, list) else [] if v is None else [v]))
+                     for k, v in cmd_args.items()])
+        return list(chain.from_iterable(expanded))
 
-    def required_arg(self, arg, **kwargs):
-        return self._required_arg(arg, msg=None, **kwargs)
-
-    def _exec(self, *args, check=True, dry_runnable=True, **kwargs):
+    def _exec(self, *args, cmd_args={}, check=True, dry_runnable=True, **kwargs):
+        args = list(args) + self._expand_cmd_args(cmd_args)
         if self.dry_run and not dry_runnable:
             print(f'DRY-RUN (not running): {" ".join(args)}')
             return None
@@ -108,20 +109,27 @@ class AzObject(AzAction):
     def config(self):
         return self._config
 
-    def get_cmd_args(self, **kwargs):
-        return []
+    def get_cmd_args(self, opts):
+        return {}
 
-    def get_show_cmd_args(self, **kwargs):
-        return self.get_cmd_args(**kwargs)
+    def get_show_cmd_args(self, opts):
+        return self.get_cmd_args(opts)
 
-    def get_create_cmd_args(self, **kwargs):
-        return self.get_cmd_args(**kwargs)
+    def get_create_cmd_args(self, opts):
+        return self.get_cmd_args(opts)
 
-    def get_delete_cmd_args(self, **kwargs):
-        return self.get_cmd_args(**kwargs)
+    def get_delete_cmd_args(self, opts):
+        return self.get_cmd_args(opts)
+
+    def _merge_cmd_args(self, a, b):
+        dup_keys = list(a.keys() & b.keys())
+        if dup_keys:
+            k = dup_keys[0]
+            raise DuplicateArgument(k, a[k], b[k])
+        return a | b
 
     def _get_info(self):
-        return self.az_response(*self.get_show_cmd(), *self.get_show_cmd_args())
+        return self.az_response(*self.get_show_cmd(), cmd_args=self.get_show_cmd_args({}))
 
     @property
     def info(self):
@@ -136,10 +144,10 @@ class AzObject(AzAction):
             print(self.info.name)
 
     def create(self, **kwargs):
-        self.az(*self.get_create_cmd(), *self.get_create_cmd_args(**kwargs), dry_runnable=False)
+        self.az(*self.get_create_cmd(), cmd_args=self.get_create_cmd_args(kwargs), dry_runnable=False)
 
     def delete(self, **kwargs):
-        self.az(*self.get_delete_cmd(), *self.get_delete_cmd_args(**kwargs), dry_runnable=False)
+        self.az(*self.get_delete_cmd(), cmd_args=self.get_delete_cmd_args(kwargs), dry_runnable=False)
 
 
 class AzSubObject(AzObject):
@@ -176,6 +184,7 @@ class AzSubObject(AzObject):
         super().__init__(config, info=info)
         self._obj_id = obj_id
         self._parent = parent
+        assert isinstance(self._parent, _AzSubObjectContainer)
 
     @property
     def object_id(self):
@@ -193,52 +202,65 @@ class AzSubObject(AzObject):
     def dry_run(self):
         return self.parent.dry_run
 
-    def get_parent_subcmd_args(self, **kwargs):
-        with suppress(AttributeError):
-            return self.parent.get_subcmd_args(**kwargs)
-        return []
+    def get_parent_subcmd_args(self, opts):
+        return self.parent.get_subcmd_args(opts)
 
-    def get_my_cmd_args(self, **kwargs):
-        return []
+    def get_my_cmd_args(self, opts):
+        return {}
 
-    def get_my_show_cmd_args(self, **kwargs):
-        return self.get_my_cmd_args(**kwargs)
+    def get_my_show_cmd_args(self, opts):
+        return self.get_my_cmd_args(opts)
 
-    def get_my_create_cmd_args(self, **kwargs):
-        return self.get_my_cmd_args(**kwargs)
+    def get_my_create_cmd_args(self, opts):
+        return self.get_my_cmd_args(opts)
 
-    def get_my_delete_cmd_args(self, **kwargs):
-        return self.get_my_cmd_args(**kwargs)
+    def get_my_delete_cmd_args(self, opts):
+        return self.get_my_cmd_args(opts)
 
-    def get_cmd_args(self, **kwargs):
-        return self.get_parent_subcmd_args(**kwargs) + self.get_my_cmd_args(**kwargs)
+    def get_cmd_args(self, opts):
+        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
+                                    self.get_my_cmd_args(opts))
 
-    def get_show_cmd_args(self, **kwargs):
-        return self.get_parent_subcmd_args(**kwargs) + self.get_my_show_cmd_args(**kwargs)
+    def get_show_cmd_args(self, opts):
+        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
+                                    self.get_my_show_cmd_args(opts))
 
-    def get_create_cmd_args(self, **kwargs):
-        return self.get_parent_subcmd_args(**kwargs) + self.get_my_create_cmd_args(**kwargs)
+    def get_create_cmd_args(self, opts):
+        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
+                                    self.get_my_create_cmd_args(opts))
 
-    def get_delete_cmd_args(self, **kwargs):
-        return self.get_parent_subcmd_args(**kwargs) + self.get_my_delete_cmd_args(**kwargs)
+    def get_delete_cmd_args(self, opts):
+        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
+                                    self.get_my_delete_cmd_args(opts))
+
+
+# Needed so we can check isinstance(..., _AzSubObjectContainer)
+class _AzSubObjectContainer:
+    pass
 
 
 def AzSubObjectContainer(children=[]):
-    class InnerAzObject(AzObject):
-        def get_my_subcmd_args(self, **kwargs):
-            return self.get_my_cmd_args(**kwargs)
-
-        def get_subcmd_args(self, **kwargs):
+    class InnerAzObject(_AzSubObjectContainer, AzObject):
+        def get_parent_subcmd_args(self, opts):
             if isinstance(self, AzSubObject):
-                return self.get_parent_subcmd_args(**kwargs) + self.get_my_subcmd_args(**kwargs)
-            return self.get_my_subcmd_args(**kwargs)
+                return super().get_parent_subcmd_args(opts)
+            return {}
 
-        def get_list_cmd_args(self, cls, **kwargs):
-            return cls.filter_parent_args(*self.get_subcmd_args(**kwargs))
+        def get_my_subcmd_args(self, opts):
+            if isinstance(self, AzSubObject):
+                return self.get_my_cmd_args(opts)
+            return self.get_cmd_args(opts)
+
+        def get_subcmd_args(self, opts):
+            return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
+                                        self.get_my_subcmd_args(opts))
+
+        def get_list_cmd_args(self, cls, opts):
+            return cls.filter_parent_args(self.get_subcmd_args(opts))
 
         # TODO - rework this to directly call classmethod cls.list()
         def list(self, cls, **kwargs):
-            return self.az_responselist(*cls.get_list_cmd(), *self.get_list_cmd_args(cls, **kwargs))
+            return self.az_responselist(*cls.get_list_cmd(), cmd_args=self.get_list_cmd_args(cls, kwargs))
 
     for cls in children:
         assert issubclass(cls, AzSubObject)
@@ -247,8 +269,8 @@ def AzSubObjectContainer(children=[]):
             try:
                 return self.config[cls.default_key()]
             except KeyError:
-                exception = importlib.import_module('..exception', __name__)
-                not_found = getattr(exception, f'{cls.__name__}ConfigNotFound')
+                not_found = getattr(importlib.import_module('..exception', __name__),
+                                    f'{cls.__name__}DefaultConfigNotFound')
                 raise not_found()
 
         def set_default(cls, self, value):

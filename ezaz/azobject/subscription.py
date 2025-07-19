@@ -27,5 +27,5 @@ class Subscription(AzSubObject, AzSubObjectContainer([ResourceGroup])):
     def get_delete_cmd(cls):
         raise NotDeletable('subscription')
 
-    def get_my_subcmd_args(self, **kwargs):
-        return ['--subscription', self.object_id]
+    def get_my_cmd_args(self, opts):
+        return {'--subscription': self.object_id}
