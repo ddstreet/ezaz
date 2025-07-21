@@ -1,13 +1,12 @@
 
 from ..exception import NotCreatable
 from ..exception import NotDeletable
-from . import AzSubObject
-from . import AzSubObjectContainer
-from . import AzSubObjectContainerChildren
+from .azobject import AzSubObject
+from .azobject import AzSubObjectContainer
 from .resourcegroup import ResourceGroup
 
 
-class Subscription(AzSubObject, AzSubObjectContainer, *AzSubObjectContainerChildren([ResourceGroup])):
+class Subscription(AzSubObject, AzSubObjectContainer):
     @classmethod
     def subobject_name_list(cls):
         return ['subscription']
@@ -15,6 +14,10 @@ class Subscription(AzSubObject, AzSubObjectContainer, *AzSubObjectContainerChild
     @classmethod
     def info_id(cls, info):
         return info.id
+
+    @classmethod
+    def get_azsubobject_classes(cls):
+        return [ResourceGroup]
 
     @classmethod
     def get_base_cmd(cls):

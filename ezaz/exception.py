@@ -1,8 +1,10 @@
 
-import types
-
 
 class EzazException(Exception):
+    pass
+
+
+class InvalidAzObjectName(EzazException):
     pass
 
 
@@ -15,15 +17,8 @@ class ConfigNotFound(ConfigError):
 
 
 class DefaultConfigNotFound(ConfigNotFound):
-    def __init__(self):
-        super().__init__(f"Default configuration for {getattr(self, 'azobjectname', 'Config')} not found.")
-
-
-AZOBJECT_TYPES = ['Account', 'Subscription', 'ResourceGroup', 'ImageGallery', 'ImageDefinition', 'StorageAccount', 'StorageContainer', 'StorageBlob', 'SshKey', 'VM']
-
-for cls in AZOBJECT_TYPES:
-    clsdfltname = f'{cls}DefaultConfigNotFound'
-    globals()[clsdfltname] = type(clsdfltname, (DefaultConfigNotFound,), {'azobjectname': cls})
+    def __init__(self, azcls):
+        super().__init__(f"Default configuration for {azcls.subobject_name()} not found.")
 
 
 class AlreadyLoggedIn(EzazException):
@@ -50,14 +45,23 @@ class NotDeletable(EzazException):
 
 
 class ArgumentError(EzazException):
-    def _arg(arg):
+    def _arg(self, arg):
         return f"--{arg.replace('_', '-')}"
+
+    def _args(self, args):
+        return ', '.join([self._arg(a) for a in args])
 
 
 class RequiredArgument(ArgumentError):
     def __init__(self, arg, required_by):
         by = f' by {self._arg(required_by)}' if required_by else ''
         super().__init__(f'The argument {self._arg(arg)} is required{by}.')
+
+
+class RequiredArgumentGroup(ArgumentError):
+    def __init__(self, args, required_by):
+        by = f' by {self._arg(required_by)}' if required_by else ''
+        super().__init__(f'At least one of the arguments ({self._args(args)}) are required{by}.')
 
 
 class DuplicateArgument(ArgumentError):

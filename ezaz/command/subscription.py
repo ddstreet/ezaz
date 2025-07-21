@@ -36,8 +36,8 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
                                         help=f'Clear default subscription (future logins will use the az-provided default subscription)')
 
     @property
-    def _default_azobject_id_key(self):
-        return f'current_{self.command_name()}'
+    def _default_azobject_id(self):
+        return self.parent_azobject.get_current_subscription_id()
 
     def set_current(self, subscription):
-        self.parent_azobject.current_subscription = subscription
+        self.parent_azobject.set_current_subscription_id(subscription)

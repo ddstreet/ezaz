@@ -1,29 +1,11 @@
 
-from .account import AccountCommand
-from .config import ConfigCommand
-from .direct import DirectCommand
-from .imagegallery import ImageGalleryCommand
-from .imagedefinition import ImageDefinitionCommand
-from .login import LoginCommand
-from .logout import LogoutCommand
-from .resourcegroup import ResourceGroupCommand
-from .storageaccount import StorageAccountCommand
-from .storagecontainer import StorageContainerCommand
-from .subscription import SubscriptionCommand
-from .vm import VMCommand
+from pathlib import Path
+
+from ..importclasses import find_all_classes
+from .command import SimpleCommand
 
 
-COMMANDS = [
-    AccountCommand,
-    ConfigCommand,
-    DirectCommand,
-    ImageGalleryCommand,
-    ImageDefinitionCommand,
-    LoginCommand,
-    LogoutCommand,
-    ResourceGroupCommand,
-    StorageAccountCommand,
-    StorageContainerCommand,
-    SubscriptionCommand,
-    VMCommand,
-]
+COMMAND_CLASSES = find_all_classes(Path(__file__).parent,
+                                   __name__,
+                                   ['__init__.py', 'command.py'],
+                                   SimpleCommand)

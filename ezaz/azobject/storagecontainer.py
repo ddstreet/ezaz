@@ -1,8 +1,7 @@
 
 from contextlib import suppress
 
-from . import AzSubObject
-from . import AzSubObjectContainer
+from .azobject import AzSubObject
 
 
 class StorageContainer(AzSubObject):

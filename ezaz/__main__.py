@@ -4,7 +4,7 @@ import sys
 from argparse import ArgumentParser
 from functools import cached_property
 
-from .command import COMMANDS
+from .command import COMMAND_CLASSES
 from .config import Config
 from .exception import ArgumentError
 from .exception import ConfigError
@@ -31,14 +31,14 @@ class Main:
                             help='Only print what would be done, do not run commands')
 
         cmds = [c.command_name_short() + (f' ({", ".join(c.aliases())})' if c.aliases() else '')
-                for c in COMMANDS]
+                for c in COMMAND_CLASSES]
         description = f'Available subcommands (and aliases): {", ".join(cmds)}'
         subparsers = parser.add_subparsers(description=description,
                                            required=True,
                                            metavar='SUBCOMMAND',
                                            help='Subcommand to run')
 
-        for c in COMMANDS:
+        for c in COMMAND_CLASSES:
             c.parser_add_subparser(subparsers)
 
         options = parser.parse_args(args)

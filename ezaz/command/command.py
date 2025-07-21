@@ -158,6 +158,10 @@ class SubAzObjectCommand(AzObjectCommand):
         pass
 
     @classmethod
+    def azobject_name(cls):
+        return cls.command_name()
+
+    @classmethod
     def parser_add_argument_obj_id(cls, parser):
         cls.parent_command_cls().parser_add_argument_obj_id(parser)
         super().parser_add_argument_obj_id(parser)
@@ -173,20 +177,16 @@ class SubAzObjectCommand(AzObjectCommand):
         return self._parent_azobject
 
     @property
-    def _default_azobject_id_key(self):
-        return f'default_{self.command_name()}'
-
-    @property
     def _default_azobject_id(self):
-        return getattr(self.parent_azobject, self._default_azobject_id_key)
+        return self.parent_azobject.get_default_azsubobject_id(self.azobject_name())
 
     @property
     def _azobject_id(self):
-        return getattr(self._options, self.command_name()) or self._default_azobject_id
+        return getattr(self._options, self.azobject_name()) or self._default_azobject_id
 
     @property
     def azobject(self):
-        return getattr(self.parent_azobject, f'get_{self.command_name()}')(self._azobject_id)
+        return self.parent_azobject.get_azsubobject(self.azobject_name(), self._azobject_id)
 
 
 class ShowActionCommand(ActionCommand, AzObjectCommand):
@@ -250,7 +250,7 @@ class ListActionCommand(ActionCommand, SubAzObjectCommand):
                                         help=f'List {cls.command_text()}s')
 
     def list(self):
-        for azobject in getattr(self.parent_azobject, f'get_{self.command_name()}s')(**vars(self._options)):
+        for azobject in self.parent_azobject.list(self.azobject_name(), **vars(self._options)):
             azobject.show()
 
 

@@ -1,6 +1,5 @@
 
-from . import AzSubObject
-from . import AzSubObjectContainer
+from .azobject import AzSubObject
 
 
 class ImageDefinition(AzSubObject):

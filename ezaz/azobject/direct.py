@@ -1,5 +1,5 @@
 
-from . import AzAction
+from .azobject import AzAction
 
 
 class DirectAction(AzAction):

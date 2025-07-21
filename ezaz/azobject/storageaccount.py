@@ -1,14 +1,17 @@
 
-from . import AzSubObject
-from . import AzSubObjectContainer
-from . import AzSubObjectContainerChildren
+from .azobject import AzSubObject
+from .azobject import AzSubObjectContainer
 from .storagecontainer import StorageContainer
 
 
-class StorageAccount(AzSubObject, AzSubObjectContainer, *AzSubObjectContainerChildren([StorageContainer])):
+class StorageAccount(AzSubObject, AzSubObjectContainer):
     @classmethod
     def subobject_name_list(cls):
         return ['storage', 'account']
+
+    @classmethod
+    def get_azsubobject_classes(cls):
+        return [StorageContainer]
 
     def get_my_cmd_args(self, opts):
         return {'--name': self.object_id}

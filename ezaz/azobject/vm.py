@@ -1,5 +1,5 @@
 
-from . import AzSubObject
+from .azobject import AzSubObject
 
 
 class VM(AzSubObject):

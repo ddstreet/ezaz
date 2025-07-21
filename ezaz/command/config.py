@@ -1,8 +1,8 @@
 
-from .command import SimpleCommand
+from .command import ActionCommand
 
 
-class ConfigCommand(SimpleCommand):
+class ConfigCommand(ActionCommand):
     @classmethod
     def command_name_list(cls):
         return ['config']

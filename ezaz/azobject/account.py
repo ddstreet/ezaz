@@ -10,12 +10,11 @@ from ..exception import ConfigNotFound
 from ..exception import NotCreatable
 from ..exception import NotDeletable
 from ..exception import NotLoggedIn
-from . import AzSubObjectContainer
-from . import AzSubObjectContainerChildren
+from .azobject import AzSubObjectContainer
 from .subscription import Subscription
 
 
-class Account(AzSubObjectContainer, *AzSubObjectContainerChildren([Subscription])):
+class Account(AzSubObjectContainer):
     @classmethod
     def get_base_cmd(cls):
         return ['account']
@@ -27,6 +26,10 @@ class Account(AzSubObjectContainer, *AzSubObjectContainerChildren([Subscription]
     @classmethod
     def get_delete_cmd(cls):
         raise NotDeletable('account')
+
+    @classmethod
+    def get_azsubobject_classes(cls):
+        return [Subscription]
 
     def __init__(self, config, verbose=False, dry_run=False):
         super().__init__(config)
@@ -74,7 +77,7 @@ class Account(AzSubObjectContainer, *AzSubObjectContainerChildren([Subscription]
 
         with suppress(KeyError):
             # Switch subscriptions, if needed
-            self.default_subscription = self.config['default_subscription']
+            self.set_current_subscription_id(self.config['default_subscription'])
 
     def logout(self):
         if not self.is_logged_in:
@@ -91,12 +94,10 @@ class Account(AzSubObjectContainer, *AzSubObjectContainerChildren([Subscription]
         except NotLoggedIn:
             return False
 
-    @property
-    def current_subscription(self):
+    def get_current_subscription_id(self):
         return self.info.id
 
-    @current_subscription.setter
-    def current_subscription(self, subscription):
-        if self.current_subscription != subscription:
+    def set_current_subscription_id(self, subscription):
+        if self.get_current_subscription_id() != subscription:
             self.az('account', 'set', cmd_args={'-s': subscription}, dry_runnable=False)
             self._info = None
