@@ -36,10 +36,11 @@ class AzAction(ABC):
         return f"--{name.replace('_', '-')}"
 
     def required_arg_value(self, arg, opts, requiring_arg=None):
-        try:
-            return opts[arg]
-        except KeyError:
-            raise RequiredArgument(arg, requiring_arg)
+        with suppress(KeyError):
+            value = opts[arg]
+            if value is not None:
+                return value
+        raise RequiredArgument(arg, requiring_arg)
 
     def required_arg(self, arg, opts, requiring_arg=None):
         return {self._name_to_arg(arg): self.required_arg_value(arg, opts, requiring_arg)}
