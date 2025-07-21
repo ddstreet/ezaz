@@ -4,6 +4,22 @@ class EzazException(Exception):
     pass
 
 
+class AzCommandError(EzazException):
+    def __init__(self, cpe):
+        super().__init__(f"az command failed: {" ".join(cpe.cmd)}\n{cpe.stderr}")
+        self.cpe = cpe
+
+
+class NoAzObjectExists(EzazException):
+    def __init__(self, obj_name, obj_id):
+        super().__init__(f'{obj_name} (id: {obj_id}) does not exist.')
+
+
+class AzObjectExists(EzazException):
+    def __init__(self, obj_name, obj_id):
+        super().__init__(f'{obj_name} (id: {obj_id}) already exists.')
+
+
 class InvalidAzObjectName(EzazException):
     pass
 
@@ -18,7 +34,7 @@ class ConfigNotFound(ConfigError):
 
 class DefaultConfigNotFound(ConfigNotFound):
     def __init__(self, azcls):
-        super().__init__(f"Default configuration for {azcls.subobject_name()} not found.")
+        super().__init__(f"Default configuration for {azcls.azobject_name()} not found.")
 
 
 class AlreadyLoggedIn(EzazException):

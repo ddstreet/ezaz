@@ -4,7 +4,7 @@ from .azobject import AzSubObject
 
 class ImageDefinition(AzSubObject):
     @classmethod
-    def subobject_name_list(cls):
+    def azobject_name_list(cls):
         return ['image', 'definition']
 
     @classmethod

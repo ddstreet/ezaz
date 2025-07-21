@@ -8,7 +8,7 @@ from .resourcegroup import ResourceGroup
 
 class Subscription(AzSubObject, AzSubObjectContainer):
     @classmethod
-    def subobject_name_list(cls):
+    def azobject_name_list(cls):
         return ['subscription']
 
     @classmethod
@@ -31,5 +31,8 @@ class Subscription(AzSubObject, AzSubObjectContainer):
     def get_delete_cmd(cls):
         raise NotDeletable('subscription')
 
-    def get_my_cmd_args(self, opts):
-        return {'--subscription': self.object_id}
+    def show_current(self):
+        print(self.parent.get_current_subscription_id())
+
+    def set_current(self, **kwargs):
+        self.parent.set_current_subscription_id(self.required_arg_value('subscription', kwargs, 'set_current'))

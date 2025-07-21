@@ -124,7 +124,7 @@ class ActionCommand(SimpleCommand):
         group.set_defaults(command_action=action, command_action_arguments=args)
 
     def _run(self):
-        run = getattr(self, self._options.command_action)
+        run = getattr(self, self._options.command_action.replace('-', '_'))
         run(*self._options.command_action_arguments)
 
     def run(self):
@@ -177,16 +177,16 @@ class SubAzObjectCommand(AzObjectCommand):
         return self._parent_azobject
 
     @property
-    def _default_azobject_id(self):
-        return self.parent_azobject.get_default_azsubobject_id(self.azobject_name())
+    def azobject_default_id(self):
+        return self.parent_azobject.get_azsubobject_default_id(self.azobject_name())
 
     @property
-    def _azobject_id(self):
-        return getattr(self._options, self.azobject_name()) or self._default_azobject_id
+    def azobject_id(self):
+        return getattr(self._options, self.azobject_name()) or self.azobject_default_id
 
     @property
     def azobject(self):
-        return self.parent_azobject.get_azsubobject(self.azobject_name(), self._azobject_id)
+        return self.parent_azobject.get_azsubobject(self.azobject_name(), self.azobject_id)
 
 
 class ShowActionCommand(ActionCommand, AzObjectCommand):
@@ -250,8 +250,7 @@ class ListActionCommand(ActionCommand, SubAzObjectCommand):
                                         help=f'List {cls.command_text()}s')
 
     def list(self):
-        for azobject in self.parent_azobject.list(self.azobject_name(), **vars(self._options)):
-            azobject.show()
+        self.parent_azobject.list(self.azobject_name(), **vars(self._options))
 
 
 class SetActionCommand(ActionCommand, SubAzObjectCommand):
@@ -266,7 +265,7 @@ class SetActionCommand(ActionCommand, SubAzObjectCommand):
                                         help=f'Set default {cls.command_text()}')
 
     def set(self):
-        setattr(self.parent_azobject, self._default_azobject_id_key, self.azobject_id)
+        self.azobject.set_default(**vars(self._options))
 
 
 class ClearActionCommand(ActionCommand, SubAzObjectCommand):
@@ -281,7 +280,7 @@ class ClearActionCommand(ActionCommand, SubAzObjectCommand):
                                         help=f'Clear default {cls.command_text()}')
 
     def clear(self):
-        delattr(self.parent_azobject, self._default_azobject_id_key)
+        self.azobject.clear_default(**vars(self._options))
 
 
 class AllActionCommand(CreateActionCommand, DeleteActionCommand, SetActionCommand, ClearActionCommand, ListActionCommand, ShowActionCommand):

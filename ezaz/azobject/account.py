@@ -6,6 +6,7 @@ from contextlib import suppress
 
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
+from ..exception import AzCommandError
 from ..exception import ConfigNotFound
 from ..exception import NotCreatable
 from ..exception import NotDeletable
@@ -16,7 +17,7 @@ from .subscription import Subscription
 
 class Account(AzSubObjectContainer):
     @classmethod
-    def get_base_cmd(cls):
+    def azobject_name_list(cls):
         return ['account']
 
     @classmethod
@@ -48,21 +49,23 @@ class Account(AzSubObjectContainer):
     def dry_run(self):
         return self._dry_run
 
+    @property
+    def azobject_id(self):
+        pass
+
+    def get_cmd_args(self, opts):
+        return {}
+
     @contextmanager
     def _disable_subscription_selection(self):
         v = None
-        unset = False
         try:
-            try:
-                r = self.az_response('config', 'get', 'core.login_experience_v2')
-                if r:
-                    v = r.value
-            except subprocess.CalledProcessError:
-                unset = True
+            with suppress(AzCommandError):
+                v = self.az_response('config', 'get', 'core.login_experience_v2').value
             self.az_stdout('config', 'set', 'core.login_experience_v2=off')
             yield
         finally:
-            if unset:
+            if v is None:
                 self.az_stdout('config', 'unset', 'core.login_experience_v2')
             elif v:
                 self.az_stdout('config', 'set', f'core.login_experience_v2={v}')

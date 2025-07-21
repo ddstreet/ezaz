@@ -6,8 +6,12 @@ from .azobject import AzSubObject
 
 class StorageContainer(AzSubObject):
     @classmethod
-    def subobject_name_list(cls):
+    def azobject_name_list(cls):
         return ['storage', 'container']
+
+    @classmethod
+    def azobject_arg(cls):
+        return '--name'
 
     @classmethod
     def filter_parent_args(cls, args):
@@ -18,9 +22,6 @@ class StorageContainer(AzSubObject):
 
     def get_parent_subcmd_args(self, opts):
         return self.filter_parent_args(super().get_parent_subcmd_args(opts))
-
-    def get_my_cmd_args(self, opts):
-        return {'--name': self.object_id}
 
     def get_my_subcmd_args(self, opts):
         return {'--container-name': self.object_id,

@@ -22,7 +22,9 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
     @classmethod
     def parser_add_action_arguments(cls, group):
         super().parser_add_action_arguments(group)
-        cls._parser_add_action_argument(group, '--set-current', nargs=1,
+        cls._parser_add_action_argument(group, '--show-current',
+                                        help=f'Show current subscription')
+        cls._parser_add_action_argument(group, '--set-current',
                                         help=f'Set current subscription (does not affect future logins)')
 
     @classmethod
@@ -35,9 +37,13 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
         cls._parser_add_action_argument(group, '-C', '--clear',
                                         help=f'Clear default subscription (future logins will use the az-provided default subscription)')
 
-    @property
-    def _default_azobject_id(self):
-        return self.parent_azobject.get_current_subscription_id()
+    def show_current(self):
+        print(self.parent_azobject.get_current_subscription_id())
 
-    def set_current(self, subscription):
-        self.parent_azobject.set_current_subscription_id(subscription)
+    def set_current(self):
+        self.parent_azobject.set_current_subscription_id(self._options.subscription)
+
+    def set(self):
+        if self._options.subscription:
+            print(f"Provided subscription '{self._options.subscription}' ignored, using current subscription.")
+        self.parent_azobject.set_azsubobject_default_id(self.azobject_name(), self.parent_azobject.get_current_subscription_id())

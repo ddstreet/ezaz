@@ -4,14 +4,12 @@ from .azobject import AzSubObject
 
 class VM(AzSubObject):
     @classmethod
-    def subobject_name_list(cls):
+    def azobject_name_list(cls):
         return ['vm']
 
-    def get_my_cmd_args(self, opts):
-        return {'--name': self.object_id}
-
-    def get_my_subcmd_args(self, opts):
-        return {}
+    @classmethod
+    def azobject_arg(cls):
+        return '--name'
 
     def _get_my_create_args(self, opts):
         args = {'--accept-term': None,
