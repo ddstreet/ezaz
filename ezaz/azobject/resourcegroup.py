@@ -23,5 +23,5 @@ class ResourceGroup(AzSubObject, AzSubObjectContainer):
     def get_my_cmd_args(self, opts):
         return {'--resource-group': self.object_id}
 
-    def get_my_create_cmd_args(self, opts):
-        return self.get_my_cmd_args(opts) | self.required_arg('location', 'create', opts)
+    def _get_my_create_cmd_args(self, opts):
+        return self.required_arg('location', opts, 'create')

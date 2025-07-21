@@ -13,9 +13,8 @@ class VM(AzSubObject):
     def get_my_subcmd_args(self, opts):
         return {}
 
-    def get_my_create_args(self, opts):
+    def _get_my_create_args(self, opts):
         args = {'--accept-term': None,
                 '--enable-secure-boot': None,
-                '--enable-vtpm': None,
-                '--image': self.required_arg('image', 'create', opts)}
-        return self.get_my_cmd_args(opts) | args
+                '--enable-vtpm': None}
+        return self._merge_cmd_args(self.required_arg('image', opts, 'create'), args)

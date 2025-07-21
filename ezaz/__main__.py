@@ -1,7 +1,7 @@
 
+import argparse
 import sys
 
-from argparse import ArgumentParser
 from functools import cached_property
 
 from .command import COMMAND_CLASSES
@@ -19,7 +19,7 @@ class Main:
         self._args = args
 
     def parse_args(self, args):
-        parser = ArgumentParser(prog='ezaz')
+        parser = argparse.ArgumentParser(prog='ezaz')
         parser.add_argument('--venv-refresh',
                             action='store_true',
                             help='Refresh the venv used for package imports')
@@ -65,7 +65,7 @@ class Main:
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--venv-refresh', action='store_true')
     options = parser.parse_known_args(sys.argv[1:])[0]

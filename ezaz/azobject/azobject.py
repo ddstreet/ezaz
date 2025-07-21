@@ -35,23 +35,23 @@ class AzAction(ABC):
     def _name_to_arg(self, name):
         return f"--{name.replace('_', '-')}"
 
-    def required_arg_value(self, arg, requiring_arg=None, **kwargs):
+    def required_arg_value(self, arg, opts, requiring_arg=None):
         try:
-            return kwargs[arg]
+            return opts[arg]
         except KeyError:
             raise RequiredArgument(arg, requiring_arg)
 
-    def required_arg(self, arg, requiring_arg=None, **kwargs):
-        return {self._name_to_arg(arg): self.required_arg_value(arg, requiring_arg, **kwargs)}
+    def required_arg(self, arg, opts, requiring_arg=None):
+        return {self._name_to_arg(arg): self.required_arg_value(arg, opts, requiring_arg)}
 
-    def required_args_one(self, args, requiring_arg=None, **kwargs):
-        arg_group = {self._name_to_arg(k): v for k, v in kwargs.items() if k in args}
+    def required_args_one(self, args, opts, requiring_arg=None):
+        arg_group = {self._name_to_arg(k): v for k, v in opts.items() if k in args}
         if not arg_group:
             raise RequiredArgumentGroup(args, requiring_arg)
         return arg_group
 
-    def required_args_all(self, args, requiring_arg=None, **kwargs):
-        return {self._name_to_arg(a): self.required_arg_value(a, requiring_arg, **kwargs) for a in args}
+    def required_args_all(self, args, opts, requiring_arg=None):
+        return dict([self.required_arg(a, opts, requiring_arg).items().next() for a in args])
 
     def _expand_cmd_args(self, cmd_args):
         expanded = ([([k] + (v if isinstance(v, list) else [] if v is None else [v]))
@@ -224,14 +224,26 @@ class AzSubObject(AzObject):
     def get_my_cmd_args(self, opts):
         return {}
 
+    def _get_my_show_cmd_args(self, opts):
+        return {}
+
     def get_my_show_cmd_args(self, opts):
-        return self.get_my_cmd_args(opts)
+        return self._merge_cmd_args(self.get_my_cmd_args(opts),
+                                    self._get_my_show_cmd_args(opts))
+
+    def _get_my_create_cmd_args(self, opts):
+        return {}
 
     def get_my_create_cmd_args(self, opts):
-        return self.get_my_cmd_args(opts)
+        return self._merge_cmd_args(self.get_my_cmd_args(opts),
+                                    self._get_my_create_cmd_args(opts))
+
+    def _get_my_delete_cmd_args(self, opts):
+        return {}
 
     def get_my_delete_cmd_args(self, opts):
-        return self.get_my_cmd_args(opts)
+        return self._merge_cmd_args(self.get_my_cmd_args(opts),
+                                    self._get_my_delete_cmd_args(opts))
 
     def get_cmd_args(self, opts):
         return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
