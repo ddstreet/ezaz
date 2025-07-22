@@ -6,12 +6,7 @@ from functools import cached_property
 
 from .command import COMMAND_CLASSES
 from .config import Config
-from .exception import ArgumentError
-from .exception import AzCommandError
-from .exception import ConfigError
-from .exception import NotLoggedIn
-from .exception import NotCreatable
-from .exception import NotDeletable
+from .exception import EzazException
 from .importvenv import ImportVenv
 
 
@@ -73,5 +68,5 @@ if __name__ == '__main__':
     with ImportVenv(verbose=options.verbose, clear=options.venv_refresh):
         try:
             Main().run()
-        except (ArgumentError, AzCommandError, ConfigError, NotLoggedIn, NotCreatable, NotDeletable) as e:
+        except EzazException as e:
             print(f'ERROR: {e}')

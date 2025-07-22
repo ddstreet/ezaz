@@ -12,7 +12,9 @@ from functools import partialmethod
 from itertools import chain
 
 from ..exception import AzCommandError
+from ..exception import AzObjectExists
 from ..exception import DefaultConfigNotFound
+from ..exception import NoAzObjectExists
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
 from ..response import lookup_response
@@ -84,6 +86,10 @@ class AzObject(AzAction):
     @classmethod
     def azobject_name(cls, sep='_'):
         return sep.join(cls.azobject_name_list())
+
+    @classmethod
+    def azobject_text(cls):
+        return cls.azobject_name(' ')
 
     @classmethod
     def azobject_arg(cls):
