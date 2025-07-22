@@ -258,8 +258,15 @@ class AzSubObject(AzObject):
     def get_parent_subcmd_args(self, opts):
         return self.parent.get_subcmd_args(opts)
 
-    def get_my_cmd_args(self, opts):
+    # To add args to all action cmds, use this.
+    # To add args to specific action cmds, use the action-specific ones below.
+    def _get_my_cmd_args(self, opts):
         return {}
+
+    # This adds the current object's id argument, via super() call.
+    def get_my_cmd_args(self, opts):
+        return self._merge_cmd_args(super().get_cmd_args(opts),
+                                    self._get_my_cmd_args(opts))
 
     def _get_my_show_cmd_args(self, opts):
         return {}
