@@ -202,10 +202,7 @@ class AzObject(AzAction):
             return False
 
     def show(self):
-        if self.verbose and hasattr(self.info, 'id'):
-            print(f'{self.info.name} (id: {self.info.id})')
-        else:
-            print(self.info.name)
+        print(self.info if self.verbose else self.info.name)
 
     def create(self, **kwargs):
         if self.exists:

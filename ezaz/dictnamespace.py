@@ -1,4 +1,7 @@
 
+import inspect
+import json
+
 from collections.abc import Iterable
 from types import SimpleNamespace
 
@@ -19,4 +22,14 @@ class DictNamespace(SimpleNamespace, Iterable):
         super().__init__(**{k: convert_item(v) for k, v in obj.items()})
 
     def __iter__(self):
-        return iter(self.__dict__)
+        return iter(vars(self))
+
+    def __repr__(self):
+        return json.dumps(vars(self), cls=DictNamespaceJSONEncoder, indent=2)
+
+
+class DictNamespaceJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, DictNamespace):
+            return vars(o)
+        super().default(o)
