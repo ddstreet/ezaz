@@ -8,7 +8,7 @@ class ImageDefinition(AzSubObject):
         return ['image', 'definition']
 
     @classmethod
-    def azobject_arg(cls):
+    def azobject_cmd_arg(cls):
         return '--gallery-image-definition'
 
     @classmethod

@@ -55,8 +55,7 @@ class SetupCommand(ActionCommand):
             default = AzObjectChoice(cls, choices, default)
             container.set_azsubobject_default_id(name, default.azobject_id)
 
-        if self.verbose:
-            print(f'Default {name} is {default.azobject_id}')
+        print(f'Default {name} is {default.azobject_id}')
 
         if default.is_azsubobject_container():
             self.check_azsubobject_container(default, all=all)

@@ -8,7 +8,7 @@ class VM(AzSubObject):
         return ['vm']
 
     @classmethod
-    def azobject_arg(cls):
+    def azobject_cmd_arg(cls):
         return '--name'
 
     def _get_create_args(self, opts):

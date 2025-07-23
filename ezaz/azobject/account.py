@@ -56,6 +56,9 @@ class Account(AzSubObjectContainer):
     def get_cmd_args(self, opts):
         return {}
 
+    def get_subcmd_args(self, opts):
+        return {}
+
     @contextmanager
     def _disable_subscription_selection(self):
         v = None

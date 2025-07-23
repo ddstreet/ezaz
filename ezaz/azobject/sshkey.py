@@ -8,7 +8,7 @@ class SshKey(AzSubObject):
         return ['sshkey']
 
     @classmethod
-    def azobject_arg(cls):
+    def azobject_cmd_arg(cls):
         return '--ssh-public-key-name'
 
     def _get_create_cmd_args(self, opts):

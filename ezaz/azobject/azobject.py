@@ -15,6 +15,7 @@ from itertools import combinations
 from ..exception import AzCommandError
 from ..exception import AzObjectExists
 from ..exception import DefaultConfigNotFound
+from ..exception import DuplicateArgument
 from ..exception import NoAzObjectExists
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
@@ -195,11 +196,12 @@ class AzObject(AzAction):
 
     def _merge_cmd_args(self, *dicts):
         for (a, b) in combinations(dicts, 2):
-            dup_keys = a.keys() & b.keys()
+            #print(f'merging {a} and {b}')
+            dup_keys = list(a.keys() & b.keys())
             if dup_keys:
                 k = dup_keys[0]
                 raise DuplicateArgument(k, a[k], b[k])
-        return ChainMap(dicts)
+        return dict(ChainMap(*dicts))
 
     def _get_info(self):
         return self.az_response(*self.get_show_cmd(), cmd_args=self.get_show_cmd_args({}))
@@ -288,18 +290,6 @@ class AzSubObject(AzObject):
     def get_cmd_args(self, opts):
         return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
                                     super().get_cmd_args(opts))
-
-    def get_show_cmd_args(self, opts):
-        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
-                                    super().get_show_cmd_args(opts))
-
-    def get_create_cmd_args(self, opts):
-        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
-                                    super().get_create_cmd_args(opts))
-
-    def get_delete_cmd_args(self, opts):
-        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
-                                    super().get_delete_cmd_args(opts))
 
     def set_default(self, **kwargs):
         self.parent.set_azsubobject_default_id(self.azobject_name(),

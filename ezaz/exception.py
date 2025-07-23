@@ -82,4 +82,4 @@ class RequiredArgumentGroup(ArgumentError):
 
 class DuplicateArgument(ArgumentError):
     def __init__(self, arg, value_a, value_b):
-        super().__init__(f'The argument {self._arg(arg)} was added multiple times: {value_a} and {value_b}')
+        super().__init__(f'The argument {arg} was added multiple times: {value_a} and {value_b}')

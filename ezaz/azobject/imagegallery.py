@@ -10,7 +10,7 @@ class ImageGallery(AzSubObject, AzSubObjectContainer):
         return ['image', 'gallery']
 
     @classmethod
-    def azobject_arg(cls):
+    def azobject_cmd_arg(cls):
         return '--gallery-name'
 
     @classmethod
