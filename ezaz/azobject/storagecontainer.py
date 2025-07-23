@@ -10,8 +10,12 @@ class StorageContainer(AzSubObject):
         return ['storage', 'container']
 
     @classmethod
-    def azobject_arg(cls):
+    def azobject_cmd_arg(cls):
         return '--name'
+
+    @classmethod
+    def azobject_subcmd_arg(cls):
+        return '--container-name'
 
     @classmethod
     def filter_parent_args(cls, args):
@@ -23,6 +27,5 @@ class StorageContainer(AzSubObject):
     def get_parent_subcmd_args(self, opts):
         return self.filter_parent_args(super().get_parent_subcmd_args(opts))
 
-    def get_my_subcmd_args(self, opts):
-        return {'--container-name': self.object_id,
-                '--auth-mode': 'login'}
+    def _get_cmd_args(self, opts):
+        return {'--auth-mode': 'login'}

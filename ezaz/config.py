@@ -88,3 +88,7 @@ class Config(SubConfig):
 
     def __repr__(self):
         return json.dumps(self._file_config, indent=2, sort_keys=True)
+
+    def remove(self):
+        self._configfile.unlink(missing_ok=True)
+        self.__init__(configfile=self._configfile)

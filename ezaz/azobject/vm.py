@@ -11,7 +11,7 @@ class VM(AzSubObject):
     def azobject_arg(cls):
         return '--name'
 
-    def _get_my_create_args(self, opts):
+    def _get_create_args(self, opts):
         args = {'--accept-term': None,
                 '--enable-secure-boot': None,
                 '--enable-vtpm': None}

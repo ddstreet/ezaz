@@ -10,12 +10,13 @@ class StorageAccount(AzSubObject, AzSubObjectContainer):
         return ['storage', 'account']
 
     @classmethod
-    def azobject_arg(cls):
+    def azobject_cmd_arg(cls):
         return '--name'
+
+    @classmethod
+    def azobject_subcmd_arg(cls):
+        return '--account-name'
 
     @classmethod
     def get_azsubobject_classes(cls):
         return [StorageContainer]
-
-    def get_my_subcmd_args(self, opts):
-        return {'--account-name': self.object_id}

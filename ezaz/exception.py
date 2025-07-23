@@ -6,7 +6,7 @@ class EzazException(Exception):
 
 class AzCommandError(EzazException):
     def __init__(self, cpe):
-        super().__init__(f"az command failed: {" ".join(cpe.cmd)}\n{cpe.stderr}")
+        super().__init__(f'az command failed: {" ".join(cpe.cmd)}\n{cpe.stderr}')
         self.cpe = cpe
 
 
