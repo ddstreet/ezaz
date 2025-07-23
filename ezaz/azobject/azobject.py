@@ -19,6 +19,7 @@ from ..exception import DuplicateArgument
 from ..exception import NoAzObjectExists
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
+from ..exception import RequiredArgumentGroup
 from ..response import lookup_response
 
 

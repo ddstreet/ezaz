@@ -1,4 +1,5 @@
 
+from ..exception import ArgumentError
 from .azobject import AzSubObject
 
 
@@ -12,4 +13,14 @@ class SshKey(AzSubObject):
         return '--ssh-public-key-name'
 
     def _get_create_cmd_args(self, opts):
-        return self.required_args_one(['ssh-key', 'ssh-key-file'], 'create', opts)
+        args = self.required_arg('public_key', opts, 'create')
+        v = args[self._name_to_arg('public_key')]
+        if v.startswith('ssh-ed25519'):
+            args[self._name_to_arg('encryption_type')] = 'Ed25519'
+        elif v.startswith('ssh-rsa'):
+            args[self._name_to_arg('encryption_type')] = 'RSA'
+        elif v.startswith('ecdsa'):
+            args[self._name_to_arg('encryption_type')] = 'ECDSA'
+        else:
+            raise ArgumentError(f'Invalid ssh public key: {v}')
+        return args
