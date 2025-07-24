@@ -71,6 +71,8 @@ class ImportVenv:
             print(f'Installing packages in virtual environment: {",".join(self.packages)}')
             subprocess.run(cmd + self.packages, text=True, check=True)
 
+        return self
+
     def __exit__(self, exc_type, exc_value, traceback):
         os.environ['PATH'] = self.oldpath
         sys.path = self.oldsyspath

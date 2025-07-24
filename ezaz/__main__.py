@@ -1,7 +1,10 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 
 import argparse
 import sys
 
+from contextlib import suppress
 from functools import cached_property
 
 from .command import COMMAND_CLASSES
@@ -11,8 +14,9 @@ from .importvenv import ImportVenv
 
 
 class Main:
-    def __init__(self, args=sys.argv[1:]):
+    def __init__(self, args=sys.argv[1:], venv=None):
         self._args = args
+        self._venv = venv
 
     def parse_args(self, args):
         parser = argparse.ArgumentParser(prog='ezaz')
@@ -37,6 +41,10 @@ class Main:
         for c in COMMAND_CLASSES:
             c.parser_add_subparser(subparsers)
 
+        with suppress(ImportError):
+            import argcomplete
+            argcomplete.autocomplete(parser)
+
         options = parser.parse_args(args)
 
         options.verbose |= options.toplevel_verbose
@@ -54,7 +62,7 @@ class Main:
 
     @cached_property
     def command(self):
-        return self.options.command_class(self.config, self.options)
+        return self.options.command_class(self.config, self.options, venv=self._venv)
 
     def run(self):
         self.command.run()
@@ -65,8 +73,8 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--venv-refresh', action='store_true')
     options = parser.parse_known_args(sys.argv[1:])[0]
-    with ImportVenv(verbose=options.verbose, clear=options.venv_refresh):
+    with ImportVenv(verbose=options.verbose, clear=options.venv_refresh) as venv:
         try:
-            Main().run()
+            Main(venv=venv).run()
         except EzazException as e:
             print(f'ERROR: {e}')

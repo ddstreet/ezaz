@@ -60,9 +60,10 @@ class SimpleCommand(ABC):
         parser.add_argument('-n', '--dry-run', action='store_true',
                             help='Only print what would be done, do not run commands')
 
-    def __init__(self, config, options):
+    def __init__(self, config, options, venv=None):
         self._config = config
         self._options = options
+        self._venv = venv
         self._setup()
 
     def _setup(self):
@@ -168,7 +169,7 @@ class SubAzObjectCommand(AzObjectCommand):
 
     def _setup(self):
         super()._setup()
-        _parent_command = self.parent_command_cls()(self._config, self._options)
+        _parent_command = self.parent_command_cls()(self._config, self._options, venv=self._venv)
         assert isinstance(_parent_command, AzObjectCommand)
         self._parent_azobject = _parent_command.azobject
 
