@@ -4,7 +4,15 @@ class EzazException(Exception):
     pass
 
 
-class NoChoiceError(EzazException):
+class ChoiceError(EzazException):
+    pass
+
+
+class NoChoices(ChoiceError):
+    pass
+
+
+class NoneOfTheAboveChoice(ChoiceError):
     pass
 
 
@@ -38,7 +46,7 @@ class ConfigNotFound(ConfigError):
 
 class DefaultConfigNotFound(ConfigNotFound):
     def __init__(self, azcls):
-        super().__init__(f"Default configuration for {azcls.azobject_name()} not found.")
+        super().__init__(f"Default configuration for {azcls.azobject_text()} not found.")
 
 
 class AlreadyLoggedIn(EzazException):

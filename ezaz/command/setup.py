@@ -7,8 +7,10 @@ from functools import cached_property
 from ..azobject.account import Account
 from ..dialog import AzObjectChoice
 from ..dialog import YesNo
+from ..exception import ChoiceError
 from ..exception import DefaultConfigNotFound
-from ..exception import NoChoiceError
+from ..exception import NoChoices
+from ..exception import NoneOfTheAboveChoice
 from .account import AccountCommand
 from .command import ActionCommand
 
@@ -23,6 +25,8 @@ class SetupCommand(ActionCommand):
         super().parser_add_common_arguments(parser)
         parser.add_argument('--all', action='store_true',
                             help=f'Prompt for all object types, even ones with a default')
+        parser.add_argument('--verify-single', action='store_true',
+                            help=f'Prompt even if there is only one object choice')
 
     @classmethod
     def parser_add_action_arguments(cls, group):
@@ -39,6 +43,10 @@ class SetupCommand(ActionCommand):
     @property
     def all(self):
         return self._options.all
+
+    @property
+    def verify_single(self):
+        return self._options.verify_single
 
     @cached_property
     def account(self):
@@ -57,15 +65,27 @@ class SetupCommand(ActionCommand):
         return None
 
     def choose_azsubobject(self, container, name, **kwargs):
-        default = self.get_azsubobject_default(container, name)
+        objtype = container.get_azsubobject_class(name).azobject_text()
+        print(f'Checking for default {objtype}: ', end='', flush=True)
 
+        default = self.get_azsubobject_default(container, name)
         if self.all or default is None:
+            if default is None:
+                print('no default, checking available...')
+            else:
+                print(default.azobject_id)
             try:
-                default = AzObjectChoice(container.get_azsubobjects(name), default, **kwargs)
-            except NoChoiceError:
-                print(f'No {name.replace("_", " ")} found, please create at least one; skipping for now')
+                default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self.verify_single, **kwargs)
+            except NoChoices:
+                print(f'No {objtype} found, please create at least one; skipping')
+                raise
+            except NoneOfTheAboveChoice:
+                print(f'No {objtype} selected; skipping')
                 raise
             container.set_azsubobject_default_id(name, default.azobject_id)
+            print(f'Default {objtype} is {default.azobject_id}')
+        else:
+            print(default.azobject_id)
 
         return default
 
@@ -76,59 +96,41 @@ class SetupCommand(ActionCommand):
         raise NotImplementedError()
 
     def choose_subscription(self):
-        subscription = self.choose_azsubobject(self.account, 'subscription', hint_fn=lambda o: o.info.name)
-        self.choose_resource_group(subscription)
+        with suppress(NoneOfTheAboveChoice):
+            subscription = self.choose_azsubobject(self.account, 'subscription', hint_fn=lambda o: o.info.name)
+            self.choose_resource_group(subscription)
 
     def choose_resource_group(self, subscription):
-        try:
+        with suppress(ChoiceError):
             rg = self.choose_azsubobject(subscription, 'resource_group')
-        except NoChoiceError:
-            return
 
-        with suppress(NoChoiceError):
-            self.choose_storage_account(self, rg)
-
-        with suppress(NoChoiceError):
-            self.choose_image_gallery(self, rg)
-
-        with suppress(NoChoiceError):
-            self.choose_ssh_key(self, rg)
-
-        with suppress(NoChoiceError):
-            self.choose_vm(self, rg)
+            self.choose_storage_account(rg)
+            self.choose_image_gallery(rg)
+            self.choose_ssh_key(rg)
+            self.choose_vm(rg)
 
     def choose_storage_account(self, rg):
-        try:
-            rg = self.choose_azsubobject(rg, 'storage_account')
-        except NoChoiceError:
-            return
+        with suppress(ChoiceError):
+            sa = self.choose_azsubobject(rg, 'storage_account')
+            self.choose_storage_container(sa)
 
     def choose_storage_container(self, sa):
-        try:
-            rg = self.choose_azsubobject(sa, 'storage_container')
-        except NoChoiceError:
-            return
+        with suppress(ChoiceError):
+            self.choose_azsubobject(sa, 'storage_container')
 
     def choose_image_gallery(self, rg):
-        try:
-            rg = self.choose_azsubobject(rg, 'image_gallery')
-        except NoChoiceError:
-            return
+        with suppress(ChoiceError):
+            ig = self.choose_azsubobject(rg, 'image_gallery')
+            self.choose_image_definition(ig)
 
     def choose_image_definition(self, ig):
-        try:
-            rg = self.choose_azsubobject(ig, 'image_definition')
-        except NoChoiceError:
-            return
+        with suppress(ChoiceError):
+            self.choose_azsubobject(ig, 'image_definition')
 
     def choose_ssh_key(self, rg):
-        try:
-            rg = self.choose_azsubobject(rg, 'ssh_key')
-        except NoChoiceError:
-            return
+        with suppress(ChoiceError):
+            self.choose_azsubobject(rg, 'ssh_key')
 
     def choose_vm(self, rg):
-        try:
-            rg = self.choose_azsubobject(rg, 'vm')
-        except NoChoiceError:
-            return
+        with suppress(ChoiceError):
+            self.choose_azsubobject(rg, 'vm')

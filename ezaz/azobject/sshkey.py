@@ -6,6 +6,10 @@ from .azobject import AzSubObject
 class SshKey(AzSubObject):
     @classmethod
     def azobject_name_list(cls):
+        return ['ssh', 'key']
+
+    @classmethod
+    def get_base_cmd(cls):
         return ['sshkey']
 
     @classmethod

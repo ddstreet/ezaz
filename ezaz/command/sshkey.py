@@ -15,7 +15,7 @@ class SshKeyCommand(AllActionCommand):
 
     @classmethod
     def command_name_list(cls):
-        return ['sshkey']
+        return ['ssh', 'key']
 
     @classmethod
     def parser_add_common_arguments(cls, parser):

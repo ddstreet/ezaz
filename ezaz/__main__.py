@@ -9,6 +9,7 @@ from functools import cached_property
 
 from .command import COMMAND_CLASSES
 from .config import Config
+from .exception import DefaultConfigNotFound
 from .exception import EzazException
 from .importvenv import ImportVenv
 
@@ -76,5 +77,8 @@ if __name__ == '__main__':
     with ImportVenv(verbose=options.verbose, clear=options.venv_refresh) as venv:
         try:
             Main(venv=venv).run()
+        except DefaultConfigNotFound as dcnf:
+            print(f'ERROR: {dcnf}')
+            print("You can set up defaults with 'ezaz setup'")
         except EzazException as e:
             print(f'ERROR: {e}')

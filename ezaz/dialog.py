@@ -4,7 +4,8 @@ import cmd
 from contextlib import suppress
 from functools import partialmethod
 
-from .exception import NoChoiceError
+from .exception import NoChoices
+from .exception import NoneOfTheAboveChoice
 
 
 def YesNo(prompt, default=False):
@@ -45,16 +46,24 @@ def YesNo(prompt, default=False):
 
 
 def Choice(choices, default=None,
+           verify_single=False,
+           none_of_the_above_choice='None of the above',
            intro_text='Choices available',
            prompt_text='Please select a choice',
            emptyline_text='There is no default, please respond with one of the choices',
            invalid_text='Please respond with one of the choices',
+           none_of_the_above_text='None of the above choices were selected',
+           only_choice_text='Selecting the only choice {choice}',
            choice_text_fn=lambda c: c,
            choice_hint_fn=None,
            choice_cmp_fn=lambda a, b: a == b):
 
     if not choices:
-        raise NoChoiceError('There are no choices')
+        raise NoChoices('There are no choices')
+
+    if len(choices) == 1 and not verify_single:
+        print(only_choice_text.format(choice=choice_text_fn(choices[0])))
+        return choices[0]
 
     class ChoiceCmd(cmd.Cmd):
         def __init__(self, intro, choicemap):
@@ -62,6 +71,9 @@ def Choice(choices, default=None,
             self.prompt = f'{prompt_text}: '
             self.choice = default
             self.choicemap = choicemap
+            if none_of_the_above_choice:
+                self.none_of_the_above = NoneOfTheAboveChoice(none_of_the_above_text)
+                self.choicemap[none_of_the_above_choice] = self.none_of_the_above
             self.cmdloop(intro)
 
         def completenames(self, text, *ignored):
@@ -75,6 +87,8 @@ def Choice(choices, default=None,
         def default(self, line):
             with suppress(KeyError):
                 self.choice = self.choicemap[line]
+                if self.choice == self.none_of_the_above:
+                    raise self.none_of_the_above
                 return True
             print(invalid_text)
 
@@ -88,6 +102,8 @@ def Choice(choices, default=None,
         if default is not None and choice_cmp_fn(choice, default):
             intro += ' (default)'
         intro += '\n'
+    if none_of_the_above_choice:
+        intro += f'  {none_of_the_above_choice}\n'
 
     return ChoiceCmd(intro, {choice_text_fn(c): c for c in choices}).choice
 
@@ -99,10 +115,8 @@ def AzObjectChoice(azobject_choices, azobject_default,
                    cmp_fn=lambda a, b: a.azobject_id == b.azobject_id,
                    **kwargs):
 
-    if not azobject_choices:
-        raise NoChoiceError('There are no choices')
-
-    kwargs.setdefault('prompt_text', f'Please select a {azobject_choices[0].azobject_text()}')
+    with suppress(IndexError):
+        kwargs.setdefault('prompt_text', f'Please select a {azobject_choices[0].azobject_text()}')
 
     return Choice(azobject_choices, default=azobject_default,
                   choice_text_fn=text_fn,
