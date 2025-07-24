@@ -1,4 +1,5 @@
 
+from ..dialog import YesNo
 from .command import ActionCommand
 
 
@@ -22,8 +23,9 @@ class ConfigCommand(ActionCommand):
         print(self._config)
 
     def remove(self):
-        resp = input('About to remove the configuration file, are you sure? (y/N)')
-        if resp.lower() in ['y', 'yes']:
+        if not self._config:
+            print('There is no config to remove.')
+        elif YesNo('About to remove the configuration file, are you sure?'):
             self._config.remove()
             print('Configuration file removed.')
         else:
