@@ -132,6 +132,16 @@ class AzObject(AzAction):
         return '--' + name.replace('_', '-')
 
     @classmethod
+    def _merge_cmd_args(cls, *dicts):
+        for (a, b) in combinations(dicts, 2):
+            #print(f'merging {a} and {b}')
+            dup_keys = list(a.keys() & b.keys())
+            if dup_keys:
+                k = dup_keys[0]
+                raise DuplicateArgument(k, a[k], b[k])
+        return dict(ChainMap(*dicts))
+
+    @classmethod
     def required_arg_value(self, arg, opts, requiring_arg=None):
         with suppress(KeyError):
             value = opts[arg]
@@ -194,15 +204,6 @@ class AzObject(AzAction):
     def get_delete_cmd_args(self, opts):
         return self._merge_cmd_args(self.get_cmd_args(opts),
                                     self._get_delete_cmd_args(opts))
-
-    def _merge_cmd_args(self, *dicts):
-        for (a, b) in combinations(dicts, 2):
-            #print(f'merging {a} and {b}')
-            dup_keys = list(a.keys() & b.keys())
-            if dup_keys:
-                k = dup_keys[0]
-                raise DuplicateArgument(k, a[k], b[k])
-        return dict(ChainMap(*dicts))
 
     def _get_info(self):
         return self.az_response(*self.get_show_cmd(), cmd_args=self.get_show_cmd_args({}))
