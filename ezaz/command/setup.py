@@ -66,7 +66,7 @@ class SetupCommand(ActionCommand):
 
     def choose_azsubobject(self, container, name, **kwargs):
         objtype = container.get_azsubobject_class(name).azobject_text()
-        print(f'Checking for default {objtype}: ', end='', flush=True)
+        print(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
 
         default = self.get_azsubobject_default(container, name)
         if self.all or default is None:
