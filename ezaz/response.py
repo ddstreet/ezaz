@@ -104,6 +104,22 @@ StorageContainerInfo = OBJ(
     name=STR,
 )
 
+StorageBlobInfo = OBJ(
+    name=STR,
+    properties=OBJ(
+        blobType=STR,
+        contentLength=NUM,
+        contentSettings=OBJ(
+            contentType=STR,
+        ),
+        creationTime=STR,
+    ),
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+)
+
 SshKeyInfo = OBJ(
     id=STR,
     name=STR,
@@ -164,6 +180,10 @@ RESPONSES = {
         "container": {
             "show": R(StorageContainerInfo),
             "list": RL(StorageContainerInfo),
+        },
+        "blob": {
+            "show": R(StorageBlobInfo),
+            "list": RL(StorageBlobInfo),
         },
     },
     "sshkey": {

@@ -1,13 +1,17 @@
 
+import argcomplete
 import argparse
 import json
+import os
 import subprocess
 
 from abc import ABC
 from abc import abstractmethod
+from contextlib import contextmanager
 from contextlib import suppress
 from operator import methodcaller
 
+from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
 from ..response import lookup_response
 
@@ -143,8 +147,13 @@ class AzObjectCommand(SimpleCommand):
 
     @classmethod
     def parser_add_argument_obj_id(cls, parser):
-        parser.add_argument(f'--{cls.command_name("-")}',
-                            help=f'Use the specified {cls.command_text()}, instead of the default')
+        return parser.add_argument(f'--{cls.command_name("-")}',
+                                   help=f'Use the specified {cls.command_text()}, instead of the default')
+
+    @classmethod
+    @abstractmethod
+    def completer_azobject(cls, **kwargs):
+        pass
 
     @property
     @abstractmethod
@@ -163,9 +172,38 @@ class SubAzObjectCommand(AzObjectCommand):
         return cls.command_name()
 
     @classmethod
+    def completer_azobject(cls, **kwargs):
+        parent_azobject = cls.parent_command_cls().completer_azobject(**kwargs)
+        obj_id = kwargs.get(cls.azobject_name())
+        if not obj_id:
+            obj_id = parent_azobject.get_azsubobject_default_id(cls.azobject_name())
+        return parent_azobject.get_azsubobject(cls.azobject_name(), obj_id)
+
+    @classmethod
+    @contextmanager
+    def completer_clean_environ(cls):
+        try:
+            argcomplete_vars = {k: v for k, v in os.environ.items() if 'ARGCOMPLETE' in k}
+            for k in os.environ.keys():
+                if 'ARGCOMPLETE' in k:
+                    del os.environ[k]
+            yield
+        finally:
+            for k, v in argcomplete_vars.items():
+                os.environ[k] = v
+
+    @classmethod
+    def completer_obj_id(cls, **kwargs):
+        with cls.completer_clean_environ():
+            parent = cls.parent_command_cls().completer_azobject(**kwargs)
+            return [o.azobject_id for o in parent.get_azsubobjects(cls.azobject_name())]
+
+    @classmethod
     def parser_add_argument_obj_id(cls, parser):
         cls.parent_command_cls().parser_add_argument_obj_id(parser)
-        super().parser_add_argument_obj_id(parser)
+        arg = super().parser_add_argument_obj_id(parser)
+        arg.completer = cls.completer_obj_id
+        return arg
 
     def _setup(self):
         super()._setup()

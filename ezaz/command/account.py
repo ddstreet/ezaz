@@ -2,6 +2,7 @@
 from contextlib import suppress
 
 from ..azobject.account import Account
+from ..config import Config
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import NotLoggedIn
@@ -12,6 +13,10 @@ class AccountCommand(ShowActionCommand):
     @classmethod
     def command_name_list(cls):
         return ['account']
+
+    @classmethod
+    def completer_azobject(cls, **kwargs):
+        return Account(Config())
 
     @classmethod
     def parser_add_common_arguments(cls, parser):
