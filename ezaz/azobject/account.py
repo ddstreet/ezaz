@@ -21,12 +21,12 @@ class Account(AzSubObjectContainer):
         return ['account']
 
     @classmethod
-    def get_create_cmd(cls):
-        raise NotCreatable('account')
-
-    @classmethod
-    def get_delete_cmd(cls):
-        raise NotDeletable('account')
+    def get_cmd(cls, cmdname):
+        if cmdname == 'create':
+            raise NotCreatable('account')
+        if cmdname == 'delete':
+            raise NotDeletable('account')
+        return super().get_cmd(cmdname)
 
     @classmethod
     def get_azsubobject_classes(cls):
@@ -53,10 +53,10 @@ class Account(AzSubObjectContainer):
     def azobject_id(self):
         pass
 
-    def get_cmd_args(self, opts):
+    def get_cmd_args(self, cmdname, opts):
         return {}
 
-    def get_subcmd_args(self, opts):
+    def get_subcmd_args(self, cmdname, opts):
         return {}
 
     @contextmanager

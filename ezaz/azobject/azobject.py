@@ -99,6 +99,14 @@ class AzObject(AzAction):
         return '--' + cls.azobject_name('-')
 
     @classmethod
+    def get_base_cmd(cls):
+        return cls.azobject_name_list()
+
+    @classmethod
+    def get_cmd(cls, cmdname):
+        return cls.get_base_cmd() + [cmdname]
+
+    @classmethod
     def is_azsubobject_container(cls):
         return False
 
@@ -110,22 +118,6 @@ class AzObject(AzAction):
     def info_id(cls, info):
         # Most use their 'name' as their obj_id
         return info.name
-
-    @classmethod
-    def get_base_cmd(cls):
-        return cls.azobject_name_list()
-
-    @classmethod
-    def get_show_cmd(cls):
-        return cls.get_base_cmd() + ['show']
-
-    @classmethod
-    def get_create_cmd(cls):
-        return cls.get_base_cmd() + ['create']
-
-    @classmethod
-    def get_delete_cmd(cls):
-        return cls.get_base_cmd() + ['delete']
 
     @classmethod
     def _name_to_arg(cls, name):
@@ -177,36 +169,15 @@ class AzObject(AzAction):
     def azobject_id(self):
         pass
 
-    def _get_cmd_args(self, opts):
+    def _get_cmd_args(self, cmdname, opts):
         return {}
 
-    def get_cmd_args(self, opts):
+    def get_cmd_args(self, cmdname, opts):
         return self._merge_cmd_args({self.azobject_cmd_arg(): self.azobject_id},
-                                    self._get_cmd_args(opts))
-
-    def _get_show_cmd_args(self, opts):
-        return {}
-
-    def get_show_cmd_args(self, opts):
-        return self._merge_cmd_args(self.get_cmd_args(opts),
-                                    self._get_show_cmd_args(opts))
-
-    def _get_create_cmd_args(self, opts):
-        return {}
-
-    def get_create_cmd_args(self, opts):
-        return self._merge_cmd_args(self.get_cmd_args(opts),
-                                    self._get_create_cmd_args(opts))
-
-    def _get_delete_cmd_args(self, opts):
-        return {}
-
-    def get_delete_cmd_args(self, opts):
-        return self._merge_cmd_args(self.get_cmd_args(opts),
-                                    self._get_delete_cmd_args(opts))
+                                    self._get_cmd_args(cmdname, opts) or {})
 
     def _get_info(self):
-        return self.az_response(*self.get_show_cmd(), cmd_args=self.get_show_cmd_args({}))
+        return self.az_response(*self.get_cmd('show'), cmd_args=self.get_cmd_args('show', {}))
 
     def _raise_no_az_object_exists(self, error):
         raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
@@ -237,10 +208,10 @@ class AzObject(AzAction):
     def create(self, **kwargs):
         if self.exists:
             self._raise_az_object_exists()
-        self.az(*self.get_create_cmd(), cmd_args=self.get_create_cmd_args(kwargs), dry_runnable=False)
+        self.az(*self.get_cmd('create'), cmd_args=self.get_cmd_args('create', kwargs), dry_runnable=False)
 
     def delete(self, **kwargs):
-        self.az(*self.get_delete_cmd(), cmd_args=self.get_delete_cmd_args(kwargs), dry_runnable=False)
+        self.az(*self.get_cmd('delete'), cmd_args=self.get_cmd_args('delete', kwargs), dry_runnable=False)
 
 
 class AzSubObject(AzObject):
@@ -257,12 +228,22 @@ class AzSubObject(AzObject):
         return f'{cls.azobject_name()}.{obj_id}'
 
     @classmethod
-    def get_list_cmd(cls):
-        return cls.get_base_cmd() + ['list']
-
-    @classmethod
     def filter_parent_args(cls, opts):
         return opts
+
+    @classmethod
+    def _get_azsubobject_cmd_args(cls, parent, cmdname, opts):
+        return {}
+
+    @classmethod
+    def get_azsubobject_cmd_args(cls, parent, cmdname, opts):
+        return cls._merge_cmd_args(parent.get_subcmd_args(cmdname, opts),
+                                   cls._get_azsubobject_cmd_args(parent, cmdname, opts) or {})
+
+    @classmethod
+    def list(cls, parent, **kwargs):
+        for azobject in parent.get_azsubobjects(cls.azobject_name(), **kwargs):
+            azobject.show()
 
     def __init__(self, parent, obj_id, config, info=None):
         super().__init__(config, info=info)
@@ -286,12 +267,12 @@ class AzSubObject(AzObject):
     def dry_run(self):
         return self.parent.dry_run
 
-    def get_parent_subcmd_args(self, opts):
-        return self.parent.get_subcmd_args(opts)
+    def get_parent_subcmd_args(self, cmdname, opts):
+        return self.get_azsubobject_cmd_args(self.parent, cmdname, opts)
 
-    def get_cmd_args(self, opts):
-        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
-                                    super().get_cmd_args(opts))
+    def get_cmd_args(self, cmdname, opts):
+        return self._merge_cmd_args(self.get_parent_subcmd_args(cmdname, opts),
+                                    super().get_cmd_args(cmdname, opts))
 
     def set_default(self, **kwargs):
         self.parent.set_azsubobject_default_id(self.azobject_name(),
@@ -310,26 +291,18 @@ class AzSubObjectContainer(AzObject):
     def is_azsubobject_container(cls):
         return True
 
-    def get_parent_subcmd_args(self, opts):
+    def get_parent_subcmd_args(self, cmdname, opts):
         if self.is_azsubobject():
-            return super().get_parent_subcmd_args(opts)
+            return super().get_parent_subcmd_args(cmdname, opts)
         return {}
 
-    def _get_subcmd_args(self, opts):
+    def _get_subcmd_args(self, cmdname, opts):
         return {}
 
-    def get_subcmd_args(self, opts):
-        return self._merge_cmd_args(self.get_parent_subcmd_args(opts),
+    def get_subcmd_args(self, cmdname, opts):
+        return self._merge_cmd_args(self.get_parent_subcmd_args(cmdname, opts),
                                     {self.azobject_subcmd_arg(): self.azobject_id},
-                                    self._get_subcmd_args(opts))
-
-    # TODO - this should be moved into AzSubObject, somehow, so we don't need the filter_parent_args()
-    def get_list_cmd_args(self, cls, opts):
-        return cls.filter_parent_args(self.get_subcmd_args(opts))
-
-    def list(self, name, **kwargs):
-        for azobject in self.get_azsubobjects(name, **kwargs):
-            azobject.show()
+                                    self._get_subcmd_args(cmdname, opts) or {})
 
     @classmethod
     @abstractmethod
@@ -379,4 +352,4 @@ class AzSubObjectContainer(AzObject):
     def get_azsubobjects(self, name, **kwargs):
         cls = self.get_azsubobject_class(name)
         return [self.get_azsubobject(name, cls.info_id(info), info=info) for info in
-                self.az_responselist(*cls.get_list_cmd(), cmd_args=self.get_list_cmd_args(cls, kwargs))]
+                self.az_responselist(*cls.get_cmd('list'), cmd_args=cls.get_azsubobject_cmd_args(self, 'list', kwargs))]

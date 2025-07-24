@@ -178,6 +178,10 @@ class SubAzObjectCommand(AzObjectCommand):
         return self._parent_azobject
 
     @property
+    def azclass(self):
+        return self.parent_azobject.get_azsubobject_class(self.azobject_name())
+
+    @property
     def azobject_default_id(self):
         return self.parent_azobject.get_azsubobject_default_id(self.azobject_name())
 
@@ -251,7 +255,7 @@ class ListActionCommand(ActionCommand, SubAzObjectCommand):
                                         help=f'List {cls.command_text()}s')
 
     def list(self):
-        self.parent_azobject.list(self.azobject_name(), **vars(self._options))
+        self.azclass.list(self.parent_azobject, **vars(self._options))
 
 
 class SetActionCommand(ActionCommand, SubAzObjectCommand):
