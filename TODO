@@ -1,0 +1,29 @@
+
+LATER/CLEANUP:
+
+- add spinner to az calls
+
+- command actionconfigs should pass opts and also cmd_opts to command handler functions
+
+- add full ancestor path of object anme params for commands missing
+  them (where currently uses just one object name param)
+
+- add config/params to debug per-module/per-class, e.g. debug-cache
+
+- review use of 'opts' vs '**opts' in methods; should try to be consistent
+
+- update setup command to allow creating from prompt command
+
+- create commands could swallow the returned json and update info cache
+
+- global enable/disable caching configuration setting
+
+- change --no-cache option to disable both r/w caching, add
+  --update-cache (w only) and --read-cache (read only) or some names
+  like that
+
+DOCS:
+
+- filtering
+- defaults
+- add help description/submmary/etc to each subcommand
