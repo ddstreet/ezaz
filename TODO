@@ -1,0 +1,14 @@
+
+- add full ancestor path of object anme params for commands missing
+  them (where currently uses just one object name param)
+
+- add per-action configuration of caching
+- update cacheing to remove specific cache after object create/delete operation
+
+- review use of 'opts' vs '**opts' in methods; should try to be consistent
+
+DOCS:
+
+- filtering
+- defaults
+- add help description/submmary/etc to each subcommand

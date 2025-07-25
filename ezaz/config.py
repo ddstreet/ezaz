@@ -1,0 +1,113 @@
+
+import json
+
+from collections.abc import Mapping
+from collections.abc import MutableMapping
+from contextlib import suppress
+from functools import partial
+from pathlib import Path
+
+from . import DEFAULT_CONFIGPATH
+
+
+DEFAULT_FILENAME = 'config.json'
+DEFAULT_CONFIGFILE = DEFAULT_CONFIGPATH / DEFAULT_FILENAME
+
+
+class SubConfig(MutableMapping):
+    def __init__(self, parent, mapping):
+        self._parent = parent
+        self._mapping = mapping
+
+    def __repr__(self):
+        return json.dumps(self._prep_file_config(self), indent=2, sort_keys=True)
+
+    def _prep_file_config(self, d):
+        # Copy everything except empty dicts, which we don't need to save
+        cleand = {}
+        for k, v in d.items():
+            if isinstance(v, Mapping):
+                v = self._prep_file_config(v)
+                if not v:
+                    continue
+            cleand[k] = v
+        return cleand
+
+    def __getitem__(self, key):
+        return self._mapping[key]
+
+    def __setitem__(self, key, value):
+        if value is None:
+            with suppress(KeyError):
+                del self[key]
+        else:
+            if isinstance(value, Mapping):
+                value = SubConfig(self, value)
+            self._mapping[key] = value
+            self.save()
+
+    def __delitem__(self, key):
+        del self._mapping[key]
+        self.save()
+
+    def __iter__(self):
+        return iter(self._mapping)
+
+    def __len__(self):
+        return len(self._mapping)
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def configfile(self):
+        return self.parent.configfile
+
+    def save(self):
+        return self.parent.save()
+
+    def setdefault(self, key, value):
+        with suppress(KeyError):
+            return self[key]
+        self[key] = value
+        return self[key]
+
+    def get_object(self, key):
+        # get the specified object, or insert and return a new empty one
+        return self.setdefault(key, {})
+
+
+class Config(SubConfig):
+    def __init__(self, configfile=None):
+        self._configfile = Path(configfile or DEFAULT_CONFIGFILE).expanduser().resolve()
+        super().__init__(self, self._read_config())
+        self._file_config = self._prep_file_config(self)
+        # TODO - check with jsonschema
+
+    def _read_config(self):
+        try:
+            return json.loads(self.configfile.read_text(), object_hook=partial(SubConfig, self))
+        except FileNotFoundError:
+            return SubConfig(self, {})
+
+    @property
+    def parent(self):
+        return self
+
+    @property
+    def configfile(self):
+        return self._configfile
+
+    def save(self):
+        file_config = self._prep_file_config(self)
+        if file_config == self._file_config:
+            return
+
+        self._file_config = file_config
+        self.configfile.parent.mkdir(parents=True, exist_ok=True)
+        self.configfile.write_text(str(self) + '\n')
+
+    def remove(self):
+        self.configfile.unlink(missing_ok=True)
+        self.__init__(configfile=self.configfile)
