@@ -23,11 +23,9 @@ class StorageContainer(AzSubObject, AzSubObjectContainer):
 
     @classmethod
     def get_azsubobject_cmd_args(cls, parent, cmdname, opts):
-        # Unfortunately storage container cmds do *not* accept the resource group arg :(
-        args = super().get_azsubobject_cmd_args(parent, cmdname, opts)
-        args.pop('-g', None)
-        args.pop('--resource-group', None)
-        return args
+        # Unfortunately storage container cmds (and subcmds) do *not* accept the resource group arg :(
+        return {k: v for k, v in super().get_azsubobject_cmd_args(parent, cmdname, opts).items()
+                if k not in ['-g', '--resource-group']}
 
     @classmethod
     def get_azsubobject_classes(cls):

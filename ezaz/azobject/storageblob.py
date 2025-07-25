@@ -1,4 +1,5 @@
 
+from .azobject import ArgMap
 from .azobject import AzSubObject
 
 
@@ -12,13 +13,13 @@ class StorageBlob(AzSubObject):
         return '--name'
 
     @classmethod
-    def XX_get_azsubobject_cmd_args(self, parent, cmdname, opts):
-        return {'--auth-mode': 'login'}
+    def _get_cmd(cls, cmdname):
+        if cmdname == 'create':
+            return 'upload'
+        return cmdname
 
-    @classmethod
-    def XXget_azsubobject_cmd_args(cls, parent, cmdname, opts):
-        # Unfortunately storage container cmds do *not* accept the resource group arg :(
-        args = super().get_azsubobject_cmd_args(parent, cmdname, opts)
-        args.pop('-g', None)
-        args.pop('--resource-group', None)
-        return args
+    def _get_cmd_args(self, cmdname, opts):
+        if cmdname == 'create':
+            return ArgMap(self.required_arg('file', opts, 'create'),
+                          self.optional_arg('type', opts))
+        return {}

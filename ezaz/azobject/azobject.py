@@ -5,12 +5,9 @@ import subprocess
 
 from abc import ABC
 from abc import abstractmethod
-from collections import ChainMap
+from collections import UserDict
 from contextlib import suppress
-from functools import partial
-from functools import partialmethod
 from itertools import chain
-from itertools import combinations
 
 from ..exception import AzCommandError
 from ..exception import AzObjectExists
@@ -80,7 +77,73 @@ class AzAction(ABC):
         return cls(j) if j else []
 
 
-class AzObject(AzAction):
+class ArgMap(UserDict):
+    def __init__(self, *dicts):
+        super().__init__()
+        for d in dicts:
+            self |= d
+
+    def _check_dup_keys(self, other):
+        dupkeys = self.keys() & other.keys()
+        if dupkeys:
+            k = list(dupkeys)[0]
+            raise DuplicateArgument(k, self.data[k], other[k])
+
+    def __setitem__(self, key, value):
+        self._check_dup_keys({key: value})
+        super().__setitem__(key, value)
+
+    def __or__(self, other):
+        self._check_dup_keys(other)
+        return super().__or__(other)
+
+    def __ror__(self, other):
+        self._check_dup_keys(other)
+        return super().__ror__(other)
+
+    def __ior__(self, other):
+        self._check_dup_keys(other)
+        return super().__ior__(other)
+
+
+class ArgUtil:
+    @classmethod
+    def _name_to_arg(cls, name):
+        return '--' + name.replace('_', '-')
+
+    @classmethod
+    def required_arg_value(cls, arg, opts, requiring_arg=None):
+        with suppress(KeyError):
+            value = opts[arg]
+            if value is not None:
+                return value
+        raise RequiredArgument(arg, requiring_arg)
+
+    @classmethod
+    def required_arg(cls, arg, opts, requiring_arg=None):
+        return ArgMap({cls._name_to_arg(arg): cls.required_arg_value(arg, opts, requiring_arg)})
+
+    @classmethod
+    def required_args_one(cls, args, opts, requiring_arg=None):
+        arg_group = self.optional_args(args, opts)
+        if not arg_group:
+            raise RequiredArgumentGroup(args, requiring_arg)
+        return arg_group
+
+    @classmethod
+    def required_args_all(cls, args, opts, requiring_arg=None):
+        return ArgMap(*[cls.required_arg(a, opts, requiring_arg) for a in args])
+
+    @classmethod
+    def optional_arg(cls, arg, opts):
+        return cls.optional_args([arg], opts)
+
+    @classmethod
+    def optional_args(cls, args, opts):
+        return ArgMap(*[{cls._name_to_arg(a): opts[a]} for a in args if a in opts])
+
+
+class AzObject(AzAction, ArgUtil):
     @classmethod
     @abstractmethod
     def azobject_name_list(cls):
@@ -103,8 +166,12 @@ class AzObject(AzAction):
         return cls.azobject_name_list()
 
     @classmethod
+    def _get_cmd(cls, cmdname):
+        return cmdname
+
+    @classmethod
     def get_cmd(cls, cmdname):
-        return cls.get_base_cmd() + [cmdname]
+        return cls.get_base_cmd() + [cls._get_cmd(cmdname)]
 
     @classmethod
     def is_azsubobject_container(cls):
@@ -118,43 +185,6 @@ class AzObject(AzAction):
     def info_id(cls, info):
         # Most use their 'name' as their obj_id
         return info.name
-
-    @classmethod
-    def _name_to_arg(cls, name):
-        return '--' + name.replace('_', '-')
-
-    @classmethod
-    def _merge_cmd_args(cls, *dicts):
-        for (a, b) in combinations(dicts, 2):
-            #print(f'merging {a} and {b}')
-            dup_keys = list(a.keys() & b.keys())
-            if dup_keys:
-                k = dup_keys[0]
-                raise DuplicateArgument(k, a[k], b[k])
-        return dict(ChainMap(*dicts))
-
-    @classmethod
-    def required_arg_value(self, arg, opts, requiring_arg=None):
-        with suppress(KeyError):
-            value = opts[arg]
-            if value is not None:
-                return value
-        raise RequiredArgument(arg, requiring_arg)
-
-    @classmethod
-    def required_arg(self, arg, opts, requiring_arg=None):
-        return {self._name_to_arg(arg): self.required_arg_value(arg, opts, requiring_arg)}
-
-    @classmethod
-    def required_args_one(self, args, opts, requiring_arg=None):
-        arg_group = {self._name_to_arg(k): v for k, v in opts.items() if k in args}
-        if not arg_group:
-            raise RequiredArgumentGroup(args, requiring_arg)
-        return arg_group
-
-    @classmethod
-    def required_args_all(self, args, opts, requiring_arg=None):
-        return dict([self.required_arg(a, opts, requiring_arg).items().next() for a in args])
 
     def __init__(self, config, info=None):
         self._config = config
@@ -173,8 +203,8 @@ class AzObject(AzAction):
         return {}
 
     def get_cmd_args(self, cmdname, opts):
-        return self._merge_cmd_args({self.azobject_cmd_arg(): self.azobject_id},
-                                    self._get_cmd_args(cmdname, opts) or {})
+        return ArgMap({self.azobject_cmd_arg(): self.azobject_id},
+                      self._get_cmd_args(cmdname, opts) or {})
 
     def _get_info(self):
         return self.az_response(*self.get_cmd('show'), cmd_args=self.get_cmd_args('show', {}))
@@ -237,8 +267,8 @@ class AzSubObject(AzObject):
 
     @classmethod
     def get_azsubobject_cmd_args(cls, parent, cmdname, opts):
-        return cls._merge_cmd_args(parent.get_subcmd_args(cmdname, opts),
-                                   cls._get_azsubobject_cmd_args(parent, cmdname, opts) or {})
+        return ArgMap(parent.get_subcmd_args(cmdname, opts),
+                      cls._get_azsubobject_cmd_args(parent, cmdname, opts) or {})
 
     @classmethod
     def list(cls, parent, **kwargs):
@@ -271,8 +301,8 @@ class AzSubObject(AzObject):
         return self.get_azsubobject_cmd_args(self.parent, cmdname, opts)
 
     def get_cmd_args(self, cmdname, opts):
-        return self._merge_cmd_args(self.get_parent_subcmd_args(cmdname, opts),
-                                    super().get_cmd_args(cmdname, opts))
+        return ArgMap(self.get_parent_subcmd_args(cmdname, opts),
+                      super().get_cmd_args(cmdname, opts))
 
     def set_default(self, **kwargs):
         self.parent.set_azsubobject_default_id(self.azobject_name(),
@@ -300,9 +330,9 @@ class AzSubObjectContainer(AzObject):
         return {}
 
     def get_subcmd_args(self, cmdname, opts):
-        return self._merge_cmd_args(self.get_parent_subcmd_args(cmdname, opts),
-                                    {self.azobject_subcmd_arg(): self.azobject_id},
-                                    self._get_subcmd_args(cmdname, opts) or {})
+        return ArgMap(self.get_parent_subcmd_args(cmdname, opts),
+                      {self.azobject_subcmd_arg(): self.azobject_id},
+                      self._get_subcmd_args(cmdname, opts) or {})
 
     @classmethod
     @abstractmethod
