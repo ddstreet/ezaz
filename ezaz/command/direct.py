@@ -16,8 +16,8 @@ class DirectCommand(SimpleCommand):
         parser.add_argument('command', help='Command to run (i.e. "az COMMAND ...")')
         parser.add_argument('args', nargs=argparse.REMAINDER, help='Additional arguments and parameters')
 
-    def _setup(self):
-        super()._setup()
+    def _setup(self, *args, **kwargs):
+        super()._setup(*args, **kwargs)
         self._direct = DirectAction(verbose=self.verbose, dry_run=self.dry_run)
 
     def run(self):

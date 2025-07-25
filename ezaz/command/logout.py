@@ -9,8 +9,8 @@ class LogoutCommand(SimpleCommand):
     def command_name_list(cls):
         return ['logout']
 
-    def _setup(self):
-        super()._setup()
+    def _setup(self, *args, **kwargs):
+        super()._setup(*args, **kwargs)
         self._account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
 
     def run(self):

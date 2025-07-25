@@ -9,10 +9,12 @@ from abc import ABC
 from abc import abstractmethod
 from contextlib import contextmanager
 from contextlib import suppress
-from operator import methodcaller
+from functools import cached_property
 
+from ..config import Config
 from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
+from ..exception import RequiredArgument
 from ..response import lookup_response
 
 
@@ -56,21 +58,21 @@ class SimpleCommand(ABC):
 
     @classmethod
     def parser_add_argument_verbose(cls, parser):
-        parser.add_argument('-v', '--verbose', action='store_true',
-                            help='Be verbose')
+        return parser.add_argument('-v', '--verbose', action='store_true',
+                                   help='Be verbose')
 
     @classmethod
     def parser_add_argument_dry_run(cls, parser):
-        parser.add_argument('-n', '--dry-run', action='store_true',
-                            help='Only print what would be done, do not run commands')
+        return parser.add_argument('-n', '--dry-run', action='store_true',
+                                   help='Only print what would be done, do not run commands')
 
-    def __init__(self, config, options, venv=None):
+    def __init__(self, config, options, *args, venv=None, **kwargs):
         self._config = config
         self._options = options
         self._venv = venv
-        self._setup()
+        self._setup(*args, **kwargs)
 
-    def _setup(self):
+    def _setup(self, *args, **kwargs):
         pass
 
     @property
@@ -117,7 +119,7 @@ class ActionCommand(SimpleCommand):
 
     @classmethod
     def _parser_add_action_argument(cls, group, *args, nargs=0, help=None):
-        group.add_argument(*args, action=CommandArgumentAction, nargs=nargs, metavar=cls.command_metavar(), help=help)
+        return group.add_argument(*args, action=CommandArgumentAction, dest=None, nargs=nargs, metavar=cls.command_metavar(), help=help)
 
     @classmethod
     @abstractmethod
@@ -141,6 +143,19 @@ class ActionCommand(SimpleCommand):
 
 class AzObjectCommand(SimpleCommand):
     @classmethod
+    @abstractmethod
+    def azobject_class(cls):
+        pass
+
+    @classmethod
+    def azobject_name(cls):
+        return cls.azobject_class().azobject_name()
+
+    @classmethod
+    def command_name_list(cls):
+        return cls.azobject_class().azobject_name_list()
+
+    @classmethod
     def parser_add_common_arguments(cls, parser):
         super().parser_add_common_arguments(parser)
         cls.parser_add_argument_obj_id(parser)
@@ -151,14 +166,13 @@ class AzObjectCommand(SimpleCommand):
                                    help=f'Use the specified {cls.command_text()}, instead of the default')
 
     @classmethod
-    @abstractmethod
     def completer_azobject(cls, **kwargs):
-        pass
+        return cls.azobject_class()(config=Config(), verbose=False, dry_run=True)
 
-    @property
+    @cached_property
     @abstractmethod
     def azobject(self):
-        pass
+        return self.azobject_class()(config=self._config, verbose=self.verbose, dry_run=self.dry_run)
 
 
 class SubAzObjectCommand(AzObjectCommand):
@@ -166,10 +180,6 @@ class SubAzObjectCommand(AzObjectCommand):
     @abstractmethod
     def parent_command_cls(cls):
         pass
-
-    @classmethod
-    def azobject_name(cls):
-        return cls.command_name()
 
     @classmethod
     def completer_azobject(cls, **kwargs):
@@ -180,23 +190,9 @@ class SubAzObjectCommand(AzObjectCommand):
         return parent_azobject.get_azsubobject(cls.azobject_name(), obj_id)
 
     @classmethod
-    @contextmanager
-    def completer_clean_environ(cls):
-        try:
-            argcomplete_vars = {k: v for k, v in os.environ.items() if 'ARGCOMPLETE' in k}
-            for k in os.environ.keys():
-                if 'ARGCOMPLETE' in k:
-                    del os.environ[k]
-            yield
-        finally:
-            for k, v in argcomplete_vars.items():
-                os.environ[k] = v
-
-    @classmethod
     def completer_obj_id(cls, **kwargs):
-        with cls.completer_clean_environ():
-            parent = cls.parent_command_cls().completer_azobject(**kwargs)
-            return [o.azobject_id for o in parent.get_azsubobjects(cls.azobject_name())]
+        parent = cls.parent_command_cls().completer_azobject(**kwargs)
+        return [o.azobject_id for o in parent.get_azsubobjects(cls.azobject_name())]
 
     @classmethod
     def parser_add_argument_obj_id(cls, parser):
@@ -205,15 +201,19 @@ class SubAzObjectCommand(AzObjectCommand):
         arg.completer = cls.completer_obj_id
         return arg
 
-    def _setup(self):
-        super()._setup()
-        _parent_command = self.parent_command_cls()(self._config, self._options, venv=self._venv)
-        assert isinstance(_parent_command, AzObjectCommand)
-        self._parent_azobject = _parent_command.azobject
+    def _setup(self, *args, is_parent=False, **kwargs):
+        super()._setup(*args, **kwargs)
+        self._is_parent = is_parent
+        self._parent_command = self.parent_command_cls()(self._config, self._options, venv=self._venv, is_parent=True)
+        assert isinstance(self._parent_command, AzObjectCommand)
+
+    @property
+    def parent_command(self):
+        return self._parent_command
 
     @property
     def parent_azobject(self):
-        return self._parent_azobject
+        return self.parent_command.azobject
 
     @property
     def azclass(self):
@@ -225,9 +225,14 @@ class SubAzObjectCommand(AzObjectCommand):
 
     @property
     def azobject_id(self):
-        return getattr(self._options, self.azobject_name()) or self.azobject_default_id
+        obj_id = getattr(self._options, self.azobject_name())
+        if obj_id:
+            return obj_id
+        if self._options.command_action == 'create' and not self._is_parent:
+            raise RequiredArgument(self.azobject_name(), 'create')
+        return self.azobject_default_id
 
-    @property
+    @cached_property
     def azobject(self):
         return self.parent_azobject.get_azsubobject(self.azobject_name(), self.azobject_id)
 
@@ -240,8 +245,8 @@ class ShowActionCommand(ActionCommand, AzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_show(cls, group):
-        cls._parser_add_action_argument(group, '--show',
-                                        help=f'Show default {cls.command_text()} (default)')
+        return cls._parser_add_action_argument(group, '--show',
+                                               help=f'Show default {cls.command_text()} (default)')
 
     @classmethod
     def parser_set_action_default(cls, group):
@@ -259,8 +264,8 @@ class CreateActionCommand(ActionCommand, AzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_create(cls, group):
-        cls._parser_add_action_argument(group, '-c', '--create',
-                                        help=f'Create a {cls.command_text()}')
+        return cls._parser_add_action_argument(group, '-c', '--create',
+                                               help=f'Create a {cls.command_text()}')
 
     def create(self):
         self.azobject.create(**vars(self._options))
@@ -274,8 +279,8 @@ class DeleteActionCommand(ActionCommand, AzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_delete(cls, group):
-        cls._parser_add_action_argument(group, '-d', '--delete',
-                                        help=f'Delete a {cls.command_text()}')
+        return cls._parser_add_action_argument(group, '-d', '--delete',
+                                               help=f'Delete a {cls.command_text()}')
 
     def delete(self):
         self.azobject.delete(**vars(self._options))
@@ -289,8 +294,8 @@ class ListActionCommand(ActionCommand, SubAzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_list(cls, group):
-        cls._parser_add_action_argument(group, '-l', '--list',
-                                        help=f'List {cls.command_text()}s')
+        return cls._parser_add_action_argument(group, '-l', '--list',
+                                               help=f'List {cls.command_text()}s')
 
     def list(self):
         self.azclass.list(self.parent_azobject, **vars(self._options))
@@ -304,8 +309,8 @@ class SetActionCommand(ActionCommand, SubAzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_set(cls, group):
-        cls._parser_add_action_argument(group, '-S', '--set',
-                                        help=f'Set default {cls.command_text()}')
+        return cls._parser_add_action_argument(group, '-S', '--set',
+                                               help=f'Set default {cls.command_text()}')
 
     def set(self):
         self.azobject.set_default(**vars(self._options))
@@ -319,8 +324,8 @@ class ClearActionCommand(ActionCommand, SubAzObjectCommand):
 
     @classmethod
     def parser_add_action_argument_clear(cls, group):
-        cls._parser_add_action_argument(group, '-C', '--clear',
-                                        help=f'Clear default {cls.command_text()}')
+        return cls._parser_add_action_argument(group, '-C', '--clear',
+                                               help=f'Clear default {cls.command_text()}')
 
     def clear(self):
         self.azobject.clear_default(**vars(self._options))

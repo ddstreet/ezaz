@@ -1,4 +1,5 @@
 
+from ..azobject.subscription import Subscription
 from .account import AccountCommand
 from .command import ClearActionCommand
 from .command import ListActionCommand
@@ -12,8 +13,8 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
         return AccountCommand
 
     @classmethod
-    def command_name_list(cls):
-        return ['subscription']
+    def azobject_class(cls):
+        return Subscription
 
     @classmethod
     def aliases(cls):

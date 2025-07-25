@@ -1,4 +1,5 @@
 
+from ..azobject.vm import VM
 from .command import AllActionCommand
 from .resourcegroup import ResourceGroupCommand
 
@@ -9,8 +10,8 @@ class VMCommand(AllActionCommand):
         return ResourceGroupCommand
 
     @classmethod
-    def command_name_list(cls):
-        return ['vm']
+    def azobject_class(cls):
+        return VM
 
     @classmethod
     def parser_add_action_arguments(cls, group):

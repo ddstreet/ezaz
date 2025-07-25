@@ -1,4 +1,5 @@
 
+from ..azobject.storageaccount import StorageAccount
 from .command import AllActionCommand
 from .resourcegroup import ResourceGroupCommand
 
@@ -9,5 +10,5 @@ class StorageAccountCommand(AllActionCommand):
         return ResourceGroupCommand
 
     @classmethod
-    def command_name_list(cls):
-        return ['storage', 'account']
+    def azobject_class(cls):
+        return StorageAccount

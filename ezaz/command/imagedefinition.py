@@ -1,4 +1,5 @@
 
+from ..azobject.imagedefinition import ImageDefinition
 from .command import AllActionCommand
 from .imagegallery import ImageGalleryCommand
 
@@ -9,8 +10,8 @@ class ImageDefinitionCommand(AllActionCommand):
         return ImageGalleryCommand
 
     @classmethod
-    def command_name_list(cls):
-        return ['image', 'definition']
+    def azobject_class(cls):
+        return ImageDefinition
 
     @classmethod
     def parser_add_common_arguments(cls, parser):

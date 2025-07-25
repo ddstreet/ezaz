@@ -1,5 +1,6 @@
 
 from contextlib import suppress
+from functools import cached_property
 
 from ..azobject.account import Account
 from ..config import Config
@@ -11,12 +12,8 @@ from .command import ShowActionCommand
 
 class AccountCommand(ShowActionCommand):
     @classmethod
-    def command_name_list(cls):
-        return ['account']
-
-    @classmethod
-    def completer_azobject(cls, **kwargs):
-        return Account(Config())
+    def azobject_class(cls):
+        return Account
 
     @classmethod
     def parser_add_common_arguments(cls, parser):
@@ -63,13 +60,9 @@ class AccountCommand(ShowActionCommand):
         except NotLoggedIn:
             print(f"{logged} out")
 
-    def _setup(self):
-        super()._setup()
-        self._account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
-
     @property
     def azobject(self):
-        return self._account
+        return super().azobject
 
     def login(self):
         self.cls_login(self.azobject, self._options.use_device_code)

@@ -1,4 +1,5 @@
 
+from ..azobject.resourcegroup import ResourceGroup
 from .command import AllActionCommand
 from .subscription import SubscriptionCommand
 
@@ -9,8 +10,8 @@ class ResourceGroupCommand(AllActionCommand):
         return SubscriptionCommand
 
     @classmethod
-    def command_name_list(cls):
-        return ['resource', 'group']
+    def azobject_class(cls):
+        return ResourceGroup
 
     @classmethod
     def aliases(cls):

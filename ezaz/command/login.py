@@ -16,8 +16,8 @@ class LoginCommand(SimpleCommand):
                             action='store_true',
                             help='Instead of opening a browser window, show the URL and code')
 
-    def _setup(self):
-        super()._setup()
+    def _setup(self, *args, **kwargs):
+        super()._setup(*args, **kwargs)
         self._account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
 
     def run(self):

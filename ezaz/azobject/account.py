@@ -32,26 +32,13 @@ class Account(AzSubObjectContainer):
     def get_azsubobject_classes(cls):
         return [Subscription]
 
-    def __init__(self, config, verbose=False, dry_run=False):
-        super().__init__(config)
-        self._verbose = verbose
-        self._dry_run = dry_run
-
     @property
     def config(self):
         return self._config.get_object(self.info.user.name)
 
     @property
-    def verbose(self):
-        return self._verbose
-
-    @property
-    def dry_run(self):
-        return self._dry_run
-
-    @property
     def azobject_id(self):
-        pass
+        return NotImplemented
 
     def get_cmd_args(self, cmdname, opts):
         return {}

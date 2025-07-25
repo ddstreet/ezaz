@@ -1,4 +1,5 @@
 
+from ..azobject.storageblob import StorageBlob
 from .command import AllActionCommand
 from .storagecontainer import StorageContainerCommand
 
@@ -9,5 +10,5 @@ class StorageBlobCommand(AllActionCommand):
         return StorageContainerCommand
 
     @classmethod
-    def command_name_list(cls):
-        return ['storage', 'blob']
+    def azobject_class(cls):
+        return StorageBlob

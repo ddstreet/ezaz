@@ -1,11 +1,9 @@
 
 from pathlib import Path
 
+from ..azobject.sshkey import SshKey
 from .command import AllActionCommand
 from .resourcegroup import ResourceGroupCommand
-
-
-COMMANDS = ['SshKeyCommand']
 
 
 class SshKeyCommand(AllActionCommand):
@@ -14,8 +12,8 @@ class SshKeyCommand(AllActionCommand):
         return ResourceGroupCommand
 
     @classmethod
-    def command_name_list(cls):
-        return ['ssh', 'key']
+    def azobject_class(cls):
+        return SshKey
 
     @classmethod
     def parser_add_common_arguments(cls, parser):

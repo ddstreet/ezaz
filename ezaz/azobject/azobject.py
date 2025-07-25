@@ -1,6 +1,7 @@
 
 import importlib
 import json
+import os
 import subprocess
 
 from abc import ABC
@@ -21,13 +22,16 @@ from ..response import lookup_response
 
 
 class AzAction(ABC):
-    @property
-    @abstractmethod
-    def verbose(self):
-        return self.verbose
+    def __init__(self, *, verbose=False, dry_run=False, **kwargs):
+        super().__init__(**kwargs)
+        self._verbose = verbose
+        self._dry_run = dry_run
 
     @property
-    @abstractmethod
+    def verbose(self):
+        return self._verbose
+
+    @property
     def dry_run(self):
         return self._dry_run
 
@@ -40,6 +44,10 @@ class AzAction(ABC):
                      for k, v in cmd_args.items()])
         return list(chain.from_iterable(expanded))
 
+    @property
+    def _exec_environ(cls):
+        return {k: v for k, v in os.environ.items() if 'ARGCOMPLETE' not in k}
+
     def _exec(self, *args, cmd_args={}, check=True, dry_runnable=True, **kwargs):
         args = list(args) + self._expand_cmd_args(cmd_args)
         if self.dry_run and not dry_runnable:
@@ -47,7 +55,7 @@ class AzAction(ABC):
             return None
         self._trace(' '.join(args))
         try:
-            return subprocess.run(args, check=check, **kwargs)
+            return subprocess.run(args, check=check, env=self._exec_environ, **kwargs)
         except subprocess.CalledProcessError as cpe:
             if cpe.stderr:
                 if any(s in cpe.stderr for s in ["Please run 'az login' to setup account",
@@ -186,7 +194,8 @@ class AzObject(AzAction, ArgUtil):
         # Most use their 'name' as their obj_id
         return info.name
 
-    def __init__(self, config, info=None):
+    def __init__(self, *, config, info=None, **kwargs):
+        super().__init__(**kwargs)
         self._config = config
         self._info = info
 
@@ -275,15 +284,15 @@ class AzSubObject(AzObject):
         for azobject in parent.get_azsubobjects(cls.azobject_name(), **kwargs):
             azobject.show()
 
-    def __init__(self, parent, obj_id, config, info=None):
-        super().__init__(config, info=info)
-        self._obj_id = obj_id
+    def __init__(self, *, parent, azobject_id, **kwargs):
+        super().__init__(**kwargs)
         self._parent = parent
+        self._azobject_id = azobject_id
         assert self._parent.is_azsubobject_container()
 
     @property
     def azobject_id(self):
-        return self._obj_id
+        return self._azobject_id
 
     @property
     def parent(self):
@@ -377,7 +386,7 @@ class AzSubObjectContainer(AzObject):
 
     def get_azsubobject(self, name, obj_id, info=None):
         cls = self.get_azsubobject_class(name)
-        return cls(self, obj_id, self.config.get_object(cls.object_key(obj_id)), info=info)
+        return cls(parent=self, azobject_id=obj_id, config=self.config.get_object(cls.object_key(obj_id)), info=info)
 
     def get_azsubobjects(self, name, **kwargs):
         cls = self.get_azsubobject_class(name)
