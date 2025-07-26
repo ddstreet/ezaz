@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from contextlib import suppress
 from functools import cached_property
 
+from ..cache import Cache
 from ..config import Config
 from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
@@ -69,14 +70,11 @@ class SimpleCommand(ABC):
         return parser.add_argument('-n', '--dry-run', action='store_true',
                                    help='Only print what would be done, do not run commands')
 
-    def __init__(self, config, options, *args, venv=None, **kwargs):
+    def __init__(self, *, config, options, cache=None, venv=None, **kwargs):
         self._config = config
         self._options = options
+        self._cache = cache
         self._venv = venv
-        self._setup(*args, **kwargs)
-
-    def _setup(self, *args, **kwargs):
-        pass
 
     @property
     def verbose(self):
@@ -170,12 +168,12 @@ class AzObjectCommand(SimpleCommand):
 
     @classmethod
     def completer_azobject(cls, **kwargs):
-        return cls.azobject_class()(config=Config(), verbose=False, dry_run=True)
+        return cls.azobject_class()(config=Config(), cache=Cache(), verbose=False, dry_run=True)
 
     @cached_property
     @abstractmethod
     def azobject(self):
-        return self.azobject_class()(config=self._config, verbose=self.verbose, dry_run=self.dry_run)
+        return self.azobject_class()(config=self._config, cache=self._cache, verbose=self.verbose, dry_run=self.dry_run)
 
 
 class SubAzObjectCommand(AzObjectCommand):
@@ -204,10 +202,10 @@ class SubAzObjectCommand(AzObjectCommand):
         arg.completer = cls.completer_obj_id
         return arg
 
-    def _setup(self, *args, is_parent=False, **kwargs):
-        super()._setup(*args, **kwargs)
+    def __init__(self, *, is_parent=False, **kwargs):
+        super().__init__(**kwargs)
         self._is_parent = is_parent
-        self._parent_command = self.parent_command_cls()(self._config, self._options, venv=self._venv, is_parent=True)
+        self._parent_command = self.parent_command_cls()(is_parent=True, **kwargs)
         assert isinstance(self._parent_command, AzObjectCommand)
 
     @property

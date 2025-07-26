@@ -12,6 +12,8 @@ from itertools import chain
 
 from ..exception import AzCommandError
 from ..exception import AzObjectExists
+from ..exception import CacheExpired
+from ..exception import CacheMiss
 from ..exception import DefaultConfigNotFound
 from ..exception import DuplicateArgument
 from ..exception import NoAzObjectExists
@@ -25,10 +27,15 @@ class AzAction(ABC):
     # For auto-importing
     EZAZ_AZOBJECT_CLASS = True
 
-    def __init__(self, *, verbose=False, dry_run=False, **kwargs):
+    def __init__(self, *, cache=None, verbose=False, dry_run=False, **kwargs):
         super().__init__(**kwargs)
+        self._cache = cache
         self._verbose = verbose
         self._dry_run = dry_run
+
+    @property
+    def cache(self):
+        return self._cache
 
     @property
     def verbose(self):
@@ -42,6 +49,16 @@ class AzAction(ABC):
         if self.verbose:
             print(msg)
 
+    def _cache_read(self, cmd):
+        if self._is_argcomplete and self.cache:
+            with suppress(CacheExpired, CacheMiss):
+                return self.cache.read(cmd)
+        return None
+
+    def _cache_write(self, cmd, response):
+        if self.cache:
+            self.cache.write(cmd, response)
+
     def _expand_cmd_args(self, cmd_args):
         expanded = ([([k] + (v if isinstance(v, list) else [] if v is None else [v]))
                      for k, v in cmd_args.items()])
@@ -51,8 +68,15 @@ class AzAction(ABC):
     def _exec_environ(cls):
         return {k: v for k, v in os.environ.items() if 'ARGCOMPLETE' not in k}
 
+    @property
+    def _is_argcomplete(cls):
+        return '_ARGCOMPLETE' in os.environ.keys()
+
+    def _form_cmd(self, *args, cmd_args):
+        return list(args) + self._expand_cmd_args(cmd_args)
+
     def _exec(self, *args, cmd_args={}, check=True, dry_runnable=True, **kwargs):
-        args = list(args) + self._expand_cmd_args(cmd_args)
+        args = self._form_cmd(*args, cmd_args=cmd_args)
         if self.dry_run and not dry_runnable:
             print(f'DRY-RUN (not running): {" ".join(args)}')
             return None
@@ -70,8 +94,15 @@ class AzAction(ABC):
         return self._exec('az', *args, capture_output=capture_output, **kwargs)
 
     def az_stdout(self, *args, **kwargs):
+        cmd = self._form_cmd(*args, cmd_args=kwargs.get('cmd_args'))
+        stdout = self._cache_read(cmd)
+        if stdout:
+            return stdout
         cp = self.az(*args, capture_output=True, text=True, **kwargs)
-        return cp.stdout if cp else ''
+        stdout = cp.stdout if cp else ''
+        if stdout:
+            self._cache_write(cmd, stdout)
+        return stdout
 
     def az_json(self, *args, **kwargs):
         stdout = self.az_stdout(*args, **kwargs)
@@ -300,6 +331,10 @@ class AzSubObject(AzObject):
     @property
     def parent(self):
         return self._parent
+
+    @property
+    def cache(self):
+        return self.parent.cache
 
     @property
     def verbose(self):

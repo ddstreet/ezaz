@@ -16,6 +16,18 @@ class NoneOfTheAboveChoice(ChoiceError):
     pass
 
 
+class CacheError(EzazException):
+    pass
+
+
+class CacheMiss(CacheError):
+    pass
+
+
+class CacheExpired(CacheError):
+    pass
+
+
 class AzCommandError(EzazException):
     def __init__(self, cpe):
         super().__init__(f'az command failed: {" ".join(cpe.cmd)}\n{cpe.stderr}')

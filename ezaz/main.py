@@ -60,13 +60,18 @@ class Main:
         return self.parse_args(self.args)
 
     @cached_property
+    def cache(self):
+        from .cache import Cache
+        return Cache()
+
+    @cached_property
     def config(self):
         from .config import Config
         return Config()
 
     @cached_property
     def command(self):
-        return self.options.command_class(self.config, self.options, venv=self.venv)
+        return self.options.command_class(config=self.config, options=self.options, cache=self.cache, venv=self.venv)
 
     def run(self):
         self.command.run()

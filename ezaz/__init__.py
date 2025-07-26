@@ -7,6 +7,7 @@ from .requiredpackage import RequiredPackage
 
 
 DEFAULT_CONFIGPATH = Path(os.environ.get('XDG_CONFIG_HOME', '~/.config')) / 'ezaz'
+DEFAULT_CACHEPATH = Path(os.environ.get('XDG_CACHE_HOME', '~/.cache')) / 'ezaz'
 
 REQUIRED_PACKAGES = [
     RequiredPackage('azure-cli', programs=['az']),

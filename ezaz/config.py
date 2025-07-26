@@ -55,7 +55,7 @@ class SubConfig(MutableMapping):
 
 class Config(SubConfig):
     def __init__(self, configfile=DEFAULT_CONFIGFILE):
-        self._configfile = Path(configfile).expanduser()
+        self._configfile = Path(configfile).expanduser().resolve()
         super().__init__(self, self._read_config())
         self._file_config = self._prep_file_config(self)
         # TODO - check with jsonschema

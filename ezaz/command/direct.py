@@ -1,6 +1,8 @@
 
 import argparse
 
+from functools import cached_property
+
 from ..azobject.direct import DirectAction
 from .command import SimpleCommand
 
@@ -16,9 +18,9 @@ class DirectCommand(SimpleCommand):
         parser.add_argument('command', help='Command to run (i.e. "az COMMAND ...")')
         parser.add_argument('args', nargs=argparse.REMAINDER, help='Additional arguments and parameters')
 
-    def _setup(self, *args, **kwargs):
-        super()._setup(*args, **kwargs)
-        self._direct = DirectAction(verbose=self.verbose, dry_run=self.dry_run)
+    @cached_property
+    def direct(self):
+        return DirectAction(cache=self._cache, verbose=self.verbose, dry_run=self.dry_run)
 
     def run(self):
-        self._direct.az(self._options.command, *self._options.args)
+        self.direct.az(self._options.command, *self._options.args)

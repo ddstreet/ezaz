@@ -1,4 +1,6 @@
 
+from functools import cached_property
+
 from ..azobject.account import Account
 from .account import AccountCommand
 from .command import SimpleCommand
@@ -16,9 +18,9 @@ class LoginCommand(SimpleCommand):
                             action='store_true',
                             help='Instead of opening a browser window, show the URL and code')
 
-    def _setup(self, *args, **kwargs):
-        super()._setup(*args, **kwargs)
-        self._account = Account(config=self._config, verbose=self.verbose, dry_run=self.dry_run)
+    @cached_property
+    def account(self):
+        return Account(cache=self._cache, config=self._config, verbose=self.verbose, dry_run=self.dry_run)
 
     def run(self):
-        AccountCommand.cls_login(self._account, self._options.use_device_code)
+        AccountCommand.cls_login(self.account, self._options.use_device_code)
