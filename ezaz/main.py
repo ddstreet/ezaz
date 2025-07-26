@@ -22,9 +22,8 @@ class Main:
 
     def parse_args(self, args):
         parser = argparse.ArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
-        parser.add_argument('--venv-refresh',
-                            action='store_true',
-                            help='Refresh the venv used for package imports')
+        parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('-v', '--verbose', dest='toplevel_verbose',
                             action='store_true',
                             help='Be verbose')
@@ -75,12 +74,12 @@ class Main:
 
 def main():
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--venv-verbose', action='store_true')
     parser.add_argument('--venv-refresh', action='store_true')
     options = parser.parse_known_args(sys.argv[1:])[0]
 
     from .importvenv import ImportVenv
-    with ImportVenv(verbose=options.verbose, clear=options.venv_refresh) as venv:
+    with ImportVenv(verbose=options.venv_verbose, refresh=options.venv_refresh) as venv:
         from .command import COMMAND_CLASSES
         from .exception import DefaultConfigNotFound
         from .exception import EzazException

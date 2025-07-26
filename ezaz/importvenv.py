@@ -9,28 +9,37 @@ from functools import cached_property
 from pathlib import Path
 
 from . import DEFAULT_CONFIGPATH
-from . import REQUIRED_PKGS
+from . import REQUIRED_PACKAGES
 
 
 DEFAULT_VENVDIR = DEFAULT_CONFIGPATH / 'venv'
 
 
 class ImportVenv:
-    def __init__(self, *, venvdir=DEFAULT_VENVDIR, packages=REQUIRED_PKGS, verbose=False, clear=False):
-        self.venvdir = Path(venvdir).expanduser().absolute()
+    def __init__(self, *, venvdir=DEFAULT_VENVDIR, required_packages=REQUIRED_PACKAGES, verbose=False, refresh=False):
+        self.venvdir = Path(venvdir).expanduser().resolve()
         self.verbose = verbose
 
-        if not all((not clear, self.venvdir.is_dir(), self.venvdir.joinpath('bin').joinpath('pip').exists(), self.venvdir.joinpath('bin').joinpath('python').exists())):
-            print('Virtual environment needs to be recreated, please wait...')
-            venv.create(str(self.venvdir), clear=clear, with_pip=True)
-            print('Virtual environment recreated.')
+        if not all((not refresh, self.venvdir.is_dir(), self.venvdir.joinpath('bin').joinpath('pip').exists(), self.venvdir.joinpath('bin').joinpath('python').exists())):
+            # We want to be verbose during initial creation (usually first run of ezaz), or during a refresh
+            self.verbose = True
+            recreated = 'recreated' if self.venvdir.is_dir() else 'created'
+            print(f'Virtual environment needs to be {recreated}, please wait...', end='', flush=True)
+            venv.create(str(self.venvdir), clear=refresh, with_pip=True)
+            print('done.')
 
-        # This assumes the package name can be directly converted to an import path
-        # e.g. 'azure-identity' -> 'azure/identity'
-        self.packages = []
-        for package in packages:
-            if not self.pythonpackagedir(package).is_dir():
-                self.packages.append(package)
+        self.system_packages = []
+        self.venv_packages = []
+        for p in required_packages:
+            if p.is_available:
+                self.log(f'Using system version of package {p.name}')
+                self.system_packages.append(p)
+            else:
+                self.venv_packages.append(p)
+
+    def log(self, msg):
+        if self.verbose:
+            print(msg)
 
     @property
     def bindir(self):
@@ -55,6 +64,21 @@ class ImportVenv:
     def pythonpackagedir(self, package):
         return self.sitepackagesdir / package.replace('-', '/')
 
+    def run_pip(self, package):
+        # We explicitly print everything here, as it might take a while
+        print(f'Installing package in virtual environment: {package}')
+        process = subprocess.Popen(['pip', 'install', '-v', package], stdout=subprocess.PIPE, bufsize=1, text=True)
+
+        max_line_len = os.get_terminal_size().columns - 1
+        last_linelen = 0
+        while process.poll() is None:
+            line = process.stdout.readline().rstrip()
+            print('\r' + ' ' * last_linelen + '\r', end='')
+            if len(line) > max_line_len:
+                line = line[:max_line_len-3] + '...'
+            last_linelen = len(line)
+            print(line, end='', flush=True)
+
     def __enter__(self):
         self.oldpath = os.environ['PATH']
         self.oldsyspath = sys.path
@@ -62,14 +86,15 @@ class ImportVenv:
         os.environ['PATH'] = f"{self.bindir}:{os.environ['PATH']}"
         sys.path.append(str(self.sitepackagesdir))
 
-        cmd = ['pip']
-        if not self.verbose:
-            cmd.append('-q')
-        cmd.append('install')
+        missing_packages = []
+        for p in self.venv_packages:
+            if p.is_available:
+                self.log(f'Using venv version of package {p.name}')
+            else:
+                missing_packages.append(p)
 
-        if self.packages:
-            print(f'Installing packages in virtual environment: {",".join(self.packages)}')
-            subprocess.run(cmd + self.packages, text=True, check=True)
+        for p in missing_packages:
+            self.run_pip(p.name)
 
         return self
 
