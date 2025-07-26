@@ -47,6 +47,7 @@ class ConfigNotFound(ConfigError):
 class DefaultConfigNotFound(ConfigNotFound):
     def __init__(self, azcls):
         super().__init__(f"Default configuration for {azcls.azobject_text()} not found.")
+        self.azobject_class = azcls
 
 
 class AlreadyLoggedIn(EzazException):

@@ -31,8 +31,5 @@ class Subscription(AzSubObject, AzSubObjectContainer):
     def get_delete_cmd(cls):
         raise NotDeletable('subscription')
 
-    def show_current(self):
-        print(self.parent.get_current_subscription_id())
-
-    def set_current(self, **kwargs):
-        self.parent.set_current_subscription_id(self.required_arg_value('subscription', kwargs, 'set_current'))
+    def show(self):
+        print(self.info if self.verbose else f'{self.info.name} ({self.info.id})')

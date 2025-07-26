@@ -1,5 +1,7 @@
 
 from ..azobject.subscription import Subscription
+from ..exception import DefaultConfigNotFound
+from ..exception import RequiredArgument
 from .account import AccountCommand
 from .command import ClearActionCommand
 from .command import ListActionCommand
@@ -21,6 +23,19 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
         return ['sub']
 
     @classmethod
+    def completer_subscription_name(cls, **kwargs):
+        parent = cls.parent_command_cls().completer_azobject(**kwargs)
+        return [o.info.name for o in parent.get_azsubobjects(cls.azobject_name())]
+
+    @classmethod
+    def parser_add_argument_obj_id(cls, parser):
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('--subscription-name',
+                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_subscription_name
+        group.add_argument(f'--subscription',
+                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_obj_id
+
+    @classmethod
     def parser_add_action_arguments(cls, group):
         super().parser_add_action_arguments(group)
         cls._parser_add_action_argument(group, '--show-current',
@@ -39,10 +54,18 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
                                         help=f'Clear default subscription (future logins will use the az-provided default subscription)')
 
     def show_current(self):
-        print(self.parent_azobject.get_current_subscription_id())
+        self.parent_azobject.get_azsubobject(self.azobject_name(), self.parent_azobject.get_current_subscription_id()).show()
 
     def set_current(self):
-        self.parent_azobject.set_current_subscription_id(self._options.subscription)
+        if not self._options.subscription:
+            try:
+                if self.parent_azobject.get_current_subscription_id() == self.azobject_default_id:
+                    # If current == default, user must provide id
+                    raise RequiredArgument('subscription', 'set_current')
+            except DefaultConfigNotFound:
+                raise RequiredArgument('subscription', 'set_current')
+        # User specified the sub id, or current != default (so we will set current to default)
+        self.parent_azobject.set_current_subscription_id(self.azobject_id)
 
     def set(self):
         if self._options.subscription:
