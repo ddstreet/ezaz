@@ -426,7 +426,11 @@ class AzSubObjectContainer(AzObject):
         cls = self.get_azsubobject_class(name)
         return cls(parent=self, azobject_id=obj_id, config=self.config.get_object(cls.object_key(obj_id)), info=info)
 
+    def get_azsubobject_infos(self, name, **kwargs):
+        cls = self.get_azsubobject_class(name)
+        return self.az_responselist(*cls.get_cmd('list'), cmd_args=cls.get_azsubobject_cmd_args(self, 'list', kwargs))
+
     def get_azsubobjects(self, name, **kwargs):
         cls = self.get_azsubobject_class(name)
         return [self.get_azsubobject(name, cls.info_id(info), info=info) for info in
-                self.az_responselist(*cls.get_cmd('list'), cmd_args=cls.get_azsubobject_cmd_args(self, 'list', kwargs))]
+                self.get_azsubobject_infos(name, **kwargs)]

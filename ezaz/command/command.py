@@ -200,7 +200,8 @@ class SubAzObjectCommand(AzObjectCommand):
     @classmethod
     def completer_obj_id(cls, **kwargs):
         parent = cls.parent_command_cls().completer_azobject(**kwargs)
-        return [o.azobject_id for o in parent.get_azsubobjects(cls.azobject_name())]
+        return [cls.azobject_class().info_id(info)
+                for info in parent.get_azsubobject_infos(cls.azobject_name())]
 
     @classmethod
     def parser_add_argument_obj_id(cls, parser):
