@@ -7,20 +7,21 @@ import sys
 from contextlib import suppress
 from functools import cached_property
 
-from .command import COMMAND_CLASSES
-from .config import Config
-from .exception import DefaultConfigNotFound
-from .exception import EzazException
-from .importvenv import ImportVenv
-
 
 class Main:
-    def __init__(self, args=sys.argv[1:], venv=None):
-        self._args = args
-        self._venv = venv
+    def __init__(self, *, args=sys.argv[1:], cmds=None, venv=None):
+        self.args = args
+        self.cmds = cmds
+        self.venv = venv
+
+    def _cmd_aliases(self, cmd):
+        return ', '.join(cmd.aliases())
+
+    def _subcmd_name_and_aliases(self, cmd):
+        return f'{c.command_name_short()}{aliases}'
 
     def parse_args(self, args):
-        parser = argparse.ArgumentParser(prog='ezaz')
+        parser = argparse.ArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument('--venv-refresh',
                             action='store_true',
                             help='Refresh the venv used for package imports')
@@ -31,15 +32,17 @@ class Main:
                             action='store_true',
                             help='Only print what would be done, do not run commands')
 
-        cmds = [c.command_name_short() + (f' ({", ".join(c.aliases())})' if c.aliases() else '')
-                for c in COMMAND_CLASSES]
-        description = f'Available subcommands (and aliases): {", ".join(cmds)}'
+        description = 'Available subcommands (and aliases):\n'
+        for c in sorted(self.cmds, key=lambda c: c.command_name_short()):
+            description += f'  {c.command_name_short()}'
+            if c.aliases():
+                description += f' ({",".join(c.aliases())})'
+            description += '\n'
         subparsers = parser.add_subparsers(description=description,
                                            required=True,
-                                           metavar='SUBCOMMAND',
-                                           help='Subcommand to run')
+                                           metavar='')
 
-        for c in COMMAND_CLASSES:
+        for c in self.cmds:
             c.parser_add_subparser(subparsers)
 
         with suppress(ImportError):
@@ -55,15 +58,16 @@ class Main:
 
     @cached_property
     def options(self):
-        return self.parse_args(self._args)
+        return self.parse_args(self.args)
 
     @cached_property
     def config(self):
+        from .config import Config
         return Config()
 
     @cached_property
     def command(self):
-        return self.options.command_class(self.config, self.options, venv=self._venv)
+        return self.options.command_class(self.config, self.options, venv=self.venv)
 
     def run(self):
         self.command.run()
@@ -74,9 +78,15 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--venv-refresh', action='store_true')
     options = parser.parse_known_args(sys.argv[1:])[0]
+
+    from .importvenv import ImportVenv
     with ImportVenv(verbose=options.verbose, clear=options.venv_refresh) as venv:
+        from .command import COMMAND_CLASSES
+        from .exception import DefaultConfigNotFound
+        from .exception import EzazException
+
         try:
-            Main(venv=venv).run()
+            Main(cmds=COMMAND_CLASSES, venv=venv).run()
         except DefaultConfigNotFound as dcnf:
             print(f'ERROR: {dcnf}')
             print("You can set up defaults with 'ezaz setup'")
