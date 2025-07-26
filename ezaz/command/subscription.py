@@ -23,17 +23,12 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
         return ['sub']
 
     @classmethod
-    def completer_subscription_name(cls, **kwargs):
-        parent = cls.parent_command_cls().completer_azobject(**kwargs)
-        return [o.info.name for o in parent.get_azsubobjects(cls.azobject_name())]
-
-    @classmethod
-    def parser_add_argument_obj_id(cls, parser):
+    def parser_add_argument_azobject_id(cls, parser):
         group = parser.add_mutually_exclusive_group()
         group.add_argument('--subscription-name',
-                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_subscription_name
+                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_names
         group.add_argument(f'--subscription',
-                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_obj_id
+                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_azobject_ids
 
     @classmethod
     def parser_add_action_arguments(cls, group):

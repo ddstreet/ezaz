@@ -71,7 +71,7 @@ class Main:
 
     @cached_property
     def command(self):
-        return self.options.command_class(config=self.config, options=self.options, cache=self.cache, venv=self.venv)
+        return self.options.command_class(config=self.config, options=self.options, cache=self.cache)
 
     def run(self):
         self.command.run()

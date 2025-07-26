@@ -10,6 +10,7 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from contextlib import suppress
 from functools import cached_property
+from types import SimpleNamespace
 
 from ..cache import Cache
 from ..config import Config
@@ -70,11 +71,10 @@ class SimpleCommand(ABC):
         return parser.add_argument('-n', '--dry-run', action='store_true',
                                    help='Only print what would be done, do not run commands')
 
-    def __init__(self, *, options, config, cache=None, venv=None, **kwargs):
+    def __init__(self, *, options, config, cache=None, **kwargs):
         self._options = options
         self._config = config
         self._cache = cache
-        self._venv = venv
 
     @property
     def config(self):
@@ -165,50 +165,52 @@ class AzObjectCommand(SimpleCommand):
         return cls.azobject_class().azobject_name_list()
 
     @classmethod
-    def parser_add_common_arguments(cls, parser):
-        super().parser_add_common_arguments(parser)
-        cls.parser_add_argument_obj_id(parser)
-
-    @classmethod
-    def parser_add_argument_obj_id(cls, parser):
-        return parser.add_argument(f'--{cls.command_name("-")}',
-                                   help=f'Use the specified {cls.command_text()}, instead of the default')
-
-    @classmethod
-    def completer_azobject(cls, **kwargs):
-        return cls.azobject_class()(config=Config(), cache=Cache(), verbose=False, dry_run=True)
+    def is_azsubcommand(cls):
+        return False
 
     @cached_property
     def azobject(self):
         return self.azobject_class()(config=self.config, cache=self.cache, verbose=self.verbose, dry_run=self.dry_run)
 
 
-class SubAzObjectCommand(AzObjectCommand):
+class AzSubCommand(AzObjectCommand):
     @classmethod
     @abstractmethod
     def parent_command_cls(cls):
         pass
 
     @classmethod
-    def completer_azobject(cls, **kwargs):
-        parent_azobject = cls.parent_command_cls().completer_azobject(**kwargs)
-        obj_id = kwargs.get(cls.azobject_name())
-        if not obj_id:
-            obj_id = parent_azobject.get_azsubobject_default_id(cls.azobject_name())
-        return parent_azobject.get_azsubobject(cls.azobject_name(), obj_id)
+    def is_azsubcommand(cls):
+        return True
 
     @classmethod
-    def completer_obj_id(cls, **kwargs):
-        parent = cls.parent_command_cls().completer_azobject(**kwargs)
-        return [cls.azobject_class().info_id(info)
-                for info in parent.get_azsubobject_infos(cls.azobject_name())]
+    def parser_add_common_arguments(cls, parser):
+        super().parser_add_common_arguments(parser)
+        cls.parser_add_argument_azobject_id(parser)
 
     @classmethod
-    def parser_add_argument_obj_id(cls, parser):
-        cls.parent_command_cls().parser_add_argument_obj_id(parser)
-        arg = super().parser_add_argument_obj_id(parser)
-        arg.completer = cls.completer_obj_id
+    def parser_add_argument_azobject_id(cls, parser):
+        if cls.parent_command_cls().is_azsubcommand():
+            cls.parent_command_cls().parser_add_argument_azobject_id(parser)
+        arg = parser.add_argument(f'--{cls.command_name("-")}',
+                                  help=f'Use the specified {cls.command_text()}, instead of the default')
+        arg.completer = cls.completer_azobject_ids
         return arg
+
+    @classmethod
+    def completer_info_attrs(cls, *, completer_attr=None, **kwargs):
+        options = SimpleNamespace(verbose=False, dry_run=False, command_action='argcomplete', **kwargs)
+        parent = cls.parent_command_cls()(options=options, cache=Cache(), config=Config(), is_parent=True)
+        return [getattr(info, completer_attr) if completer_attr else cls.azobject_class().info_id(info)
+                for info in parent.azobject.get_azsubobject_infos(cls.azobject_name())]
+
+    @classmethod
+    def completer_names(cls, **kwargs):
+        return cls.completer_info_attrs(completer_attr='name', **kwargs)
+
+    @classmethod
+    def completer_azobject_ids(cls, **kwargs):
+        return cls.completer_info_attrs(completer_attr=None, **kwargs)
 
     def __init__(self, *, is_parent=False, **kwargs):
         super().__init__(**kwargs)
@@ -304,7 +306,7 @@ class DeleteActionCommand(ActionCommand, AzObjectCommand):
         self.azobject.delete(**vars(self._options))
 
 
-class ListActionCommand(ActionCommand, SubAzObjectCommand):
+class ListActionCommand(ActionCommand, AzSubCommand):
     @classmethod
     def parser_add_action_arguments(cls, group):
         super().parser_add_action_arguments(group)
@@ -319,7 +321,7 @@ class ListActionCommand(ActionCommand, SubAzObjectCommand):
         self.azclass.list(self.parent_azobject, **vars(self._options))
 
 
-class SetActionCommand(ActionCommand, SubAzObjectCommand):
+class SetActionCommand(ActionCommand, AzSubCommand):
     @classmethod
     def parser_add_action_arguments(cls, group):
         super().parser_add_action_arguments(group)
@@ -334,7 +336,7 @@ class SetActionCommand(ActionCommand, SubAzObjectCommand):
         self.azobject.set_default(**vars(self._options))
 
 
-class ClearActionCommand(ActionCommand, SubAzObjectCommand):
+class ClearActionCommand(ActionCommand, AzSubCommand):
     @classmethod
     def parser_add_action_arguments(cls, group):
         super().parser_add_action_arguments(group)

@@ -30,10 +30,6 @@ class AccountCommand(ShowActionCommand):
         cls._parser_add_action_argument(group, '--relogin', help=f'Logout (if needed), then login')
 
     @classmethod
-    def parser_add_argument_obj_id(cls, parser):
-        pass
-
-    @classmethod
     def cls_login(cls, azobject, use_device_code=False):
         already = False
         try:
