@@ -60,10 +60,6 @@ class AccountCommand(ShowActionCommand):
         except NotLoggedIn:
             print(f"{logged} out")
 
-    @property
-    def azobject(self):
-        return super().azobject
-
     def login(self):
         self.cls_login(self.azobject, self._options.use_device_code)
 

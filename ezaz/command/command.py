@@ -70,11 +70,19 @@ class SimpleCommand(ABC):
         return parser.add_argument('-n', '--dry-run', action='store_true',
                                    help='Only print what would be done, do not run commands')
 
-    def __init__(self, *, config, options, cache=None, venv=None, **kwargs):
-        self._config = config
+    def __init__(self, *, options, config, cache=None, venv=None, **kwargs):
         self._options = options
+        self._config = config
         self._cache = cache
         self._venv = venv
+
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def cache(self):
+        return self._cache
 
     @property
     def verbose(self):
@@ -171,9 +179,8 @@ class AzObjectCommand(SimpleCommand):
         return cls.azobject_class()(config=Config(), cache=Cache(), verbose=False, dry_run=True)
 
     @cached_property
-    @abstractmethod
     def azobject(self):
-        return self.azobject_class()(config=self._config, cache=self._cache, verbose=self.verbose, dry_run=self.dry_run)
+        return self.azobject_class()(config=self.config, cache=self.cache, verbose=self.verbose, dry_run=self.dry_run)
 
 
 class SubAzObjectCommand(AzObjectCommand):
@@ -209,6 +216,10 @@ class SubAzObjectCommand(AzObjectCommand):
         assert isinstance(self._parent_command, AzObjectCommand)
 
     @property
+    def is_parent(self):
+        return self._is_parent
+
+    @property
     def parent_command(self):
         return self._parent_command
 
@@ -221,17 +232,16 @@ class SubAzObjectCommand(AzObjectCommand):
         return self.parent_azobject.get_azsubobject_class(self.azobject_name())
 
     @property
+    def azobject_specified_id(self):
+        return getattr(self._options, self.azobject_name(), None)
+
+    @property
     def azobject_default_id(self):
         return self.parent_azobject.get_azsubobject_default_id(self.azobject_name())
 
     @property
     def azobject_id(self):
-        obj_id = getattr(self._options, self.azobject_name())
-        if obj_id:
-            return obj_id
-        if self._options.command_action == 'create' and not self._is_parent:
-            raise RequiredArgument(self.azobject_name(), 'create')
-        return self.azobject_default_id
+        return self.azobject_specified_id or self.azobject_default_id
 
     @cached_property
     def azobject(self):
@@ -267,6 +277,12 @@ class CreateActionCommand(ActionCommand, AzObjectCommand):
     def parser_add_action_argument_create(cls, group):
         return cls._parser_add_action_argument(group, '-c', '--create',
                                                help=f'Create a {cls.command_text()}')
+
+    @property
+    def azobject_default_id(self):
+        if self._options.command_action == 'create' and not self.is_parent:
+            raise RequiredArgument(self.azobject_name(), 'create')
+        return super().azobject_default_id
 
     def create(self):
         self.azobject.create(**vars(self._options))
