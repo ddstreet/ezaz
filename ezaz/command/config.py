@@ -9,15 +9,12 @@ class ConfigCommand(ActionCommand):
         return ['config']
 
     @classmethod
-    def parser_add_action_arguments(cls, group):
-        cls._parser_add_action_argument(group, '--show',
-                                        help=f'Show config (default)')
-        cls._parser_add_action_argument(group, '--remove',
-                                        help=f'Remove config (caution, this removes all config!)')
+    def parser_get_action_choices(cls):
+        return super().parser_get_action_choices() + ['show', 'remove']
 
     @classmethod
-    def parser_set_action_default(cls, group):
-        cls._parser_set_action_default(group, 'show')
+    def parser_get_action_default(cls):
+        return 'show'
 
     def show(self):
         print(self._config)

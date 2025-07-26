@@ -32,6 +32,10 @@ class Account(AzSubObjectContainer):
     def get_azsubobject_classes(cls):
         return [Subscription]
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._logged_in = None
+
     @property
     def config(self):
         return self._config.get_object(self.info.user.name)
@@ -68,6 +72,7 @@ class Account(AzSubObjectContainer):
         with self._disable_subscription_selection():
             self.az('login', cmd_args=cmd_args)
 
+        self._logged_in = True
         with suppress(KeyError):
             # Switch subscriptions, if needed
             self.set_current_subscription_id(self.config['default_subscription'])
@@ -77,18 +82,22 @@ class Account(AzSubObjectContainer):
             raise AlreadyLoggedOut()
 
         self.az('logout')
+        self._logged_in = False
         self._info = None
 
     @property
     def is_logged_in(self):
+        if self._logged_in is not None:
+            return self._logged_in
         try:
             # Unfortunately a simple 'account show' returns success
             # (sometimes) even when logged out; get-access-token seems
             # to be consistent about if we are actually logged in
-            self.az('account', 'get-access-token')
-            return True
+            self.az_stdout('account', 'get-access-token')
+            self._logged_in = True
         except NotLoggedIn:
-            return False
+            self._logged_in = False
+        return self._logged_in
 
     def get_current_subscription_id(self):
         return self.info.id

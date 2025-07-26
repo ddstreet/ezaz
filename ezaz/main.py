@@ -14,14 +14,18 @@ class Main:
         self.cmds = cmds
         self.venv = venv
 
-    def _cmd_aliases(self, cmd):
-        return ', '.join(cmd.aliases())
+    def _subcmd_description(self, subcmd):
+        return (subcmd.command_name_short() +
+                (f' ({",".join(subcmd.aliases())})' if subcmd.aliases() else ''))
 
-    def _subcmd_name_and_aliases(self, cmd):
-        return f'{c.command_name_short()}{aliases}'
+    @property
+    def subcmds_description(self):
+        return '\n'.join([self._subcmd_description(c)
+                          for c in sorted(self.cmds, key=lambda c: c.command_name_short())])
 
     def parse_args(self, args):
         parser = argparse.ArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument('--debug-argcomplete', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('-v', '--verbose', dest='toplevel_verbose',
@@ -31,18 +35,13 @@ class Main:
                             action='store_true',
                             help='Only print what would be done, do not run commands')
 
-        description = 'Available subcommands (and aliases):\n'
-        for c in sorted(self.cmds, key=lambda c: c.command_name_short()):
-            description += f'  {c.command_name_short()}'
-            if c.aliases():
-                description += f' ({",".join(c.aliases())})'
-            description += '\n'
-        subparsers = parser.add_subparsers(description=description,
+        subparsers = parser.add_subparsers(title='Subcommands (and aliases)',
+                                           description=self.subcmds_description,
                                            required=True,
                                            metavar='')
 
         for c in self.cmds:
-            c.parser_add_subparser(subparsers)
+            c.parser_register_as_command_subparser(subparsers)
 
         with suppress(ImportError):
             import argcomplete

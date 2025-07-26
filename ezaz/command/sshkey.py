@@ -16,13 +16,12 @@ class SshKeyCommand(AllActionCommand):
         return SshKey
 
     @classmethod
-    def parser_add_common_arguments(cls, parser):
-        super().parser_add_common_arguments(parser)
+    def parser_add_create_action_arguments(cls, parser):
         pubkey_group = parser.add_mutually_exclusive_group()
         pubkey_group.add_argument('--public-key',
-                                  help='Public key data (required for --create)')
+                                  help='Public key data')
         pubkey_group.add_argument('--public-key-file',
-                                  help='Public key file (required for --create, defaults to public key in ~/.ssh)')
+                                  help='Public key file (defaults to public key in ~/.ssh)')
 
     def create(self):
         if not self._options.public_key:

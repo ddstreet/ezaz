@@ -29,16 +29,12 @@ class SetupCommand(ActionCommand):
                             help=f'Prompt even if there is only one object choice')
 
     @classmethod
-    def parser_add_action_arguments(cls, group):
-        super().parser_add_action_arguments(group)
-        cls._parser_add_action_argument(group, '--prompt',
-                                        help=f'Prompt for only missing default object types (default)')
-        cls._parser_add_action_argument(group, '--create',
-                                        help=f'Automatically create any missing default object types')
+    def parser_get_action_choices(cls):
+        return super().parser_get_action_choices() + ['prompt', 'create']
 
     @classmethod
-    def parser_set_action_default(cls, group):
-        cls._parser_set_action_default(group, 'prompt')
+    def parser_get_action_default(cls):
+        return 'prompt'
 
     @property
     def all(self):

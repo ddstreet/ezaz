@@ -1,5 +1,6 @@
 
 from ..azobject.vm import VM
+from .command import ActionParser
 from .command import AllActionCommand
 from .resourcegroup import ResourceGroupCommand
 
@@ -14,38 +15,13 @@ class VMCommand(AllActionCommand):
         return VM
 
     @classmethod
-    def parser_add_action_arguments(cls, group):
-        super().parser_add_action_arguments(group)
-        cls.parser_add_action_argument_console(group)
-        cls.parser_add_action_argument_log(group)
-        cls.parser_add_action_argument_restart(group)
-        cls.parser_add_action_argument_start(group)
-        cls.parser_add_action_argument_stop(group)
-
-    @classmethod
-    def parser_add_action_argument_console(cls, group):
-        cls._parser_add_action_argument(group, '--console',
-                                        help=f'Connect to the serial console.')
-
-    @classmethod
-    def parser_add_action_argument_log(cls, group):
-        cls._parser_add_action_argument(group, '--log',
-                                        help=f'Show the serial console log.')
-
-    @classmethod
-    def parser_add_action_argument_restart(cls, group):
-        cls._parser_add_action_argument(group, '--restart',
-                                        help=f'Restart the VM.')
-
-    @classmethod
-    def parser_add_action_argument_start(cls, group):
-        cls._parser_add_action_argument(group, '--start',
-                                        help=f'Start the VM.')
-
-    @classmethod
-    def parser_add_action_argument_stop(cls, group):
-        cls._parser_add_action_argument(group, '--stop',
-                                        help=f'Stop the VM.')
+    def parser_get_action_parsers(cls):
+        return (super().parser_get_action_parsers() +
+                [ActionParser('console', description='Attach to serial console'),
+                 ActionParser('log', description='Show serial console log'),
+                 ActionParser('restart', description='Restart the VM'),
+                 ActionParser('start', description='Start the VM'),
+                 ActionParser('stop', description='Stop the VM')])
 
     def console(self):
         print('im a console!')

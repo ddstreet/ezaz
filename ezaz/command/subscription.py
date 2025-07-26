@@ -3,6 +3,7 @@ from ..azobject.subscription import Subscription
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgument
 from .account import AccountCommand
+from .command import ActionParser
 from .command import ClearActionCommand
 from .command import ListActionCommand
 from .command import SetActionCommand
@@ -31,22 +32,32 @@ class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionComman
                            help=f'Use the specified subscription, instead of the default').completer = cls.completer_azobject_ids
 
     @classmethod
-    def parser_add_action_arguments(cls, group):
-        super().parser_add_action_arguments(group)
-        cls._parser_add_action_argument(group, '--show-current',
-                                        help=f'Show current subscription')
-        cls._parser_add_action_argument(group, '--set-current',
-                                        help=f'Set current subscription (does not affect future logins)')
+    def parser_get_action_parsers(cls):
+        return (super().parser_get_action_parsers() +
+                [ActionParser('show-current', description='Show current subscription'),
+                 ActionParser('set-current', description='Set current subscription (does not affect future logins)')])
 
     @classmethod
-    def parser_add_action_argument_set(cls, group):
-        cls._parser_add_action_argument(group, '-S', '--set',
-                                        help=f'Set default subscription to current subscription (future logins will automatically switch to this subscription)')
+    def parser_get_set_action_description(cls):
+        return f'Set default subscription to current subscription (future logins will automatically switch to this subscription)'
 
     @classmethod
-    def parser_add_action_argument_clear(cls, group):
-        cls._parser_add_action_argument(group, '-C', '--clear',
-                                        help=f'Clear default subscription (future logins will use the az-provided default subscription)')
+    def parser_get_clear_action_description(cls):
+        return f'Clear default subscription (future logins will use the az-provided default subscription)'
+
+    def _subscription_name_to_id(self, name):
+        for s in self.parent_azobject.get_azsubobject_infos(self.azobject_name()):
+            if s.name == name:
+                return s.id
+        raise NoAzObjectExists(name, None)
+
+    @property
+    def azobject_specified_id(self):
+        if self._options.subscription:
+            return self._options.subscription
+        if self._options.subscription_name:
+            return self._subscription_name_to_id(self._options.subscription_name)
+        return None
 
     def show_current(self):
         self.parent_azobject.get_azsubobject(self.azobject_name(), self.parent_azobject.get_current_subscription_id()).show()
