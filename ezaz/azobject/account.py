@@ -82,7 +82,10 @@ class Account(AzSubObjectContainer):
     @property
     def is_logged_in(self):
         try:
-            self.info
+            # Unfortunately a simple 'account show' returns success
+            # (sometimes) even when logged out; get-access-token seems
+            # to be consistent about if we are actually logged in
+            self.az('account', 'get-access-token')
             return True
         except NotLoggedIn:
             return False
