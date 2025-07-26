@@ -8,6 +8,7 @@ from abc import ABC
 from abc import abstractmethod
 from collections import UserDict
 from contextlib import suppress
+from functools import cached_property
 from itertools import chain
 
 from ..exception import AzCommandError
@@ -20,6 +21,7 @@ from ..exception import NoAzObjectExists
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
+from ..filter import Filter
 from ..response import lookup_response
 
 
@@ -236,6 +238,10 @@ class AzObject(CachedAzAction, ArgUtil):
     @property
     def config(self):
         return self._config
+
+    @cached_property
+    def filter(self):
+        return Filter(config=self.config)
 
     @property
     @abstractmethod

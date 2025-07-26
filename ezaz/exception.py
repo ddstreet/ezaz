@@ -28,6 +28,19 @@ class CacheExpired(CacheError):
     pass
 
 
+class FilterError(EzazException):
+    pass
+
+
+class InvalidFilter(FilterError):
+    pass
+
+
+class InvalidFilterRegex(InvalidFilter):
+    def __init__(self, regex):
+        super().__init__(f"Invalid regex: '{regex}'")
+
+
 class AzCommandError(EzazException):
     def __init__(self, cpe):
         super().__init__(f'az command failed: {" ".join(cpe.cmd)}\n{cpe.stderr}')
