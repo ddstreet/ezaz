@@ -19,6 +19,9 @@ from ..response import lookup_response
 
 
 class SimpleCommand(ABC):
+    # For auto-importing
+    EZAZ_COMMAND_CLASS = True
+
     @classmethod
     @abstractmethod
     def command_name_list(cls):

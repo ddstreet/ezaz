@@ -22,6 +22,9 @@ from ..response import lookup_response
 
 
 class AzAction(ABC):
+    # For auto-importing
+    EZAZ_AZOBJECT_CLASS = True
+
     def __init__(self, *, verbose=False, dry_run=False, **kwargs):
         super().__init__(**kwargs)
         self._verbose = verbose

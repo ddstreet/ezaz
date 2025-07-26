@@ -1,8 +1,11 @@
 
 from pathlib import Path
 
-from ..importclasses import SubclassImporter
-from .command import SimpleCommand
+from ..importclasses import import_classes
 
 
-COMMAND_CLASSES = SubclassImporter(Path(__file__).parent, __name__, SimpleCommand, ['__init__.py', 'command.py'], debug=False).subclasses
+COMMAND_CLASSES = import_classes(module_path=Path(__file__).parent,
+                                 module_name=__name__,
+                                 attribute='EZAZ_COMMAND_CLASS',
+                                 ignore_files=['__init__.py', 'command.py'],
+                                 debug=False)
