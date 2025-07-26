@@ -27,15 +27,10 @@ class AzAction(ABC):
     # For auto-importing
     EZAZ_AZOBJECT_CLASS = True
 
-    def __init__(self, *, cache=None, verbose=False, dry_run=False, **kwargs):
-        super().__init__(**kwargs)
-        self._cache = cache
+    def __init__(self, *, verbose=False, dry_run=False, **kwargs):
+        super().__init__()
         self._verbose = verbose
         self._dry_run = dry_run
-
-    @property
-    def cache(self):
-        return self._cache
 
     @property
     def verbose(self):
@@ -49,40 +44,28 @@ class AzAction(ABC):
         if self.verbose:
             print(msg)
 
-    def _cache_read(self, cmd):
-        if self._is_argcomplete and self.cache:
-            with suppress(CacheExpired, CacheMiss):
-                return self.cache.read(cmd)
-        return None
-
-    def _cache_write(self, cmd, response):
-        if self.cache:
-            self.cache.write(cmd, response)
-
-    def _expand_cmd_args(self, cmd_args):
-        expanded = ([([k] + (v if isinstance(v, list) else [] if v is None else [v]))
-                     for k, v in cmd_args.items()])
-        return list(chain.from_iterable(expanded))
-
     @property
     def _exec_environ(cls):
         return {k: v for k, v in os.environ.items() if 'ARGCOMPLETE' not in k}
 
-    @property
-    def _is_argcomplete(cls):
-        return '_ARGCOMPLETE' in os.environ.keys()
-
-    def _form_cmd(self, *args, cmd_args):
-        return list(args) + self._expand_cmd_args(cmd_args)
+    def _args_to_cmd(self, *args, cmd_args={}, **kwargs):
+        cmd = list(args)
+        for k, v in cmd_args.items():
+            cmd.append(k)
+            if isinstance(v, list):
+                cmd += v
+            if v is not None:
+                cmd.append(v)
+        return cmd
 
     def _exec(self, *args, cmd_args={}, check=True, dry_runnable=True, **kwargs):
-        args = self._form_cmd(*args, cmd_args=cmd_args)
+        cmd = self._args_to_cmd(*args, cmd_args=cmd_args, **kwargs)
         if self.dry_run and not dry_runnable:
-            print(f'DRY-RUN (not running): {" ".join(args)}')
+            print(f'DRY-RUN (not running): {" ".join(cmd)}')
             return None
-        self._trace(' '.join(args))
+        self._trace(' '.join(cmd))
         try:
-            return subprocess.run(args, check=check, env=self._exec_environ, **kwargs)
+            return subprocess.run(cmd, check=check, env=self._exec_environ, **kwargs)
         except subprocess.CalledProcessError as cpe:
             if cpe.stderr:
                 if any(s in cpe.stderr for s in ["Please run 'az login' to setup account",
@@ -94,15 +77,8 @@ class AzAction(ABC):
         return self._exec('az', *args, capture_output=capture_output, **kwargs)
 
     def az_stdout(self, *args, **kwargs):
-        cmd = self._form_cmd(*args, cmd_args=kwargs.get('cmd_args'))
-        stdout = self._cache_read(cmd)
-        if stdout:
-            return stdout
         cp = self.az(*args, capture_output=True, text=True, **kwargs)
-        stdout = cp.stdout if cp else ''
-        if stdout:
-            self._cache_write(cmd, stdout)
-        return stdout
+        return cp.stdout if cp else ''
 
     def az_json(self, *args, **kwargs):
         stdout = self.az_stdout(*args, **kwargs)
@@ -117,6 +93,30 @@ class AzAction(ABC):
         cls = lookup_response(*args)
         j = self.az_json(*args, **kwargs)
         return cls(j) if j else []
+
+
+class CachedAzAction(AzAction):
+    def __init__(self, *, cache=None, **kwargs):
+        super().__init__(**kwargs)
+        self._cache = cache
+
+    @property
+    def cache(self):
+        return self._cache
+
+    def az_stdout(self, *args, cmd_args={}, **kwargs):
+        cmd = self._args_to_cmd(*args, cmd_args=cmd_args, **kwargs)
+        if self.cache and self._is_argcomplete:
+            with suppress(CacheExpired, CacheMiss):
+                return self.cache.read(cmd)
+        stdout = super().az_stdout(*args, cmd_args=cmd_args, **kwargs)
+        if self.cache and stdout:
+            self.cache.write(cmd, stdout)
+        return stdout
+
+    @property
+    def _is_argcomplete(cls):
+        return '_ARGCOMPLETE' in os.environ.keys()
 
 
 class ArgMap(UserDict):
@@ -185,7 +185,7 @@ class ArgUtil:
         return ArgMap(*[{cls._name_to_arg(a): opts[a]} for a in args if a in opts])
 
 
-class AzObject(AzAction, ArgUtil):
+class AzObject(CachedAzAction, ArgUtil):
     @classmethod
     @abstractmethod
     def azobject_name_list(cls):
