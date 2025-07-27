@@ -19,6 +19,9 @@ class SubConfig(MutableMapping):
         self._config = config
         self._mapping = mapping
 
+    def __repr__(self):
+        return json.dumps(self._config._prep_file_config(self), indent=2, sort_keys=True)
+
     def __getitem__(self, key):
         return self._mapping[key]
 
@@ -60,6 +63,9 @@ class Config(SubConfig):
         self._file_config = self._prep_file_config(self)
         # TODO - check with jsonschema
 
+    def __repr__(self):
+        return json.dumps(self._prep_file_config(self), indent=2, sort_keys=True)
+
     def _read_config(self):
         try:
             return json.loads(self._configfile.read_text(), object_hook=partial(SubConfig, self))
@@ -85,9 +91,6 @@ class Config(SubConfig):
         self._file_config = file_config
         self._configfile.parent.mkdir(parents=True, exist_ok=True)
         self._configfile.write_text(str(self) + '\n')
-
-    def __repr__(self):
-        return json.dumps(self._file_config, indent=2, sort_keys=True)
 
     def remove(self):
         self._configfile.unlink(missing_ok=True)

@@ -12,15 +12,19 @@ from contextlib import suppress
 from functools import cached_property
 from types import SimpleNamespace
 
+from ..argutil import ArgUtil
 from ..cache import Cache
 from ..config import Config
 from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
+from ..exception import RequiredArgumentGroup
+from ..filter import FILTER_ALL
+from ..filter import FILTER_DEFAULT
 from ..response import lookup_response
 
 
-class SimpleCommand(ABC):
+class SimpleCommand(ArgUtil, ABC):
     # For auto-importing
     EZAZ_COMMAND_CLASS = True
 
@@ -40,6 +44,10 @@ class SimpleCommand(ABC):
     @classmethod
     def command_text(cls):
         return cls.command_name(' ')
+
+    @classmethod
+    def command_arg(cls):
+        return '--' + cls.command_name('-')
 
     @classmethod
     def aliases(cls):
@@ -204,7 +212,7 @@ class AzSubCommand(AzObjectCommand):
     def parser_add_argument_azobject_id(cls, parser):
         if cls.parent_command_cls().is_azsubcommand():
             cls.parent_command_cls().parser_add_argument_azobject_id(parser)
-        arg = parser.add_argument(f'--{cls.command_name("-")}',
+        arg = parser.add_argument(f'{cls.command_arg()}',
                                   help=f'Use the specified {cls.command_text()}, instead of the default')
         arg.completer = cls.completer_azobject_ids
         return arg
@@ -291,7 +299,8 @@ class FilterActionCommand(ActionCommand, AzObjectCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('filter', description=cls.parser_get_filter_action_description())])
+                ([ActionParser('filter', description=cls.parser_get_filter_action_description())]
+                 if cls.azobject_class().is_azsubobject_container() else []))
 
     @classmethod
     def parser_get_filter_action_description(cls):
@@ -299,44 +308,74 @@ class FilterActionCommand(ActionCommand, AzObjectCommand):
 
     @classmethod
     def parser_add_filter_action_arguments(cls, parser):
-        enable_group = parser.add_mutually_exclusive_group()
-        enable_group.add_argument('--enable', action='store_true',
-                                  help=f'Enable {cls.command_text()} filtering')
-        enable_group.add_argument('--disable', action='store_true',
-                                  help=f'Disable {cls.command_text()} filtering')
+        filter_type_group = parser.add_mutually_exclusive_group()
+        filter_type_group.add_argument('--filter-all',
+                                       action='store_const',
+                                       dest='filter_type',
+                                       const=FILTER_ALL,
+                                       help=f'Add/update/show a filter for all object types (use with caution)')
+        for azobject_cls in cls.azobject_class().get_azsubobject_descendants():
+            filter_type_group.add_argument(f'--filter-{azobject_cls.azobject_name("-")}',
+                                           action='store_const',
+                                           dest='filter_type',
+                                           const=azobject_cls.azobject_name(),
+                                           help=f'Add/update/show a filter for {azobject_cls.azobject_text()}s')
+        filter_type_group.add_argument('--filter-default',
+                                       action='store_const',
+                                       dest='filter_type',
+                                       const=FILTER_DEFAULT,
+                                       help=f'Add/update/show a default filter (use with caution)')
 
         prefix_group = parser.add_mutually_exclusive_group()
         prefix_group.add_argument('--prefix',
-                                  help=f'Filter {cls.command_text()}s that start with the prefix')
+                                  help=f'Filter object names that start with the prefix')
         prefix_group.add_argument('--no-prefix', dest='prefix', action='store_const', const='',
-                                  help=f'Do not filter {cls.command_text()}s by prefix')
+                                  help=f'Remove prefix filter')
 
         suffix_group = parser.add_mutually_exclusive_group()
         suffix_group.add_argument('--suffix',
-                                  help=f'Filter {cls.command_text()}s that end with the suffix')
+                                  help=f'Filter object names that end with the suffix')
         suffix_group.add_argument('--no-suffix', dest='suffix', action='store_const', const='',
-                                  help=f'Do not filter {cls.command_text()}s by suffix')
+                                  help=f'Remove suffix filter')
 
         regex_group = parser.add_mutually_exclusive_group()
         regex_group.add_argument('--regex',
-                                 help=f'Filter {cls.command_text()}s that match the regular expression')
+                                 help=f'Filter object names that match the regular expression')
         regex_group.add_argument('--no-regex', dest='regex', action='store_const', const='',
-                                 help=f'Do not filter {cls.command_text()}s by regex')
+                                 help=f'Remove regex filter')
+
+        parser.add_argument('--show-parent-filters', action='store_true',
+                            help='Also show our parent object(s) filters')
+
+    @classmethod
+    def _filter_types(cls):
+        return (['filter_all'] +
+                [f'filter_{azobject_cls.azobject_name()}' for azobject_cls in
+                 cls.azobject_class().get_azsubobject_descendants()] +
+                ['filter_default'])
 
     def filter(self):
-        azfilter = self.azobject.filter
+        self._filter_check_args()
+        self._filter_update()
+        self._filter_show()
 
-        for f in ['prefix', 'suffix', 'regex']:
-            v = getattr(self._options, f)
+    def _filter_action_items(self):
+        for k in ['prefix', 'suffix', 'regex']:
+            v = getattr(self._options, k, None)
             if v is not None:
-                setattr(azfilter, f, v)
+                yield k, v
 
-        if self._options.enable:
-            azfilter.enable()
-        if self._options.disable:
-            azfilter.disable()
+    def _filter_check_args(self):
+        for k, v in self._filter_action_items():
+            if not self._options.filter_type:
+                raise RequiredArgumentGroup(self._filter_types(), k, exclusive=True)
 
-        print(azfilter)
+    def _filter_update(self):
+        for k, v in self._filter_action_items():
+            setattr(self.azobject.filters.get_filter(self._options.filter_type), k, v)
+
+    def _filter_show(self):
+        print(self.azobject.filters)
 
 
 class CreateActionCommand(ActionCommand, AzObjectCommand):
@@ -382,6 +421,17 @@ class ListActionCommand(ActionCommand, AzSubCommand):
     @classmethod
     def parser_get_list_action_description(cls):
         return f'List {cls.command_text()}s'
+
+    @classmethod
+    def parser_add_list_action_arguments(cls, parser):
+        parser.add_argument('--filter-prefix',
+                            help=f'In addition to configured filters, also filter {cls.command_text()}s that start with the prefix')
+        parser.add_argument('--filter-suffix',
+                            help=f'In addition to configured filters, also filter {cls.command_text()}s that end with the suffix')
+        parser.add_argument('--filter-regex',
+                            help=f'In addition to configured filters, also filter {cls.command_text()}s that match the regular expression')
+        parser.add_argument('-N', '--no-filters', action='store_true',
+                            help=f'Do not use any configured filters (the --filter-* parameters will still be used)')
 
     def list(self):
         self.azclass.list(self.parent_azobject, **vars(self._options))

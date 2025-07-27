@@ -1,0 +1,17 @@
+
+- auto-create objects (using default prefix) in setup cmd
+
+- implement vm actions
+
+- implement image upload, in imageversion (alias image?)
+
+- FilterActionCommand
+  - add better doc in help output
+  - show parts correctly
+  - implement showing of parent hierarchy
+
+- update Config to be subclassable
+- change Filter/Filters to subclass of Config
+
+
+- add help description/submmary/etc to each subcommand

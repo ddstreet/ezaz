@@ -20,6 +20,9 @@ class Filters:
         self._config = config
         self._filters = {}
 
+    def __repr__(self):
+        return self.config.__repr__()
+
     @property
     def config(self):
         return self._config
@@ -117,3 +120,10 @@ class Filter:
         except re.PatternError as pe:
             raise InvalidFilterRegex(pattern) from pe
         return True
+
+
+class QuickFilter(Filter):
+    def __init__(self, prefix, suffix, regex):
+        super().__init__({KEY_PREFIX: prefix,
+                          KEY_SUFFIX: suffix,
+                          KEY_REGEX: regex})

@@ -113,9 +113,9 @@ class RequiredArgument(ArgumentError):
 
 
 class RequiredArgumentGroup(ArgumentError):
-    def __init__(self, args, required_by):
+    def __init__(self, args, required_by, exclusive=False):
         by = f' by {self._arg(required_by)}' if required_by else ''
-        super().__init__(f'At least one of the arguments ({self._args(args)}) are required{by}.')
+        super().__init__(f'{"One" if exclusive else "At least one"} of the arguments ({self._args(args)}) are required{by}.')
 
 
 class DuplicateArgument(ArgumentError):

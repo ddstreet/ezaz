@@ -1,5 +1,5 @@
 
-from .azobject import ArgMap
+from ..argutil import ArgMap
 from .azobject import AzSubObject
 
 
