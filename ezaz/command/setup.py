@@ -103,27 +103,27 @@ class SetupCommand(CreateActionCommand):
     def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
             subscription = self.choose_azsubobject(self.account, 'subscription', hint_fn=lambda o: o.info.name)
-            self.add_default_filter(subscription)
+            self.add_resource_group_filter(subscription)
             self.choose_resource_group(subscription)
 
-    def add_default_filter(self, subscription):
+    def add_resource_group_filter(self, subscription):
+        rgfilter = subscription.filters.get_filter('resource_group')
         if subscription.filters.is_empty:
-            if YesNo('Do you want to set up a default filter (recommended for shared subscriptions)?'):
+            if YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
                 username = getpass.getuser()
                 accountname = self.account.info.user.name.split('@')[0]
                 if YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
-                    subscription.filters.get_filter(FILTER_DEFAULT).prefix = username
+                    rgfilter.prefix = username
                 elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
-                    subscription.filters.get_filter(FILTER_DEFAULT).prefix = accountname
+                    rgfilter.prefix = accountname
                 elif YesNo(f'Do you want to use a custom prefix?'):
                     prefix = input('What prefix do you want to use? ')
-                    subscription.filters.get_filter(FILTER_DEFAULT).prefix = prefix
+                    rgfilter.prefix = prefix
                 else:
-                    print('Skipping the default filter')
+                    print('Skipping the resource group prefix filter')
         else:
-            prefix = subscription.filters.get_filter(FILTER_DEFAULT).prefix
-            if prefix:
-                print(f"Existing default prefix filter: '{prefix}'")
+            if rgfilter.prefix:
+                print(f"Existing resource group prefix filter: '{rgfilter.prefix}'")
 
     def choose_resource_group(self, subscription):
         with suppress(ChoiceError):

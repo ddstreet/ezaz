@@ -68,21 +68,26 @@ def Choice(choices, default=None,
     class ChoiceCmd(cmd.Cmd):
         identchars = cmd.Cmd.identchars + '-'
 
-        def __init__(self, intro, choicemap):
+        def __init__(self, intro, choicemap, hintmap={}):
             super().__init__()
             self.prompt = f'{prompt_text}: '
             self.choice = default
             self.choicemap = choicemap
+            self.hintmap = hintmap
             if none_of_the_above_choice:
                 self.none_of_the_above = NoneOfTheAboveChoice(none_of_the_above_text)
                 self.choicemap[none_of_the_above_choice] = self.none_of_the_above
+            self.allkeys = list(self.choicemap.keys()) + list(self.hintmap.keys())
             self.cmdloop(intro)
 
         def completedefault(self, text, line, *ignored):
-            return [text + c.removeprefix(line) for c in self.choicemap.keys() if c.startswith(line)]
+            matches = [text + c.removeprefix(line) for c in self.allkeys if c.startswith(line)]
+            if len(matches) == 1 and matches[0] == text:
+                return []
+            return matches
 
         def completenames(self, text, *ignored):
-            return [c for c in self.choicemap.keys() if c.startswith(text)]
+            return [c for c in self.allkeys if c.startswith(text)]
 
         def emptyline(self):
             if self.choice is not None:
@@ -94,6 +99,9 @@ def Choice(choices, default=None,
                 self.choice = self.choicemap[line]
                 if self.choice == self.none_of_the_above:
                     raise self.none_of_the_above
+                return True
+            with suppress(KeyError):
+                self.choice = self.hintmap[line]
                 return True
             print(invalid_text)
 
@@ -110,7 +118,10 @@ def Choice(choices, default=None,
     if none_of_the_above_choice:
         intro += f'  {none_of_the_above_choice}\n'
 
-    return ChoiceCmd(intro, {choice_text_fn(c): c for c in choices}).choice
+    return ChoiceCmd(intro,
+                     choicemap={choice_text_fn(c): c for c in choices},
+                     hintmap={choice_hint_fn(c): c for c in choices} if choice_hint_fn else {},
+                     ).choice
 
 
 # Use kwargs to provide the *_text params
