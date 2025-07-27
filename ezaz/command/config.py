@@ -1,6 +1,7 @@
 
 from ..dialog import YesNo
 from .command import ActionCommand
+from .command import ActionParser
 
 
 class ConfigCommand(ActionCommand):
@@ -9,8 +10,10 @@ class ConfigCommand(ActionCommand):
         return ['config']
 
     @classmethod
-    def parser_get_action_choices(cls):
-        return super().parser_get_action_choices() + ['show', 'remove']
+    def parser_get_action_parsers(cls):
+        return (super().parser_get_action_parsers() +
+                [ActionParser('show', description='Show configuration'),
+                 ActionParser('remove', description='Remove configuration file')])
 
     @classmethod
     def parser_get_action_default(cls):

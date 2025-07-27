@@ -1,5 +1,8 @@
 
+import json
 import re
+
+from contextlib import suppress
 
 from .exception import InvalidFilterRegex
 
@@ -7,12 +10,15 @@ from .exception import InvalidFilterRegex
 KEY_ENABLED = 'enabled'
 KEY_REGEX = 'regex'
 KEY_PREFIX = 'prefix'
-KEY_PREFIX = 'suffix'
+KEY_SUFFIX = 'suffix'
 
 
 class Filter:
     def __init__(self, *, config):
         self._config = config
+
+    def __repr__(self):
+        return json.dumps(dict(self.config), indent=2)
 
     @property
     def config(self):
@@ -38,7 +44,8 @@ class Filter:
             self._clear(key)
 
     def _clear(self, key):
-        del self.config[key]
+        with suppress(KeyError):
+            del self.config[key]
 
     def get_prefix(self):
         return self._get(KEY_PREFIX)

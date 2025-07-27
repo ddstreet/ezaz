@@ -373,8 +373,46 @@ class FilterActionCommand(ActionCommand, AzSubCommand):
     def parser_get_filter_action_description(cls):
         return f'Edit filtering for {cls.command_text()}'
 
+    @classmethod
+    def parser_add_filter_action_arguments(cls, parser):
+        enable_group = parser.add_mutually_exclusive_group()
+        enable_group.add_argument('--enable', action='store_true',
+                                  help=f'Enable {cls.command_text()} filtering')
+        enable_group.add_argument('--disable', action='store_true',
+                                  help=f'Disable {cls.command_text()} filtering')
+
+        prefix_group = parser.add_mutually_exclusive_group()
+        prefix_group.add_argument('--prefix',
+                                  help=f'Filter {cls.command_text()}s that start with the prefix')
+        prefix_group.add_argument('--no-prefix', dest='prefix', action='store_const', const='',
+                                  help=f'Do not filter {cls.command_text()}s by prefix')
+
+        suffix_group = parser.add_mutually_exclusive_group()
+        suffix_group.add_argument('--suffix',
+                                  help=f'Filter {cls.command_text()}s that end with the suffix')
+        suffix_group.add_argument('--no-suffix', dest='suffix', action='store_const', const='',
+                                  help=f'Do not filter {cls.command_text()}s by suffix')
+
+        regex_group = parser.add_mutually_exclusive_group()
+        regex_group.add_argument('--regex',
+                                 help=f'Filter {cls.command_text()}s that match the regular expression')
+        regex_group.add_argument('--no-regex', dest='regex', action='store_const', const='',
+                                 help=f'Do not filter {cls.command_text()}s by regex')
+
     def filter(self):
-        raise NotImplementedError()
+        azfilter = self.azobject.filter
+
+        for f in ['prefix', 'suffix', 'regex']:
+            v = getattr(self._options, f)
+            if v is not None:
+                getattr(azfilter, f'set_{f}')(v)
+
+        if self._options.enable:
+            azfilter.enable()
+        if self._options.disable:
+            azfilter.disable()
+
+        print(azfilter)
 
 
 class AllActionCommand(FilterActionCommand, CreateActionCommand, DeleteActionCommand, SetActionCommand, ClearActionCommand, ListActionCommand, ShowActionCommand):
