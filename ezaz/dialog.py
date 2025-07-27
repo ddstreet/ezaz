@@ -66,6 +66,8 @@ def Choice(choices, default=None,
         return choices[0]
 
     class ChoiceCmd(cmd.Cmd):
+        identchars = cmd.Cmd.identchars + '-'
+
         def __init__(self, intro, choicemap):
             super().__init__()
             self.prompt = f'{prompt_text}: '
@@ -75,6 +77,9 @@ def Choice(choices, default=None,
                 self.none_of_the_above = NoneOfTheAboveChoice(none_of_the_above_text)
                 self.choicemap[none_of_the_above_choice] = self.none_of_the_above
             self.cmdloop(intro)
+
+        def completedefault(self, text, line, *ignored):
+            return [text + c.removeprefix(line) for c in self.choicemap.keys() if c.startswith(line)]
 
         def completenames(self, text, *ignored):
             return [c for c in self.choicemap.keys() if c.startswith(text)]

@@ -5,12 +5,13 @@ from ..exception import RequiredArgument
 from .account import AccountCommand
 from .command import ActionParser
 from .command import ClearActionCommand
+from .command import FilterActionCommand
 from .command import ListActionCommand
 from .command import SetActionCommand
 from .command import ShowActionCommand
 
 
-class SubscriptionCommand(ClearActionCommand, ListActionCommand, SetActionCommand, ShowActionCommand):
+class SubscriptionCommand(ClearActionCommand, FilterActionCommand, ListActionCommand, SetActionCommand, ShowActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return AccountCommand

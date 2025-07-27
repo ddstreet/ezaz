@@ -1,5 +1,6 @@
 
 import argparse
+import getpass
 
 from contextlib import suppress
 from functools import cached_property
@@ -11,46 +12,54 @@ from ..exception import ChoiceError
 from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
-from .account import AccountCommand
-from .command import ActionCommand
+from ..filter import FILTER_DEFAULT
+from .command import ActionParser
+from .command import CreateActionCommand
 
 
-class SetupCommand(ActionCommand):
+class SetupCommand(CreateActionCommand):
+    @classmethod
+    def azobject_class(cls):
+        return Account
+
     @classmethod
     def command_name_list(cls):
         return ['setup']
 
     @classmethod
-    def parser_add_common_arguments(cls, parser):
-        super().parser_add_common_arguments(parser)
+    def parser_get_action_parsers(cls):
+        return (super().parser_get_action_parsers() +
+                [ActionParser('prompt', description='Prompt to select the default for each object type (default)')])
+
+    @classmethod
+    def parser_add_prompt_action_arguments(cls, parser):
         parser.add_argument('--all', action='store_true',
                             help=f'Prompt for all object types, even ones with a default')
         parser.add_argument('--verify-single', action='store_true',
                             help=f'Prompt even if there is only one object choice')
 
     @classmethod
-    def parser_get_action_choices(cls):
-        return super().parser_get_action_choices() + ['prompt', 'create']
+    def parser_get_create_action_description(cls):
+        return 'Automatically create a new default object for all object types without a default'
 
     @classmethod
     def parser_get_action_default(cls):
         return 'prompt'
 
     @property
-    def all(self):
-        return self._options.all
+    def _all(self):
+        return getattr(self._options, 'all', False)
 
     @property
-    def verify_single(self):
-        return self._options.verify_single
+    def _verify_single(self):
+        return getattr(self._options, 'verify_single', False)
 
-    @cached_property
+    @property
     def account(self):
-        account = Account(self._config, verbose=self.verbose, dry_run=self.dry_run)
-        if not account.is_logged_in:
+        if not self.azobject.is_logged_in:
             print("You are not logged in, so let's log you in first.")
-            account.login()
-        return account
+            self.azobject.login()
+        return self.azobject
 
     def get_azsubobject_default(self, container, name):
         with suppress(DefaultConfigNotFound):
@@ -65,13 +74,13 @@ class SetupCommand(ActionCommand):
         print(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
 
         default = self.get_azsubobject_default(container, name)
-        if self.all or default is None:
+        if self._all or default is None:
             if default is None:
                 print('no default, checking available...')
             else:
                 print(default.azobject_id)
             try:
-                default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self.verify_single, **kwargs)
+                default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self._verify_single, **kwargs)
             except NoChoices:
                 print(f'No {objtype} found, please create at least one; skipping')
                 raise
@@ -94,7 +103,27 @@ class SetupCommand(ActionCommand):
     def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
             subscription = self.choose_azsubobject(self.account, 'subscription', hint_fn=lambda o: o.info.name)
+            self.add_default_filter(subscription)
             self.choose_resource_group(subscription)
+
+    def add_default_filter(self, subscription):
+        if subscription.filters.is_empty:
+            if YesNo('Do you want to set up a default filter (recommended for shared subscriptions)?'):
+                username = getpass.getuser()
+                accountname = self.account.info.user.name.split('@')[0]
+                if YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
+                    subscription.filters.get_filter(FILTER_DEFAULT).prefix = username
+                elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
+                    subscription.filters.get_filter(FILTER_DEFAULT).prefix = accountname
+                elif YesNo(f'Do you want to use a custom prefix?'):
+                    prefix = input('What prefix do you want to use? ')
+                    subscription.filters.get_filter(FILTER_DEFAULT).prefix = prefix
+                else:
+                    print('Skipping the default filter')
+        else:
+            prefix = subscription.filters.get_filter(FILTER_DEFAULT).prefix
+            if prefix:
+                print(f"Existing default prefix filter: '{prefix}'")
 
     def choose_resource_group(self, subscription):
         with suppress(ChoiceError):

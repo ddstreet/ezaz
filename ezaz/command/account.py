@@ -8,10 +8,11 @@ from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import NotLoggedIn
 from .command import ActionParser
+from .command import FilterActionCommand
 from .command import ShowActionCommand
 
 
-class AccountCommand(ShowActionCommand):
+class AccountCommand(FilterActionCommand, ShowActionCommand):
     @classmethod
     def azobject_class(cls):
         return Account

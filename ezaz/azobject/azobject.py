@@ -21,7 +21,7 @@ from ..exception import NoAzObjectExists
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
-from ..filter import Filter
+from ..filter import Filters
 from ..response import lookup_response
 
 
@@ -240,8 +240,8 @@ class AzObject(CachedAzAction, ArgUtil):
         return self._config
 
     @cached_property
-    def filter(self):
-        return Filter(config=self.config)
+    def filters(self):
+        return Filters(self.config.get_object('filters'))
 
     @property
     @abstractmethod
@@ -305,10 +305,6 @@ class AzSubObject(AzObject):
     @classmethod
     def object_key(cls, obj_id):
         return f'{cls.azobject_name()}.{obj_id}'
-
-    @classmethod
-    def filter_parent_args(cls, opts):
-        return opts
 
     @classmethod
     def _get_azsubobject_cmd_args(cls, parent, cmdname, opts):
@@ -432,11 +428,19 @@ class AzSubObjectContainer(AzObject):
         cls = self.get_azsubobject_class(name)
         return cls(parent=self, azobject_id=obj_id, config=self.config.get_object(cls.object_key(obj_id)), info=info)
 
-    def get_azsubobject_infos(self, name, **kwargs):
+    def get_azsubobject_infos(self, name, filter_info_ids=True, **kwargs):
         cls = self.get_azsubobject_class(name)
-        return self.az_responselist(*cls.get_cmd('list'), cmd_args=cls.get_azsubobject_cmd_args(self, 'list', kwargs))
+        infos = self.az_responselist(*cls.get_cmd('list'), cmd_args=cls.get_azsubobject_cmd_args(self, 'list', kwargs))
+        return self._filter_azsubobject_infos(cls, infos) if filter_info_ids else infos
 
     def get_azsubobjects(self, name, **kwargs):
         cls = self.get_azsubobject_class(name)
         return [self.get_azsubobject(name, cls.info_id(info), info=info) for info in
                 self.get_azsubobject_infos(name, **kwargs)]
+
+    def _filter_azsubobject_infos(self, cls, infos):
+        return [i for i in infos if self._filter_azsubobject_info(cls, i)]
+
+    def _filter_azsubobject_info(self, cls, info):
+        return ((not self.is_azsubobject() or self.parent._filter_azsubobject_info(cls, info)) and
+                self.filters.check(cls.azobject_name(), cls.info_id(info)))
