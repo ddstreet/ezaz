@@ -1,19 +1,19 @@
 
-- don't allow deleteing without --<type> param for obj id!
-
-- implement vm actions
+- change subscription args, 'show' should show *current*, and need --show/set-default
 
 - implement image upload, in imageversion (alias image?)
 
-- change subscription args, 'show' should show *current*, and need --show/set-default
+- update Config to be subclassable
+- change Filter/Filters to subclass of Config
+
+- implement vm actions
+
+
+DOCS:
 
 - FilterActionCommand
   - add better doc in help output
   - show parts correctly
   - implement showing of parent hierarchy
-
-- update Config to be subclassable
-- change Filter/Filters to subclass of Config
-
 
 - add help description/submmary/etc to each subcommand

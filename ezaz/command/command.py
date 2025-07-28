@@ -17,7 +17,7 @@ from ..cache import Cache
 from ..config import Config
 from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
-from ..exception import RequiredArgument
+from ..exception import RequiredActionArgument
 from ..exception import RequiredArgumentGroup
 from ..filter import FILTER_ALL
 from ..filter import FILTER_DEFAULT
@@ -222,13 +222,13 @@ class AzSubCommand(AzObjectCommand):
         cls.parser_add_argument_azobject_id(parser)
 
     @classmethod
-    def parser_add_argument_azobject_id(cls, parser, parent=False):
+    def parser_add_argument_azobject_id(cls, parser, is_parent=False):
         if cls.parent_command_cls().is_azsubcommand():
-            cls.parent_command_cls().parser_add_argument_azobject_id(parser, parent=True)
-        cls._parser_add_argument_azobject_id(parser, parent)
+            cls.parent_command_cls().parser_add_argument_azobject_id(parser, is_parent=True)
+        cls._parser_add_argument_azobject_id(parser, is_parent)
 
     @classmethod
-    def _parser_add_argument_azobject_id(cls, parser, parent):
+    def _parser_add_argument_azobject_id(cls, parser, is_parent):
         parser.add_argument(f'{cls.command_arg()}',
                             help=f'Use the specified {cls.command_text()}, instead of the default').completer = cls.completer_azobject_ids
 
@@ -406,7 +406,7 @@ class CreateActionCommand(ActionCommand, AzObjectCommand):
     @property
     def azobject_default_id(self):
         if self._options.action == 'create' and not self.is_parent:
-            raise RequiredArgument(self.azobject_name(), 'create')
+            raise RequiredActionArgument(self.azobject_name(), 'create')
         return super().azobject_default_id
 
     def create(self):
@@ -423,6 +423,12 @@ class DeleteActionCommand(ActionCommand, AzObjectCommand):
     def parser_get_delete_action_description(cls):
         return f'Delete a {cls.command_text()}'
 
+    @property
+    def azobject_default_id(self):
+        if self._options.action == 'delete' and not self.is_parent:
+            raise RequiredActionArgument(self.azobject_name(), 'delete')
+        return super().azobject_default_id
+
     def delete(self):
         self.azobject.delete(**vars(self._options))
 
@@ -438,10 +444,11 @@ class ListActionCommand(ActionCommand, AzSubCommand):
         return f'List {cls.command_text()}s'
 
     @classmethod
-    def _parser_add_argument_azobject_id(cls, parser, parent):
+    def _parser_add_argument_azobject_id(cls, parser, is_parent):
         action_parser_config = cls._parser_get_action_parser_config(parser)
-        if parent or getattr(action_parser_config, 'name', None) != 'list':
-            super()._parser_add_argument_azobject_id(parser, parent)
+        if is_parent or getattr(action_parser_config, 'name', None) != 'list':
+            # Don't add our own object id param, as the list command lists them all
+            super()._parser_add_argument_azobject_id(parser, is_parent)
 
     @classmethod
     def parser_add_list_action_arguments(cls, parser):
