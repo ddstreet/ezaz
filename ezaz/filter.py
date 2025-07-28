@@ -86,7 +86,7 @@ class Filter:
         return v.endswith(self.suffix) if self.suffix else True
 
     def check_regex(self, v):
-        return re.match(self.regex, v) if self.regex else True
+        return re.search(self.regex, v) if self.regex else True
 
     def _get(self, key):
         return self.config.get(key, None)

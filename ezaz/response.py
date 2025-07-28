@@ -49,6 +49,14 @@ ConfigVar = OBJ(
     value=STR,
 )
 
+LocationInfo = OBJ(
+    id=STR,
+    name=STR,
+    displayName=STR,
+    regionalDisplayName=STR,
+    type=STR,
+)
+
 GroupInfo = OBJ(
     id=STR,
     name=STR,
@@ -156,6 +164,7 @@ RESPONSES = {
     "account": {
         "show": R(AccountInfo),
         "list": RL(AccountInfo),
+        "list-locations": RL(LocationInfo),
     },
     "config": {
         "get": R(ConfigVar),

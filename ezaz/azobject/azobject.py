@@ -10,12 +10,14 @@ from contextlib import suppress
 from functools import cached_property
 from itertools import chain
 
+from ..argutil import ArgMap
 from ..argutil import ArgUtil
 from ..exception import AzCommandError
 from ..exception import AzObjectExists
 from ..exception import CacheExpired
 from ..exception import CacheMiss
 from ..exception import DefaultConfigNotFound
+from ..exception import InvalidAzObjectName
 from ..exception import NoAzObjectExists
 from ..exception import NotLoggedIn
 from ..filter import Filters
@@ -190,19 +192,13 @@ class AzObject(CachedAzAction):
     def _get_info(self):
         return self.az_response(*self.get_cmd('show'), cmd_args=self.get_cmd_args('show', {}))
 
-    def _raise_no_az_object_exists(self, error):
-        raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
-
-    def _raise_az_object_exists(self):
-        raise AzObjectExists(self.azobject_text(), self.azobject_id)
-
     @property
     def info(self):
         if not self._info:
             try:
                 self._info = self._get_info()
             except AzCommandError as aze:
-                self._raise_no_az_object_exists(aze)
+                raise NoAzObjectExists(self.azobject_text(), self.azobject_id) from aze
         return self._info
 
     @property
@@ -218,7 +214,7 @@ class AzObject(CachedAzAction):
 
     def create(self, **kwargs):
         if self.exists:
-            self._raise_az_object_exists()
+            raise AzObjectExists(self.azobject_text(), self.azobject_id)
         self.az(*self.get_cmd('create'), cmd_args=self.get_cmd_args('create', kwargs), dry_runnable=False)
 
     def delete(self, **kwargs):

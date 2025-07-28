@@ -1,6 +1,8 @@
 
 import argparse
 import getpass
+import random
+import string
 
 from contextlib import suppress
 from functools import cached_property
@@ -13,7 +15,7 @@ from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
 from ..filter import FILTER_DEFAULT
-from .command import ActionParser
+from .command import ActionParserConfig
 from .command import CreateActionCommand
 
 
@@ -29,7 +31,7 @@ class SetupCommand(CreateActionCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('prompt', description='Prompt to select the default for each object type (default)')])
+                [ActionParserConfig('prompt', description='Prompt to select the default for each object type (default)')])
 
     @classmethod
     def parser_add_prompt_action_arguments(cls, parser):
@@ -37,6 +39,11 @@ class SetupCommand(CreateActionCommand):
                             help=f'Prompt for all object types, even ones with a default')
         parser.add_argument('--verify-single', action='store_true',
                             help=f'Prompt even if there is only one object choice')
+
+    @classmethod
+    def parser_add_prompt_create_arguments(cls, parser):
+        parser.add_argument('--all', action='store_true',
+                            help=f'Create all object types, even ones with a default')
 
     @classmethod
     def parser_get_create_action_description(cls):
@@ -53,6 +60,9 @@ class SetupCommand(CreateActionCommand):
     @property
     def _verify_single(self):
         return getattr(self._options, 'verify_single', False)
+
+    def randomhex(self, n):
+        return ''.join(random.choices(string.hexdigits, k=n))
 
     @property
     def account(self):
@@ -98,13 +108,21 @@ class SetupCommand(CreateActionCommand):
         self.choose_subscription()
 
     def create(self):
-        raise NotImplementedError()
+        self.choose_subscription(create=True)
 
-    def choose_subscription(self):
+    def choose_subscription(self, create=False):
         with suppress(NoneOfTheAboveChoice):
             subscription = self.choose_azsubobject(self.account, 'subscription', hint_fn=lambda o: o.info.name)
-            self.add_resource_group_filter(subscription)
-            self.choose_resource_group(subscription)
+            prefix = self.add_resource_group_filter(subscription)
+            location = self.choose_location(subscription)
+
+            if create:
+                self.create_resource_group(subscription, location, prefix)
+            else:
+                self.choose_resource_group(subscription)
+
+    def choose_location(self, subscription):
+        return self.choose_azsubobject(subscription, 'location')
 
     def add_resource_group_filter(self, subscription):
         rgfilter = subscription.filters.get_filter('resource_group')
@@ -124,6 +142,7 @@ class SetupCommand(CreateActionCommand):
         else:
             if rgfilter.prefix:
                 print(f"Existing resource group prefix filter: '{rgfilter.prefix}'")
+        return rgfilter.prefix or getpass.getuser()
 
     def choose_resource_group(self, subscription):
         with suppress(ChoiceError):
@@ -159,3 +178,12 @@ class SetupCommand(CreateActionCommand):
     def choose_vm(self, rg):
         with suppress(ChoiceError):
             self.choose_azsubobject(rg, 'vm')
+
+    def create_resource_group(self, subscription, location, prefix):
+        try:
+            resource_group_id = subscription.get_azsubobject_default_id('resource_group')
+        except DefaultConfigNotFound:
+            resource_group_id = f'{prefix}{self.randomhex(8)}'
+            resource_group = subscription.get_azsubobject('resource_group', resource_group_id)
+            print(f'Creating resource group {resource_group_id} (in {location})')
+            resource_group.create({'location': location})

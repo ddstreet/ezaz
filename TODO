@@ -5,6 +5,8 @@
 
 - implement image upload, in imageversion (alias image?)
 
+- change subscription args, 'show' should show *current*, and need --show/set-default
+
 - FilterActionCommand
   - add better doc in help output
   - show parts correctly

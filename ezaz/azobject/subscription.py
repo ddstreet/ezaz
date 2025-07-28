@@ -3,6 +3,7 @@ from ..exception import NotCreatable
 from ..exception import NotDeletable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
+from .location import Location
 from .resourcegroup import ResourceGroup
 
 
@@ -17,19 +18,19 @@ class Subscription(AzSubObject, AzSubObjectContainer):
 
     @classmethod
     def get_azsubobject_classes(cls):
-        return [ResourceGroup]
+        return [ResourceGroup, Location]
 
     @classmethod
     def get_base_cmd(cls):
         return ['account']
 
     @classmethod
-    def get_create_cmd(cls):
-        raise NotCreatable('subscription')
-
-    @classmethod
-    def get_delete_cmd(cls):
-        raise NotDeletable('subscription')
+    def _get_cmd(cls, cmdname):
+        if cmdname == 'create':
+            raise NotCreatable('subscription')
+        if cmdname == 'delete':
+            raise NotDeletable('subscription')
+        return super()._get_cmd(cmdname)
 
     def show(self):
         print(self.info if self.verbose else f'{self.info.name} ({self.info.id})')

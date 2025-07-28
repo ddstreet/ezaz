@@ -1,6 +1,6 @@
 
 from ..azobject.vm import VM
-from .command import ActionParser
+from .command import ActionParserConfig
 from .command import AllActionCommand
 from .resourcegroup import ResourceGroupCommand
 
@@ -17,11 +17,11 @@ class VMCommand(AllActionCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('console', description='Attach to serial console'),
-                 ActionParser('log', description='Show serial console log'),
-                 ActionParser('restart', description='Restart the VM'),
-                 ActionParser('start', description='Start the VM'),
-                 ActionParser('stop', description='Stop the VM')])
+                [ActionParserConfig('console', description='Attach to serial console'),
+                 ActionParserConfig('log', description='Show serial console log'),
+                 ActionParserConfig('restart', description='Restart the VM'),
+                 ActionParserConfig('start', description='Start the VM'),
+                 ActionParserConfig('stop', description='Stop the VM')])
 
     def console(self):
         print('im a console!')

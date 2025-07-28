@@ -106,7 +106,7 @@ class SimpleCommand(ArgUtil, ABC):
         pass
 
 
-class ActionParser:
+class ActionParserConfig:
     def __init__(self, name, aliases=[], description=None):
         self.name = name
         self.aliases = aliases
@@ -135,13 +135,22 @@ class ActionCommand(SimpleCommand):
             cls._parser_add_action_parser(actions, parser)
 
     @classmethod
-    def _parser_add_action_parser(cls, actions, action_parser):
-        parser = actions.add_parser(action_parser.name, aliases=action_parser.aliases)
+    def _parser_add_action_parser(cls, actions, action_parser_config):
+        parser = actions.add_parser(action_parser_config.name, aliases=action_parser_config.aliases)
+        parser._action_parser_config = action_parser_config
         parser.formatter_class = argparse.RawTextHelpFormatter
         cls.parser_add_common_arguments(parser)
         with suppress(AttributeError):
-            getattr(cls, f'parser_add_{action_parser.name}_action_arguments')(parser)
+            getattr(cls, f'parser_add_{action_parser_config.name}_action_arguments')(parser)
         return parser
+
+    @classmethod
+    def _parser_get_action_parser_config(cls, parser):
+        return getattr(parser, '_action_parser_config', None)
+
+    @classmethod
+    def _parser_get_action_parser_name(cls, parser):
+        return getattr(cls._parser_get_action_parser_config(parser), 'name', None)
 
     @classmethod
     def parser_get_action_descriptions(cls):
@@ -209,13 +218,15 @@ class AzSubCommand(AzObjectCommand):
         cls.parser_add_argument_azobject_id(parser)
 
     @classmethod
-    def parser_add_argument_azobject_id(cls, parser):
+    def parser_add_argument_azobject_id(cls, parser, parent=False):
         if cls.parent_command_cls().is_azsubcommand():
-            cls.parent_command_cls().parser_add_argument_azobject_id(parser)
-        arg = parser.add_argument(f'{cls.command_arg()}',
-                                  help=f'Use the specified {cls.command_text()}, instead of the default')
-        arg.completer = cls.completer_azobject_ids
-        return arg
+            cls.parent_command_cls().parser_add_argument_azobject_id(parser, parent=True)
+        cls._parser_add_argument_azobject_id(parser, parent)
+
+    @classmethod
+    def _parser_add_argument_azobject_id(cls, parser, parent):
+        parser.add_argument(f'{cls.command_arg()}',
+                            help=f'Use the specified {cls.command_text()}, instead of the default').completer = cls.completer_azobject_ids
 
     @classmethod
     def completer_info_attrs(cls, *, completer_attr=None, parsed_args={}, **kwargs):
@@ -281,7 +292,7 @@ class ShowActionCommand(ActionCommand, AzObjectCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('show', description=cls.parser_get_show_action_description())])
+                [ActionParserConfig('show', description=cls.parser_get_show_action_description())])
 
     @classmethod
     def parser_get_show_action_description(cls):
@@ -299,7 +310,7 @@ class FilterActionCommand(ActionCommand, AzObjectCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                ([ActionParser('filter', description=cls.parser_get_filter_action_description())]
+                ([ActionParserConfig('filter', description=cls.parser_get_filter_action_description())]
                  if cls.azobject_class().is_azsubobject_container() else []))
 
     @classmethod
@@ -382,7 +393,7 @@ class CreateActionCommand(ActionCommand, AzObjectCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('create', description=cls.parser_get_create_action_description())])
+                [ActionParserConfig('create', description=cls.parser_get_create_action_description())])
 
     @classmethod
     def parser_get_create_action_description(cls):
@@ -402,7 +413,7 @@ class DeleteActionCommand(ActionCommand, AzObjectCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('delete', description=cls.parser_get_delete_action_description())])
+                [ActionParserConfig('delete', description=cls.parser_get_delete_action_description())])
 
     @classmethod
     def parser_get_delete_action_description(cls):
@@ -416,11 +427,17 @@ class ListActionCommand(ActionCommand, AzSubCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('list', description=cls.parser_get_list_action_description())])
+                [ActionParserConfig('list', description=cls.parser_get_list_action_description())])
 
     @classmethod
     def parser_get_list_action_description(cls):
         return f'List {cls.command_text()}s'
+
+    @classmethod
+    def _parser_add_argument_azobject_id(cls, parser, parent):
+        action_parser_config = cls._parser_get_action_parser_config(parser)
+        if parent or getattr(action_parser_config, 'name', None) != 'list':
+            super()._parser_add_argument_azobject_id(parser, parent)
 
     @classmethod
     def parser_add_list_action_arguments(cls, parser):
@@ -441,7 +458,7 @@ class SetActionCommand(ActionCommand, AzSubCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('set', description=cls.parser_get_set_action_description())])
+                [ActionParserConfig('set', description=cls.parser_get_set_action_description())])
 
     @classmethod
     def parser_get_set_action_description(cls):
@@ -455,7 +472,7 @@ class ClearActionCommand(ActionCommand, AzSubCommand):
     @classmethod
     def parser_get_action_parsers(cls):
         return (super().parser_get_action_parsers() +
-                [ActionParser('clear', description=cls.parser_get_clear_action_description())])
+                [ActionParserConfig('clear', description=cls.parser_get_clear_action_description())])
 
     @classmethod
     def parser_get_clear_action_description(cls):
