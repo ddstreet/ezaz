@@ -21,4 +21,6 @@ class ImageDefinition(AzSubObject):
                     self.optional_args(['os_type', 'architecture'], opts) |
                     {'--hyper-v-generation': 'V2',
                      '--features': 'SecurityType=TrustedLaunchSupported'})
-        return {}
+        if cmdname == 'delete':
+            return self.optional_flag_arg('no_wait', opts)
+        return super()._get_cmd_args(cmdname, opts)

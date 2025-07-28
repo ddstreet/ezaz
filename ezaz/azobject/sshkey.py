@@ -32,7 +32,9 @@ class SshKey(AzSubObject):
             else:
                 raise ArgumentError(f'Invalid ssh public key: {v}')
             return args
-        return {}
+        if cmdname == 'delete':
+            return self.optional_flag_arg('yes', opts)
+        return super()._get_cmd_args(cmdname, opts)
 
     def _get_public_key_arg(self, opts, required_by='create'):
         with suppress(RequiredArgument):

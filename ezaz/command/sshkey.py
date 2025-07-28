@@ -22,3 +22,9 @@ class SshKeyCommand(AllActionCommand):
                                   help='Public key data')
         pubkey_group.add_argument('--public-key-file',
                                   help='Public key file (defaults to public key in ~/.ssh)')
+
+    @classmethod
+    def parser_add_delete_action_arguments(cls, parser):
+        parser.add_argument('-y', '--yes',
+                            action='store_true',
+                            help='Do not prompt for confirmation')

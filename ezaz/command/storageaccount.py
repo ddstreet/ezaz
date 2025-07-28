@@ -12,3 +12,9 @@ class StorageAccountCommand(AllActionCommand):
     @classmethod
     def azobject_class(cls):
         return StorageAccount
+
+    @classmethod
+    def parser_add_delete_action_arguments(cls, parser):
+        parser.add_argument('-y', '--yes',
+                            action='store_true',
+                            help='Do not prompt for confirmation')

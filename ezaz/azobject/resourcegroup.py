@@ -23,4 +23,6 @@ class ResourceGroup(AzSubObject, AzSubObjectContainer):
     def _get_cmd_args(self, cmdname, opts):
         if cmdname == 'create':
             return self.required_arg('location', opts, 'create')
-        return {}
+        if cmdname == 'delete':
+            return self.optional_flag_args(['yes', 'no_wait'], opts)
+        return super()._get_cmd_args(cmdname, opts)

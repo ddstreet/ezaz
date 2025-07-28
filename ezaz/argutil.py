@@ -75,3 +75,11 @@ class ArgUtil:
     @classmethod
     def optional_args(cls, args, opts):
         return ArgMap(*[{cls._name_to_arg(a): opts[a]} for a in args if a in opts])
+
+    @classmethod
+    def optional_flag_arg(cls, arg, opts):
+        return cls.optional_flag_args([arg], opts)
+
+    @classmethod
+    def optional_flag_args(cls, args, opts):
+        return ArgMap(*[{cls._name_to_arg(a): None} for a in args if opts.get(a, False)])

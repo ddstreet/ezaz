@@ -20,3 +20,10 @@ class ImageGallery(AzSubObject, AzSubObjectContainer):
     @classmethod
     def get_base_cmd(cls):
         return ['sig']
+
+    def _get_cmd_args(self, cmdname, opts):
+        if cmdname == 'create':
+            return self.optional_flag_arg('no_wait', opts)
+        if cmdname == 'delete':
+            return self.optional_flag_arg('no_wait', opts)
+        return super()._get_cmd_args(cmdname, opts)

@@ -23,6 +23,21 @@ class VMCommand(AllActionCommand):
                  ActionParserConfig('start', description='Start the VM'),
                  ActionParserConfig('stop', description='Stop the VM')])
 
+    @classmethod
+    def parser_add_create_action_arguments(cls, parser):
+        parser.add_argument('--no-wait',
+                            action='store_true',
+                            help='Do not wait for long-running operation to finish')
+
+    @classmethod
+    def parser_add_delete_action_arguments(cls, parser):
+        parser.add_argument('-y', '--yes',
+                            action='store_true',
+                            help='Do not prompt for confirmation')
+        parser.add_argument('--no-wait',
+                            action='store_true',
+                            help='Do not wait for long-running operation to finish')
+
     def console(self):
         print('im a console!')
 
