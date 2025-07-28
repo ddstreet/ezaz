@@ -281,6 +281,9 @@ class AzSubObject(AzObject):
         return ArgMap(self.get_parent_subcmd_args(cmdname, opts),
                       super().get_cmd_args(cmdname, opts))
 
+    def set_self_default(self, **kwargs):
+        self.set_default(**{self.azobject_name(): self.azobject_id})
+
     def set_default(self, **kwargs):
         self.parent.set_azsubobject_default_id(self.azobject_name(),
                                                self.required_arg_value(self.azobject_name(), kwargs, 'set'))

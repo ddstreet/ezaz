@@ -1,5 +1,6 @@
 
 from collections import UserDict
+from contextlib import suppress
 
 from .exception import DuplicateArgument
 from .exception import RequiredArgument
