@@ -42,6 +42,10 @@ class ArgUtil:
         return '--' + name.replace('_', '-')
 
     @classmethod
+    def _kwargs_to_args(cls, **kwargs):
+        return cls.optional_args(kwargs.keys(), kwargs)
+
+    @classmethod
     def required_arg_value(cls, arg, opts, requiring_arg=None):
         with suppress(KeyError):
             value = opts[arg]
@@ -71,5 +75,3 @@ class ArgUtil:
     @classmethod
     def optional_args(cls, args, opts):
         return ArgMap(*[{cls._name_to_arg(a): opts[a]} for a in args if a in opts])
-
-

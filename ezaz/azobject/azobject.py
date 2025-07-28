@@ -187,6 +187,7 @@ class AzObject(CachedAzAction):
 
     def get_cmd_args(self, cmdname, opts):
         return ArgMap({self.azobject_cmd_arg(): self.azobject_id},
+                      {} if self.verbose else {'--only-show-errors': None},
                       self._get_cmd_args(cmdname, opts) or {})
 
     def _get_info(self):
@@ -209,13 +210,22 @@ class AzObject(CachedAzAction):
         except NoAzObjectExists:
             return False
 
+    def _show(self):
+        print(self.info_id(self.info))
+
+    def _show_verbose(self):
+        print(self.info)
+
     def show(self):
-        print(self.info if self.verbose else self.info.name)
+        if self.verbose:
+            self._show_verbose()
+        else:
+            self._show()
 
     def create(self, **kwargs):
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
-        self.az(*self.get_cmd('create'), cmd_args=self.get_cmd_args('create', kwargs), dry_runnable=False)
+        self.az_stdout(*self.get_cmd('create'), cmd_args=self.get_cmd_args('create', kwargs), dry_runnable=False)
 
     def delete(self, **kwargs):
         self.az(*self.get_cmd('delete'), cmd_args=self.get_cmd_args('delete', kwargs), dry_runnable=False)

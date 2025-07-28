@@ -108,6 +108,13 @@ StorageAccountInfo = OBJ(
     ),
 )
 
+StorageKeyInfo = OBJ(
+    keyName=STR,
+    value=STR,
+    permissions=STR,
+    creationTime=STR,
+)
+
 StorageContainerInfo = OBJ(
     name=STR,
 )
@@ -161,46 +168,49 @@ VMInfo = OBJ(
 )
 
 RESPONSES = {
-    "account": {
-        "show": R(AccountInfo),
-        "list": RL(AccountInfo),
-        "list-locations": RL(LocationInfo),
+    'account': {
+        'show': R(AccountInfo),
+        'list': RL(AccountInfo),
+        'list-locations': RL(LocationInfo),
     },
-    "config": {
-        "get": R(ConfigVar),
+    'config': {
+        'get': R(ConfigVar),
     },
-    "group": {
-        "show": R(GroupInfo),
-        "list": RL(GroupInfo),
+    'group': {
+        'show': R(GroupInfo),
+        'list': RL(GroupInfo),
     },
-    "sig": {
-        "show": R(ImageGalleryInfo),
-        "list": RL(ImageGalleryInfo),
-        "image-definition": {
-            "show": R(ImageDefinitionInfo),
-            "list": RL(ImageDefinitionInfo),
+    'sig': {
+        'show': R(ImageGalleryInfo),
+        'list': RL(ImageGalleryInfo),
+        'image-definition': {
+            'show': R(ImageDefinitionInfo),
+            'list': RL(ImageDefinitionInfo),
         },
     },
-    "storage": {
-        "account": {
-            "show": R(StorageAccountInfo),
-            "list": RL(StorageAccountInfo),
+    'storage': {
+        'account': {
+            'show': R(StorageAccountInfo),
+            'list': RL(StorageAccountInfo),
+            'keys': {
+                'list': RL(StorageKeyInfo),
+            },
         },
-        "container": {
-            "show": R(StorageContainerInfo),
-            "list": RL(StorageContainerInfo),
+        'container': {
+            'show': R(StorageContainerInfo),
+            'list': RL(StorageContainerInfo),
         },
-        "blob": {
-            "show": R(StorageBlobInfo),
-            "list": RL(StorageBlobInfo),
+        'blob': {
+            'show': R(StorageBlobInfo),
+            'list': RL(StorageBlobInfo),
         },
     },
-    "sshkey": {
-        "show": R(SshKeyInfo),
-        "list": RL(SshKeyInfo),
+    'sshkey': {
+        'show': R(SshKeyInfo),
+        'list': RL(SshKeyInfo),
     },
-    "vm": {
-        "show": R(VMInfo),
-        "list": RL(VMInfo),
+    'vm': {
+        'show': R(VMInfo),
+        'list': RL(VMInfo),
     },
 }

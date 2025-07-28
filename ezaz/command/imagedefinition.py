@@ -28,3 +28,7 @@ class ImageDefinitionCommand(AllActionCommand):
         parser.add_argument('--sku',
                             required=True,
                             help='SKU')
+        parser.add_argument('--architecture',
+                            choices=['Arm64', 'x64'],
+                            default='x64',
+                            help='CPU architecture')

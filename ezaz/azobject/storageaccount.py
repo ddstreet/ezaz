@@ -2,6 +2,7 @@
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 from .storagecontainer import StorageContainer
+from .storagekey import StorageKey
 
 
 class StorageAccount(AzSubObject, AzSubObjectContainer):
@@ -19,4 +20,4 @@ class StorageAccount(AzSubObject, AzSubObjectContainer):
 
     @classmethod
     def get_azsubobject_classes(cls):
-        return [StorageContainer]
+        return [StorageContainer, StorageKey]

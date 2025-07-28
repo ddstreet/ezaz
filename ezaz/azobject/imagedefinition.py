@@ -17,5 +17,8 @@ class ImageDefinition(AzSubObject):
 
     def _get_cmd_args(self, cmdname, opts):
         if cmdname == 'create':
-            return self.required_args_all(['offer', 'os_type', 'publisher', 'sku'], opts, 'create')
+            return (self.required_args_all(['offer', 'publisher', 'sku'], opts, 'create') |
+                    self.optional_args(['os_type', 'architecture'], opts) |
+                    {'--hyper-v-generation': 'V2',
+                     '--features': 'SecurityType=TrustedLaunchSupported'})
         return {}

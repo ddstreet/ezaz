@@ -39,11 +39,19 @@ class SetupCommand(CreateActionCommand):
                             help=f'Prompt for all object types, even ones with a default')
         parser.add_argument('--verify-single', action='store_true',
                             help=f'Prompt even if there is only one object choice')
+        parser.add_argument('-y', '--yes', action='store_true',
+                            help=f'Respond yes to all yes/no questions')
 
     @classmethod
     def parser_add_prompt_create_arguments(cls, parser):
         parser.add_argument('--all', action='store_true',
                             help=f'Create all object types, even ones with a default')
+        parser.add_argument('--subscription',
+                            help=f'Subscription to use (instead of prompting to choose)')
+        parser.add_argument('--location',
+                            help=f'Location to use (instead of prompting to choose)')
+        parser.add_argument('-y', '--yes', action='store_true',
+                            help=f'Respond yes to all yes/no questions')
 
     @classmethod
     def parser_get_create_action_description(cls):
@@ -54,12 +62,24 @@ class SetupCommand(CreateActionCommand):
         return 'prompt'
 
     @property
+    def _yes(self):
+        return getattr(self._options, 'yes', False)
+
+    @property
     def _all(self):
         return getattr(self._options, 'all', False)
 
     @property
     def _verify_single(self):
         return getattr(self._options, 'verify_single', False)
+
+    @property
+    def _subscription(self):
+        return getattr(self._options, 'subscription', False)
+
+    @property
+    def _location(self):
+        return getattr(self._options, 'location', False)
 
     def randomhex(self, n):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
@@ -74,7 +94,7 @@ class SetupCommand(CreateActionCommand):
     def get_azsubobject_text(self, container, name):
         return container.get_azsubobject_class(name).azobject_text()
 
-    def get_azsubobject_default(self, container, name, does_not_exist_action):
+    def get_azsubobject_default(self, container, name):
         objtype = self.get_azsubobject_text(container, name)
         print(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
 
@@ -82,25 +102,32 @@ class SetupCommand(CreateActionCommand):
             default = container.get_azsubobject(name, container.get_azsubobject_default_id(name))
             if default.exists:
                 return default
-            print(f'Current default {default.azobject_text()} ({default.azobject_id}) does not exist, {does_not_exist_action}.')
+            print(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
         return None
 
-    def choose_azsubobject(self, container, name, **kwargs):
+    def choose_azsubobject(self, container, name, *, cmdline_arg_id=None, **kwargs):
         objtype = self.get_azsubobject_text(container, name)
-        default = self.get_azsubobject_default(container, name, 'please choose another')
+        default = self.get_azsubobject_default(container, name)
         if self._all or default is None:
             if default is None:
                 print('no default, checking available...')
             else:
                 print(default.azobject_id)
-            try:
-                default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self._verify_single, **kwargs)
-            except NoChoices:
-                print(f'No {objtype} found, please create at least one; skipping')
-                raise
-            except NoneOfTheAboveChoice:
-                print(f'No {objtype} selected; skipping')
-                raise
+            default = None
+            if cmdline_arg_id:
+                default = container.get_azsubobject(name, cmdline_arg_id)
+                if not default.exists:
+                    print('Provided {objtype} {cmdline_arg_id} does not exist, please choose another...')
+                    default = None
+            if not default:
+                try:
+                    default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self._verify_single, **kwargs)
+                except NoChoices:
+                    print(f'No {objtype} found, please create at least one; skipping')
+                    raise
+                except NoneOfTheAboveChoice:
+                    print(f'No {objtype} selected; skipping')
+                    raise
             container.set_azsubobject_default_id(name, default.azobject_id)
             print(f'Default {objtype} is {default.azobject_id}')
         else:
@@ -110,20 +137,15 @@ class SetupCommand(CreateActionCommand):
 
     def prompt(self):
         self.choose_subscription()
+        print('All done.')
 
-    def create(self):
-        self.choose_subscription(create=True)
-
-    def choose_subscription(self, create=False):
+    def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_azsubobject(self.account, 'subscription', hint_fn=lambda o: o.info.name)
-            self.add_resource_group_filter(subscription)
-            location = self.choose_location(subscription)
+            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self._subscription, hint_fn=lambda o: o.info.name)
 
-            if create:
-                self.create_resource_group(subscription, location)
-            else:
-                self.choose_resource_group(subscription)
+            self.add_resource_group_filter(subscription)
+            self.choose_location(subscription)
+            self.choose_resource_group(subscription)
 
     def choose_location(self, subscription):
         return self.choose_azsubobject(subscription, 'location')
@@ -131,10 +153,10 @@ class SetupCommand(CreateActionCommand):
     def add_resource_group_filter(self, subscription):
         rgfilter = subscription.filters.get_filter('resource_group')
         if subscription.filters.is_empty:
-            if YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
+            if self._yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
                 username = getpass.getuser()
                 accountname = self.account.info.user.name.split('@')[0]
-                if YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
+                if self._yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
                     rgfilter.prefix = username
                 elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
                     rgfilter.prefix = accountname
@@ -185,7 +207,7 @@ class SetupCommand(CreateActionCommand):
 
     def create_azsubobject(self, container, name, **kwargs):
         objtype = self.get_azsubobject_text(container, name)
-        default = self.get_azsubobject_default(container, name, 'creating new one')
+        default = self.get_azsubobject_default(container, name)
         if self._all or default is None:
             if default is None:
                 print('no default, creating one...')
@@ -204,13 +226,26 @@ class SetupCommand(CreateActionCommand):
 
         return default
 
+    def create(self):
+        self.create_subscription()
+        print('All done.')
+
+    def create_subscription(self):
+        with suppress(NoneOfTheAboveChoice):
+            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self._subscription, hint_fn=lambda o: o.info.name)
+            self.add_resource_group_filter(subscription)
+            location = self.choose_location(subscription)
+            self.create_resource_group(subscription, location)
+
+    def create_location(self, subscription):
+        return self.choose_azsubobject(subscription, 'location', arg_id=self._location)
+
     def create_resource_group(self, subscription, location):
         rg = self.create_azsubobject(subscription, 'resource_group', location=location.azobject_id)
 
         self.create_storage_account(rg)
         self.create_image_gallery(rg)
         self.create_ssh_key(rg)
-        self.create_vm(rg)
 
     def create_storage_account(self, rg):
         sa = self.create_azsubobject(rg, 'storage_account')
@@ -224,10 +259,11 @@ class SetupCommand(CreateActionCommand):
         self.create_image_definition(ig)
 
     def create_image_definition(self, ig):
-        self.create_azsubobject(ig, 'image_definition')
+        self.create_azsubobject(ig, 'image_definition',
+                                offer=f'{self.prefix}offer{self.randomhex(8)}',
+                                publisher=f'{self.prefix}publisher{self.randomhex(8)}',
+                                sku=f'{self.prefix}sku{self.randomhex(8)}',
+                                os_type='Linux')
 
     def create_ssh_key(self, rg):
         self.create_azsubobject(rg, 'ssh_key')
-
-    def create_vm(self, rg):
-        self.create_azsubobject(rg, 'vm')

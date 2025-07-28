@@ -1,5 +1,9 @@
 
-- auto-create objects (using default prefix) in setup cmd
+- don't allow deleteing without --<type> param for obj id!
+
+- add --yes param to skip the az-provided 'are you sure'
+
+- add --no-wait
 
 - implement vm actions
 
