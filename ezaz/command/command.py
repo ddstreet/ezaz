@@ -66,9 +66,9 @@ class SimpleCommand(ArgUtil, ABC):
 
     @classmethod
     def parser_add_common_arguments(cls, parser):
-        parser.add_argument('--debug-argcomplete', action='store_true', help=argparse.SUPPRESS)
         cls.parser_add_argument_verbose(parser)
         cls.parser_add_argument_dry_run(parser)
+        cls.parser_add_common_hidden_arguments(parser)
 
     @classmethod
     def parser_add_argument_verbose(cls, parser):
@@ -79,6 +79,10 @@ class SimpleCommand(ArgUtil, ABC):
     def parser_add_argument_dry_run(cls, parser):
         return parser.add_argument('-n', '--dry-run', action='store_true',
                                    help='Only print what would be done, do not run commands')
+
+    @classmethod
+    def parser_add_common_hidden_arguments(cls, parser):
+        parser.add_argument('--debug-argcomplete', action='store_true', help=argparse.SUPPRESS)
 
     def __init__(self, *, options, config, cache=None, **kwargs):
         self._options = options
