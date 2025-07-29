@@ -1,13 +1,17 @@
 
-- change subscription to print warning if current != default
+- implement vm actions
 
 - implement image upload, in imageversion (alias image?)
 
 - update Config to be subclassable
 - change Filter/Filters to subclass of Config
 
-- implement vm actions
+- change subscription to print warning if current != default?
+  not sure, we always provide the default subscription to az cmds...
+  maybe the 'current' sub doesn't make any difference, except to 'ezaz az' cmds?
 
+- move param config stuff into azobject subclasses, so we don't have
+  to keep separate param config that needs to match each other
 
 DOCS:
 
