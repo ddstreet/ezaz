@@ -6,14 +6,10 @@ from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgumentGroup
 from .account import AccountCommand
 from .command import ActionParserConfig
-from .command import ClearActionCommand
-from .command import FilterActionCommand
-from .command import ListActionCommand
-from .command import SetActionCommand
-from .command import ShowActionCommand
+from .command import RoActionCommand
 
 
-class SubscriptionCommand(ClearActionCommand, FilterActionCommand, ListActionCommand, SetActionCommand, ShowActionCommand):
+class SubscriptionCommand(RoActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return AccountCommand
@@ -72,9 +68,9 @@ class SubscriptionCommand(ClearActionCommand, FilterActionCommand, ListActionCom
             try:
                 if self.parent_azobject.get_current_subscription_id() == self.azobject_default_id:
                     # If current == default, user must provide id
-                    raise RequiredArgumentGroup(['subscription', 'subscription-name'], 'set_current')
+                    raise RequiredArgumentGroup(['subscription', 'subscription_name'], '--set-current')
             except DefaultConfigNotFound:
-                raise RequiredArgumentGroup(['subscription', 'subscription-name'], 'set_current')
+                raise RequiredArgumentGroup(['subscription', 'subscription_name'], '--set-current')
         # User specified the sub id, or current != default (so we will set current to default)
         self.parent_azobject.set_current_subscription_id(self.azobject_id)
 

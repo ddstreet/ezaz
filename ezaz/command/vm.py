@@ -1,11 +1,11 @@
 
 from ..azobject.vm import VM
 from .command import ActionParserConfig
-from .command import AllActionCommand
+from .command import CommonActionCommand
 from .resourcegroup import ResourceGroupCommand
 
 
-class VMCommand(AllActionCommand):
+class VMCommand(CommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ResourceGroupCommand

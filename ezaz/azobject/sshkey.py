@@ -3,8 +3,8 @@ from contextlib import suppress
 from pathlib import Path
 
 from ..exception import ArgumentError
-from ..exception import RequiredActionArgument
-from ..exception import RequiredActionArgumentGroup
+from ..exception import RequiredArgument
+from ..exception import RequiredArgumentGroup
 from .azobject import AzSubObject
 
 
@@ -37,11 +37,11 @@ class SshKey(AzSubObject):
         return super()._get_cmd_args(cmdname, opts)
 
     def _get_public_key_arg(self, opts, required_by='create'):
-        with suppress(RequiredActionArgument):
+        with suppress(RequiredArgument):
             return self.required_arg('public_key', opts, required_by)
         keytext = self._read_public_key_file(opts.get('public_key_file', None))
         if not keytext:
-            raise RequiredActionArgumentGroup(['public_key', 'public_key_file'], required_by)
+            raise RequiredArgumentGroup(['public_key', 'public_key_file'], required_by)
         return self._kwargs_to_args(public_key=keytext)
 
     def _read_public_key_file(self, public_key_file):

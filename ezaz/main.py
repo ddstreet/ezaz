@@ -3,6 +3,7 @@
 
 import argparse
 import sys
+import traceback
 
 from contextlib import suppress
 from functools import cached_property
@@ -25,6 +26,7 @@ class Main:
 
     def parse_args(self, args):
         parser = argparse.ArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument('--debug-exception', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--debug-argcomplete', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
@@ -73,7 +75,12 @@ class Main:
         return self.options.command_class(config=self.config, options=self.options, cache=self.cache)
 
     def run(self):
-        self.command.run()
+        try:
+            self.command.run()
+        except Exception as e:
+            if self.options.debug_exception:
+                traceback.print_exc()
+            raise
 
 
 def main():

@@ -1,10 +1,10 @@
 
 from ..azobject.imagedefinition import ImageDefinition
-from .command import AllActionCommand
+from .command import CommonActionCommand
 from .imagegallery import ImageGalleryCommand
 
 
-class ImageDefinitionCommand(AllActionCommand):
+class ImageDefinitionCommand(CommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ImageGalleryCommand

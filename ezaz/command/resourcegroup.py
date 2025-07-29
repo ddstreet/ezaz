@@ -1,10 +1,10 @@
 
 from ..azobject.resourcegroup import ResourceGroup
-from .command import AllActionCommand
+from .command import CommonActionCommand
 from .subscription import SubscriptionCommand
 
 
-class ResourceGroupCommand(AllActionCommand):
+class ResourceGroupCommand(CommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return SubscriptionCommand

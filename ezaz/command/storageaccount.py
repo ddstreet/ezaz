@@ -1,10 +1,10 @@
 
 from ..azobject.storageaccount import StorageAccount
-from .command import AllActionCommand
+from .command import CommonActionCommand
 from .resourcegroup import ResourceGroupCommand
 
 
-class StorageAccountCommand(AllActionCommand):
+class StorageAccountCommand(CommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ResourceGroupCommand
