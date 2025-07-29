@@ -1,5 +1,5 @@
 
-- change subscription args, 'show' should show *current*, and need --show/set-default
+- change subscription to print warning if current != default
 
 - implement image upload, in imageversion (alias image?)
 

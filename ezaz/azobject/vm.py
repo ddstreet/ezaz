@@ -1,8 +1,9 @@
 
+from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 
 
-class VM(AzSubObject):
+class VM(AzCommonActionable, AzSubObject):
     @classmethod
     def azobject_name_list(cls):
         return ['vm']

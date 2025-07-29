@@ -1,4 +1,5 @@
 
+from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 from .imagegallery import ImageGallery
@@ -7,7 +8,7 @@ from .storageaccount import StorageAccount
 from .vm import VM
 
 
-class ResourceGroup(AzSubObject, AzSubObjectContainer):
+class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['resource', 'group']

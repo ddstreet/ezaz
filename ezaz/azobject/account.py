@@ -8,8 +8,6 @@ from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import AzCommandError
 from ..exception import ConfigNotFound
-from ..exception import NotCreatable
-from ..exception import NotDeletable
 from ..exception import NotLoggedIn
 from .azobject import AzSubObjectContainer
 from .subscription import Subscription
@@ -19,14 +17,6 @@ class Account(AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['account']
-
-    @classmethod
-    def _get_cmd(cls, cmdname):
-        if cmdname == 'create':
-            raise NotCreatable('account')
-        if cmdname == 'delete':
-            raise NotDeletable('account')
-        return super()._get_cmd(cmdname)
 
     @classmethod
     def get_azsubobject_classes(cls):

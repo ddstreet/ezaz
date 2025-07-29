@@ -1,13 +1,14 @@
 
 from contextlib import suppress
 
+from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 from .storageblob import StorageBlob
 from .storagekey import StorageKey
 
 
-class StorageContainer(AzSubObject, AzSubObjectContainer):
+class StorageContainer(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['storage', 'container']
@@ -21,28 +22,25 @@ class StorageContainer(AzSubObject, AzSubObjectContainer):
         return '--container-name'
 
     @classmethod
-    def _get_azsubobject_cmd_args(self, parent, cmdname, opts):
-        return {'--auth-mode': 'key'}
-
-    @classmethod
-    def get_azsubobject_cmd_args(cls, parent, cmdname, opts):
-        # Unfortunately storage container cmds (and subcmds) do *not* accept the resource group arg :(
-        return {k: v for k, v in super().get_azsubobject_cmd_args(parent, cmdname, opts).items()
-                if k not in ['-g', '--resource-group']}
-
-    @classmethod
     def get_azsubobject_classes(cls):
         return [StorageBlob]
 
-    def _get_cmd_args(self, cmdname, opts):
-        if cmdname == 'create':
-            key = self.storage_account_key or self.required_arg('account_key', opts, 'create')
-            return {'--account-key': key}
-        return super()._get_cmd_args(cmdname, opts)
+    @classmethod
+    def get_subcmd_args_from_parent(cls, parent, cmdname, opts):
+        args = super().get_subcmd_args_from_parent(parent, cmdname, opts)
+        return {k: v for k, v in args.items() if k not in ['-g', '--resource-group']}
 
-    @property
-    def storage_account_key(self):
-        keys = self.parent.get_azsubobjects(StorageKey.azobject_name())
+    @classmethod
+    def get_parent_storage_account_key(self, parent):
+        keys = parent.get_azsubobjects(StorageKey.azobject_name())
         with suppress(IndexError):
             return keys[0].key_value
         return None
+
+    @property
+    def storage_account_key(self):
+        return self.get_parent_storage_account_key(self.parent)
+
+    def _get_cmd_args(self, cmdname, opts):
+        return {'--account-key': self.storage_account_key,
+                '--auth-mode': 'key'}

@@ -88,14 +88,40 @@ class NotLoggedIn(EzazException):
         super().__init__('Not logged in, please login and try again.')
 
 
-class NotCreatable(EzazException):
-    def __init__(self, object_type):
-        super().__init__(f'Object type {object_type} is not creatable.')
+class UnsupportedAction(EzazException):
+    def __init__(self, cls, action=None):
+        if action:
+            super().__init__(f'Object type {cls.azobject_text()} does not support action {action}.')
+        else:
+            super().__init__(f'Object type {cls.azobject_text()} is not {self._actionable}.')
+
+    @property
+    def _actionable(self):
+        return None
 
 
-class NotDeletable(EzazException):
-    def __init__(self, object_type):
-        super().__init__(f'Object type {object_type} is not deletable.')
+class NotCreatable(UnsupportedAction):
+    @property
+    def _actionable(self):
+        return 'creatable'
+
+
+class NotDeletable(UnsupportedAction):
+    @property
+    def _actionable(self):
+        return 'deletable'
+
+
+class NotListable(UnsupportedAction):
+    @property
+    def _actionable(self):
+        return 'listable'
+
+
+class NotDownloadable(UnsupportedAction):
+    @property
+    def _actionable(self):
+        return 'downloadable'
 
 
 class ArgumentError(EzazException):

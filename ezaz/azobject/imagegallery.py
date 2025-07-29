@@ -1,10 +1,11 @@
 
+from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 from .imagedefinition import ImageDefinition
 
 
-class ImageGallery(AzSubObject, AzSubObjectContainer):
+class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['image', 'gallery']

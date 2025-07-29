@@ -1,11 +1,12 @@
 
+from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 from .storagecontainer import StorageContainer
 from .storagekey import StorageKey
 
 
-class StorageAccount(AzSubObject, AzSubObjectContainer):
+class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['storage', 'account']

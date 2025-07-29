@@ -1,8 +1,9 @@
 
+from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 
 
-class ImageDefinition(AzSubObject):
+class ImageDefinition(AzCommonActionable, AzSubObject):
     @classmethod
     def azobject_name_list(cls):
         return ['image', 'definition']

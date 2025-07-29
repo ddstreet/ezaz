@@ -23,10 +23,12 @@ class Location(AzSubObject):
         return 'list-locations'
 
     @classmethod
-    def get_azsubobject_cmd_args(cls, parent, cmdname, opts):
+    def get_subcmd_args_from_parent(cls, parent, cmdname, opts):
+        # We don't want the --subscription param
         return {}
 
     def get_cmd_args(self, cmdname, opts):
+        # We don't want the --location param
         return {}
 
     def _get_info(self):
