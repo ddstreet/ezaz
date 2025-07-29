@@ -31,8 +31,8 @@ class SubscriptionCommand(RoActionCommand):
                            help=f'Use the specified subscription, instead of the default').completer = cls.completer_azobject_ids
 
     @classmethod
-    def parser_get_action_parsers(cls):
-        return (super().parser_get_action_parsers() +
+    def parser_get_action_parser_configs(cls):
+        return (super().parser_get_action_parser_configs() +
                 [ActionParserConfig('show-current', description='Show current subscription'),
                  ActionParserConfig('set-current', description='Set current subscription (does not affect future logins)')])
 

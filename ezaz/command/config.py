@@ -10,8 +10,8 @@ class ConfigCommand(ActionCommand):
         return ['config']
 
     @classmethod
-    def parser_get_action_parsers(cls):
-        return (super().parser_get_action_parsers() +
+    def parser_get_action_parser_configs(cls):
+        return (super().parser_get_action_parser_configs() +
                 [ActionParserConfig('show', description='Show configuration'),
                  ActionParserConfig('remove', description='Remove configuration file')])
 

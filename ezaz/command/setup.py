@@ -29,8 +29,8 @@ class SetupCommand(CreateActionCommand):
         return ['setup']
 
     @classmethod
-    def parser_get_action_parsers(cls):
-        return (super().parser_get_action_parsers() +
+    def parser_get_action_parser_configs(cls):
+        return (super().parser_get_action_parser_configs() +
                 [ActionParserConfig('prompt', description='Prompt to select the default for each object type (default)')])
 
     @classmethod

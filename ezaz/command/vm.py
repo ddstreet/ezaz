@@ -15,8 +15,8 @@ class VMCommand(CommonActionCommand):
         return VM
 
     @classmethod
-    def parser_get_action_parsers(cls):
-        return (super().parser_get_action_parsers() +
+    def parser_get_action_parser_configs(cls):
+        return (super().parser_get_action_parser_configs() +
                 [ActionParserConfig('console', description='Attach to serial console'),
                  ActionParserConfig('log', description='Show serial console log'),
                  ActionParserConfig('restart', description='Restart the VM'),

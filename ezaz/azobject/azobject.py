@@ -410,7 +410,7 @@ class AzSubObjectContainer(AzObject):
 
 class AzListable(AzSubObject):
     @classmethod
-    def _get_cmd_for_action_list(cls):
+    def _get_cmd_for_action_list(cls, cmdname):
         return 'list'
 
     @classmethod
@@ -421,7 +421,7 @@ class AzListable(AzSubObject):
 
 class AzCreatable(AzObject):
     @classmethod
-    def _get_cmd_for_action_create(cls):
+    def _get_cmd_for_action_create(cls, cmdname):
         return 'create'
 
     def create(self, **kwargs):
@@ -432,7 +432,7 @@ class AzCreatable(AzObject):
 
 class AzDeletable(AzObject):
     @classmethod
-    def _get_cmd_for_action_delete(cls):
+    def _get_cmd_for_action_delete(cls, cmdname):
         return 'delete'
 
     def delete(self, **kwargs):
@@ -441,7 +441,7 @@ class AzDeletable(AzObject):
 
 class AzDownloadable(AzObject):
     @classmethod
-    def _get_cmd_for_action_download(cls):
+    def _get_cmd_for_action_download(cls, cmdname):
         return 'download'
 
     def download(self, **kwargs):

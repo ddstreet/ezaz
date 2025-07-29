@@ -18,8 +18,8 @@ class AccountCommand(FilterActionCommand, ShowActionCommand):
         return Account
 
     @classmethod
-    def parser_get_action_parsers(cls):
-        return (super().parser_get_action_parsers() +
+    def parser_get_action_parser_configs(cls):
+        return (super().parser_get_action_parser_configs() +
                 [ActionParserConfig('login', description='Login'),
                  ActionParserConfig('logout', description='Logout'),
                  ActionParserConfig('relogin', description='Logout (if needed), then login')])
