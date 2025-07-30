@@ -46,6 +46,10 @@ class ArgUtil:
         return cls.optional_args(kwargs.keys(), kwargs)
 
     @classmethod
+    def _opts_to_flag_args(cls, **kwargs):
+        return cls.optional_flag_args(kwargs.keys(), kwargs)
+
+    @classmethod
     def required_arg_value(cls, arg, opts, requiring_arg=None):
         with suppress(KeyError):
             value = opts[arg]

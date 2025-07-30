@@ -145,34 +145,36 @@ class AzObject(CachedAzAction):
         return '--' + cls.azobject_name('-')
 
     @classmethod
-    def get_base_cmd(cls):
+    def get_cmd_base(cls, action):
+        with suppress(AttributeError):
+            return getattr(cls, f'get_{action}_action_cmd_base')(action)
         return cls.azobject_name_list()
 
     @classmethod
-    def _get_cmd_for_action_show(cls, cmdname):
-        return 'show'
+    def get_show_action_cmd(cls, action):
+        return ['show']
 
     @classmethod
-    def _get_cmd_for_action_unsupported(cls, cmdname):
-        if cmdname == 'list':
+    def get_unsupported_action_cmd(cls, action):
+        if action == ['list']:
             raise NotListable(cls)
-        if cmdname == 'create':
+        if action == ['create']:
             raise NotCreatable(cls)
-        if cmdname == 'delete':
+        if action == ['delete']:
             raise NotDeletable(cls)
-        if cmdname == 'download':
+        if action == ['download']:
             raise NotDownloadable(cls)
-        raise UnsupportedAction(cls, cmdname)
+        raise UnsupportedAction(cls, action)
 
     @classmethod
-    def _get_cmd(cls, cmdname):
-        return getattr(cls,
-                       f'_get_cmd_for_action_{cmdname}',
-                       cls._get_cmd_for_action_unsupported)(cmdname)
+    def get_action_cmd(cls, action):
+        with suppress(AttributeError):
+            return getattr(cls, f'get_{action}_action_cmd')(action)
+        return cls.get_unsupported_action_cmd(action)
 
     @classmethod
-    def get_cmd(cls, cmdname):
-        return cls.get_base_cmd() + [cls._get_cmd(cmdname)]
+    def get_cmd(cls, action):
+        return cls.get_cmd_base(action) + cls.get_action_cmd(action)
 
     @classmethod
     def is_azsubobject_container(cls):
@@ -205,16 +207,18 @@ class AzObject(CachedAzAction):
     def azobject_id(self):
         pass
 
-    def _get_cmd_args(self, cmdname, opts):
+    def get_action_cmd_args(self, action, opts):
+        with suppress(AttributeError):
+            return getattr(self, f'get_{action}_action_cmd_args')(action, opts)
         return {}
 
-    def get_cmd_args(self, cmdname, opts):
+    def get_cmd_args(self, action, opts):
         return ArgMap({self.azobject_cmd_arg(): self.azobject_id},
                       {} if self.verbose else {'--only-show-errors': None},
-                      self._get_cmd_args(cmdname, opts) or {})
+                      self.get_action_cmd_args(action, opts))
 
     def _get_info(self):
-        return self.az_response(*self.get_cmd('show'), cmd_args=self.get_cmd_args('show', {}))
+        return self.do_action('show', az=self.az_response, dry_runnable=True)
 
     @property
     def info(self):
@@ -240,10 +244,14 @@ class AzObject(CachedAzAction):
         print(self.info)
 
     def show(self):
+        # TODO: move outputty-stuff from azobject...should be model ONLY. command class is view/control.
         if self.verbose:
             self._show_verbose()
         else:
             self._show()
+
+    def do_action(self, action, opts={}, *, az=None, dry_runnable=False):
+        return (az or self.az)(*self.get_cmd(action), cmd_args=self.get_cmd_args(action, opts), dry_runnable=dry_runnable)
 
 
 class AzSubObject(AzObject):
@@ -260,8 +268,8 @@ class AzSubObject(AzObject):
         return f'{cls.azobject_name()}.{obj_id}'
 
     @classmethod
-    def get_subcmd_args_from_parent(cls, parent, cmdname, opts):
-        return parent.get_subcmd_args(cmdname, opts)
+    def get_subcmd_args_from_parent(cls, parent, action, opts):
+        return parent.get_subcmd_args(action, opts)
 
     def __init__(self, *, parent, azobject_id, **kwargs):
         super().__init__(**kwargs)
@@ -289,12 +297,12 @@ class AzSubObject(AzObject):
     def dry_run(self):
         return self.parent.dry_run
 
-    def get_parent_subcmd_args(self, cmdname, opts):
-        return self.get_subcmd_args_from_parent(self.parent, cmdname, opts)
+    def get_parent_subcmd_args(self, action, opts):
+        return self.get_subcmd_args_from_parent(self.parent, action, opts)
 
-    def get_cmd_args(self, cmdname, opts):
-        return ArgMap(self.get_parent_subcmd_args(cmdname, opts),
-                      super().get_cmd_args(cmdname, opts))
+    def get_cmd_args(self, action, opts):
+        return ArgMap(self.get_parent_subcmd_args(action, opts),
+                      super().get_cmd_args(action, opts))
 
     def set_self_default(self, **kwargs):
         self.set_default(**{self.azobject_name(): self.azobject_id})
@@ -316,18 +324,18 @@ class AzSubObjectContainer(AzObject):
     def is_azsubobject_container(cls):
         return True
 
-    def get_parent_subcmd_args(self, cmdname, opts):
+    def get_parent_subcmd_args(self, action, opts):
         if self.is_azsubobject():
-            return super().get_parent_subcmd_args(cmdname, opts)
+            return super().get_parent_subcmd_args(action, opts)
         return {}
 
-    def _get_subcmd_args(self, cmdname, opts):
+    def _get_subcmd_args(self, action, opts):
         return {}
 
-    def get_subcmd_args(self, cmdname, opts):
-        return ArgMap(self.get_parent_subcmd_args(cmdname, opts),
+    def get_subcmd_args(self, action, opts):
+        return ArgMap(self.get_parent_subcmd_args(action, opts),
                       {self.azobject_subcmd_arg(): self.azobject_id},
-                      self._get_subcmd_args(cmdname, opts) or {})
+                      self._get_subcmd_args(action, opts) or {})
 
     @classmethod
     @abstractmethod
@@ -381,6 +389,9 @@ class AzSubObjectContainer(AzObject):
         cls = self.get_azsubobject_class(name)
         return cls(parent=self, azobject_id=obj_id, config=self.config.get_object(cls.object_key(obj_id)), info=info)
 
+    def get_azsubobject_default(self, name):
+        return self.get_azsubobject(name, self.get_azsubobject_default_id(name))
+
     def get_azsubobject_infos(self, name, **kwargs):
         cls = self.get_azsubobject_class(name)
         infos = self.az_responselist(*cls.get_cmd('list'), cmd_args=cls.get_subcmd_args_from_parent(self, 'list', kwargs))
@@ -410,8 +421,8 @@ class AzSubObjectContainer(AzObject):
 
 class AzListable(AzSubObject):
     @classmethod
-    def _get_cmd_for_action_list(cls, cmdname):
-        return 'list'
+    def get_list_action_cmd(cls, action):
+        return ['list']
 
     @classmethod
     def list(cls, parent, **kwargs):
@@ -421,31 +432,25 @@ class AzListable(AzSubObject):
 
 class AzCreatable(AzObject):
     @classmethod
-    def _get_cmd_for_action_create(cls, cmdname):
-        return 'create'
+    def get_create_action_cmd(cls, action):
+        return ['create']
 
-    def create(self, **kwargs):
-        if self.exists:
+    def do_action(self, action, *args, **kwargs):
+        if action == 'create' and self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
-        self.az_stdout(*self.get_cmd('create'), cmd_args=self.get_cmd_args('create', kwargs), dry_runnable=False)
+        super().do_action(action, *args, **kwargs)
 
 
 class AzDeletable(AzObject):
     @classmethod
-    def _get_cmd_for_action_delete(cls, cmdname):
-        return 'delete'
-
-    def delete(self, **kwargs):
-        self.az(*self.get_cmd('delete'), cmd_args=self.get_cmd_args('delete', kwargs), dry_runnable=False)
+    def get_delete_action_cmd(cls, action):
+        return ['delete']
 
 
 class AzDownloadable(AzObject):
     @classmethod
-    def _get_cmd_for_action_download(cls, cmdname):
-        return 'download'
-
-    def download(self, **kwargs):
-        self.az(*self.get_cmd('download'), cmd_args=self.get_cmd_args('download', kwargs), dry_runnable=False)
+    def get_download_action_cmd(cls, action):
+        return ['download']
 
 
 class AzRoActionable(AzListable):

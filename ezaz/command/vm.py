@@ -1,4 +1,5 @@
 
+from .. import DISTRO_IMAGES
 from ..azobject.vm import VM
 from .command import ActionParserConfig
 from .command import CommonActionCommand
@@ -25,6 +26,13 @@ class VMCommand(CommonActionCommand):
 
     @classmethod
     def parser_add_create_action_arguments(cls, parser):
+        image_group = parser.add_mutually_exclusive_group(required=True)
+        image_group.add_argument('--image',
+                                 help='The image id deploy')
+        image_group.add_argument('--distro',
+                                 choices=DISTRO_IMAGES.keys(),
+                                 help='The distro to deploy')
+
         parser.add_argument('--no-wait',
                             action='store_true',
                             help='Do not wait for long-running operation to finish')
@@ -37,18 +45,3 @@ class VMCommand(CommonActionCommand):
         parser.add_argument('--no-wait',
                             action='store_true',
                             help='Do not wait for long-running operation to finish')
-
-    def console(self):
-        print('im a console!')
-
-    def log(self):
-        print('the log tastes like burnding!')
-
-    def restart(self):
-        print('go restart!')
-
-    def start(self):
-        print('start me up')
-
-    def stop(self):
-        print('stop in the name of the vm')

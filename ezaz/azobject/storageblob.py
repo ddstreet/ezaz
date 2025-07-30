@@ -15,17 +15,14 @@ class StorageBlob(AzCommonActionable, AzDownloadable, AzSubObject):
         return '--name'
 
     @classmethod
-    def _get_cmd(cls, cmdname):
-        if cmdname == 'create':
-            return 'upload'
-        return cmdname
+    def get_create_action_cmd(cls, action):
+        return ['upload']
 
-    def _get_cmd_args(self, cmdname, opts):
-        if cmdname == 'create':
-            return ArgMap(self.required_arg('file', opts, 'create'),
-                          self.optional_arg('type', opts),
-                          self.optional_flag_arg('no_progress', opts))
-        if cmdname == 'download':
-            return ArgMap(self.required_arg('file', opts, 'delete'),
-                          self.optional_flag_arg('no_progress', opts))
-        return {}
+    def get_create_action_cmd_args(self, action, opts):
+        return ArgMap(self.required_arg('file', opts, 'create'),
+                      self.optional_arg('type', opts),
+                      self.optional_flag_arg('no_progress', opts))
+
+    def get_delete_action_cmd_args(self, action, opts):
+        return ArgMap(self.required_arg('file', opts, 'delete'),
+                      self.optional_flag_arg('no_progress', opts))

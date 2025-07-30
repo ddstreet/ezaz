@@ -41,6 +41,7 @@ class StorageContainer(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     def storage_account_key(self):
         return self.get_parent_storage_account_key(self.parent)
 
-    def _get_cmd_args(self, cmdname, opts):
-        return {'--account-key': self.storage_account_key,
-                '--auth-mode': 'key'}
+    def get_action_cmd_args(self, action, opts):
+        return ArgMap(super().get_action_cmd_args(action, opts),
+                      self._args_to_opts(account_key=self.storage_account_key,
+                                         auth_mode='key'))

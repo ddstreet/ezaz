@@ -19,12 +19,11 @@ class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return [ImageDefinition]
 
     @classmethod
-    def get_base_cmd(cls):
+    def get_cmd_base(cls, action):
         return ['sig']
 
-    def _get_cmd_args(self, cmdname, opts):
-        if cmdname == 'create':
-            return self.optional_flag_arg('no_wait', opts)
-        if cmdname == 'delete':
-            return self.optional_flag_arg('no_wait', opts)
-        return super()._get_cmd_args(cmdname, opts)
+    def get_create_action_cmd_args(self, action, opts):
+        return self.optional_flag_arg('no_wait', opts)
+
+    def get_delete_action_cmd_args(self, action, opts):
+        return self.optional_flag_arg('no_wait', opts)

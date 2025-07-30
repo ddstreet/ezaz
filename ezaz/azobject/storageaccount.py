@@ -23,7 +23,5 @@ class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     def get_azsubobject_classes(cls):
         return [StorageContainer, StorageKey]
 
-    def _get_cmd_args(self, cmdname, opts):
-        if cmdname == 'delete':
-            return self.optional_flag_arg('yes', opts)
-        return super()._get_cmd_args(cmdname, opts)
+    def get_delete_action_cmd_args(self, action, opts):
+        return self.optional_flag_arg('yes', opts)

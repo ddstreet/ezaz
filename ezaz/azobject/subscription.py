@@ -20,7 +20,7 @@ class Subscription(AzListable, AzSubObject, AzSubObjectContainer):
         return [ResourceGroup, Location]
 
     @classmethod
-    def get_base_cmd(cls):
+    def get_cmd_base(cls, action):
         return ['account']
 
     def show(self):

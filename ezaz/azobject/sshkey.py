@@ -16,20 +16,19 @@ class SshKey(AzCommonActionable, AzSubObject):
         return ['ssh', 'key']
 
     @classmethod
-    def get_base_cmd(cls):
+    def get_cmd_base(cls, action):
         return ['sshkey']
 
     @classmethod
     def azobject_cmd_arg(cls):
         return '--ssh-public-key-name'
 
-    def _get_cmd_args(self, cmdname, opts):
-        if cmdname == 'create':
-            args = self._public_key_arg(opts)
-            return ArgMap(args, self._public_key_type_arg(args.get('--public-key')))
-        if cmdname == 'delete':
-            return self.optional_flag_arg('yes', opts)
-        return super()._get_cmd_args(cmdname, opts)
+    def get_create_action_cmd_args(self, action, opts):
+        args = self._public_key_arg(opts)
+        return ArgMap(args, self._public_key_type_arg(args.get('--public-key')))
+
+    def get_create_action_cmd_args(self, action, opts):
+        return self.optional_flag_arg('yes', opts)
 
     def _public_key_type_arg(self, keytext):
         if keytext.startswith('ssh-ed25519'):

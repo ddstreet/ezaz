@@ -126,7 +126,7 @@ class NotDownloadable(UnsupportedAction):
 
 class ArgumentError(EzazException):
     def _arg(self, arg):
-        return f"--{arg.replace('_', '-')}"
+        return arg if arg.startswith('-') else f"--{arg.replace('_', '-')}"
 
     def _args(self, args):
         return ', '.join([self._arg(a) for a in args])
@@ -146,4 +146,14 @@ class RequiredArgumentGroup(RequiredArgument):
 
 class DuplicateArgument(ArgumentError):
     def __init__(self, arg, value_a, value_b):
-        super().__init__(f'The argument {arg} was added multiple times: {value_a} and {value_b}')
+        super().__init__(f'The argument {self._arg(arg)} was added multiple times: {value_a} and {value_b}')
+
+
+class InvalidArgument(ArgumentError):
+    def __init__(self, arg):
+        super().__init__(f'The argument {self._arg(arg)} is invalid.')
+
+
+class InvalidArgumentValue(ArgumentError):
+    def __init__(self, arg, value):
+        super().__init__(f'The argument {self._arg(arg)} value {value} is invalid.')

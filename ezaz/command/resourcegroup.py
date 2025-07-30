@@ -32,7 +32,7 @@ class ResourceGroupCommand(CommonActionCommand):
                             action='store_true',
                             help='Do not wait for long-running operation to finish')
 
-    def show(self):
+    def do_show(self):
         info = self.azobject.info
         msg = info.name
         if self.verbose:

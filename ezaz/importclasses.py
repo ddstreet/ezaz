@@ -3,7 +3,6 @@ import importlib
 import inspect
 
 from contextlib import contextmanager
-from functools import cache
 from pathlib import Path
 
 
@@ -47,25 +46,21 @@ class SubclassImporter:
         self.debug(msg if condition else alt)
         return condition
 
-    @cache
     def is_py(self, f):
         return self.conditional_debug(f.suffix.lower() == '.py',
                                       f'Using    {f} (is python file)',
                                       f'Ignoring {f} (is not python file)')
 
-    @cache
     def is_alpha(self, name):
         return self.conditional_debug(len(name) > 0 and name[0].isalpha(),
                                       f"Using    {name} (valid name)",
                                       f"Ignoring {name} (invalid name)")
 
-    @cache
     def is_not_ignore(self, f):
         return self.conditional_debug(f.name not in self.ignore_files,
                                       f'Using    {f} (not in ignore files)',
                                       f'Ignoring {f} (in ignore files)')
 
-    @cache
     def is_file_ok(self, f):
         return self.is_py(f) and self.is_alpha(f.name) and self.is_not_ignore(f)
 
@@ -79,7 +74,6 @@ class SubclassImporter:
                 if self.is_file_ok(f):
                     yield self.import_module(f)
 
-    @cache
     def is_key_ok(self, k):
         return self.is_alpha(k)
 
@@ -91,20 +85,17 @@ class SubclassImporter:
                     if self.is_key_ok(k):
                         yield k, v
 
-    @cache
     def is_class(self, k, v):
         return self.conditional_debug(inspect.isclass(v),
                                       f"Using    {k} (is a class)",
                                       f"Ignoring {k} (not a class)")
 
-    @cache
     def is_not_abstract(self, k, v):
         return (self.is_class(k, v) and
                 self.conditional_debug(not inspect.isabstract(v),
                                        f"Using    {k} (is not abstract)",
                                        f"Ignoring {k} (is abstract)"))
 
-    @cache
     def is_subclass(self, k, v):
         return (self.superclass and
                 self.is_not_abstract(k, v) and
@@ -112,7 +103,6 @@ class SubclassImporter:
                                        f"Using    {k} (is subclass of {self.superclass.__name__})",
                                        f"Ignoring {k} (is not subclass of {self.superclass.__name__})"))
 
-    @cache
     def is_attribute_truthy(self, k, v):
         return (self.attribute and
                 self.conditional_debug(getattr(v, self.attribute, False),

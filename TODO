@@ -1,7 +1,11 @@
 
 - implement vm actions
+  add 'get-instance-view' for vm current/instance info (running, distro, etc)
 
 - implement image upload, in imageversion (alias image?)
+
+- change 'set' and 'clear', to just 'default' action
+  params are obj id or '--remove' or '--none' or something to remove default
 
 - update Config to be subclassable
 - change Filter/Filters to subclass of Config

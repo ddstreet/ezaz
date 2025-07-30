@@ -202,14 +202,15 @@ class ActionCommand(SimpleCommand):
     def action(self):
         return (self.parser_get_action_specified() or self.parser_get_action_default()).replace('-', '_')
 
-    def _run(self):
-        getattr(self, self.action)()
+    def do_show(self):
+        # TODO: move all showy-stuff into command class
+        self.azobject.show()
 
     def run(self):
         try:
-            self._run()
-        except NotLoggedIn as nli:
-            print(str(nli))
+            return getattr(self, f'do_{self.action}')()
+        except AttributeError:
+            return self.azobject.do_action(self.action, self.options)
 
 
 class AzObjectCommand(SimpleCommand):
@@ -340,9 +341,6 @@ class CreateActionCommand(ActionCommand, AzObjectCommand):
             raise RequiredArgument(self.azobject_name(), 'create')
         return super().azobject_default_id
 
-    def create(self):
-        self.azobject.create(**vars(self.options))
-
 
 class DeleteActionCommand(ActionCommand, AzObjectCommand):
     @classmethod
@@ -362,9 +360,6 @@ class DeleteActionCommand(ActionCommand, AzObjectCommand):
         if self.action == 'delete' and not self.is_parent:
             raise RequiredArgument(self.azobject_name(), 'delete')
         return super().azobject_default_id
-
-    def delete(self):
-        self.azobject.delete(**vars(self.options))
 
 
 class ListActionCommand(ActionCommand, AzSubCommand):
@@ -418,9 +413,6 @@ class ShowActionCommand(ActionCommand, AzObjectCommand):
     def parser_get_action_default(cls):
         return 'show'
 
-    def show(self):
-        self.azobject.show()
-
 
 class SetActionCommand(ActionCommand, AzSubCommand):
     @classmethod
@@ -436,6 +428,8 @@ class SetActionCommand(ActionCommand, AzSubCommand):
         return f'Set default {cls.command_text()}'
 
     def set(self):
+        if self.action != 'set':
+            super().run()
         self.azobject.set_default(**vars(self.options))
 
 
@@ -452,7 +446,9 @@ class ClearActionCommand(ActionCommand, AzSubCommand):
     def parser_get_clear_action_description(cls):
         return f'Clear default {cls.command_text()}'
 
-    def clear(self):
+    def run(self):
+        if self.action != 'clear':
+            super().run()
         self.azobject.clear_default(**vars(self.options))
 
 
@@ -519,11 +515,6 @@ class FilterActionCommand(ActionCommand, AzObjectCommand):
                  cls.azobject_class().get_azsubobject_descendants()] +
                 ['filter_default'])
 
-    def filter(self):
-        self._filter_check_args()
-        self._filter_update()
-        self._filter_show()
-
     def _filter_action_items(self):
         for k in ['prefix', 'suffix', 'regex']:
             v = getattr(self.options, k, None)
@@ -541,6 +532,14 @@ class FilterActionCommand(ActionCommand, AzObjectCommand):
 
     def _filter_show(self):
         print(self.azobject.filters)
+
+    def run(self):
+        if self.action != 'filter':
+            super().run()
+
+        self._filter_check_args()
+        self._filter_update()
+        self._filter_show()
 
 
 class RoActionCommand(
@@ -582,9 +581,6 @@ class DownloadActionCommand(ActionCommand, AzObjectCommand):
     @classmethod
     def parser_get_download_action_description(cls):
         return f'Download a {cls.command_text()}'
-
-    def download(self):
-        self.azobject.download(**vars(self.options))
 
 
 class AllActionCommand(

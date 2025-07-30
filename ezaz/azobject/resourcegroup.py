@@ -18,12 +18,11 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return [ImageGallery, SshKey, StorageAccount, VM]
 
     @classmethod
-    def get_base_cmd(cls):
+    def get_cmd_base(cls, action):
         return ['group']
 
-    def _get_cmd_args(self, cmdname, opts):
-        if cmdname == 'create':
-            return self.required_arg('location', opts, 'create')
-        if cmdname == 'delete':
-            return self.optional_flag_args(['yes', 'no_wait'], opts)
-        return super()._get_cmd_args(cmdname, opts)
+    def get_create_action_cmd_args(self, action, opts):
+        return self.required_arg('location', opts, 'create')
+
+    def get_create_action_cmd_args(self, action, opts):
+        return self.optional_flag_args(['yes', 'no_wait'], opts)

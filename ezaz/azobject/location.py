@@ -11,16 +11,12 @@ class Location(AzSubObject):
         return ['location']
 
     @classmethod
-    def get_base_cmd(cls):
+    def get_cmd_base(cls, action):
         return ['account']
 
     @classmethod
-    def _get_cmd(cls, cmdname):
-        if cmdname == 'create':
-            raise NotCreatable('location')
-        if cmdname == 'delete':
-            raise NotDeletable('location')
-        return 'list-locations'
+    def get_list_action_cmd(cls, action):
+        return ['list-locations']
 
     @classmethod
     def get_subcmd_args_from_parent(cls, parent, cmdname, opts):

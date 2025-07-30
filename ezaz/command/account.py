@@ -61,16 +61,16 @@ class AccountCommand(FilterActionCommand, ShowActionCommand):
         except NotLoggedIn:
             print(f"{logged} out")
 
-    def login(self):
+    def do_login(self):
         self.cls_login(self.azobject, self._options.use_device_code)
 
-    def logout(self):
+    def do_logout(self):
         self.cls_logout(self.azobject)
 
-    def relogin(self):
+    def do_relogin(self):
         with suppress(AlreadyLoggedOut):
             self.azobject.logout()
         self.login()
 
-    def show(self):
+    def do_show(self):
         self.cls_show(self.azobject)
