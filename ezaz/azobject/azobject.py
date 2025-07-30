@@ -207,15 +207,17 @@ class AzObject(CachedAzAction):
     def azobject_id(self):
         pass
 
+    def get_cmd_args(self, action, opts):
+        return ArgMap(self.get_action_cmd_args(action, opts),
+                      self.get_action_cmd_self_id_args(action, opts))
+
     def get_action_cmd_args(self, action, opts):
         with suppress(AttributeError):
             return getattr(self, f'get_{action}_action_cmd_args')(action, opts)
         return {}
 
-    def get_cmd_args(self, action, opts):
-        return ArgMap({self.azobject_cmd_arg(): self.azobject_id},
-                      {} if self.verbose else {'--only-show-errors': None},
-                      self.get_action_cmd_args(action, opts))
+    def get_action_cmd_self_id_args(self, action, opts):
+        return {self.azobject_cmd_arg(): self.azobject_id}
 
     def _get_info(self):
         return self.do_action('show', az=self.az_response, dry_runnable=True)
@@ -324,19 +326,6 @@ class AzSubObjectContainer(AzObject):
     def is_azsubobject_container(cls):
         return True
 
-    def get_parent_subcmd_args(self, action, opts):
-        if self.is_azsubobject():
-            return super().get_parent_subcmd_args(action, opts)
-        return {}
-
-    def _get_subcmd_args(self, action, opts):
-        return {}
-
-    def get_subcmd_args(self, action, opts):
-        return ArgMap(self.get_parent_subcmd_args(action, opts),
-                      {self.azobject_subcmd_arg(): self.azobject_id},
-                      self._get_subcmd_args(action, opts) or {})
-
     @classmethod
     @abstractmethod
     def get_azsubobject_classes(cls):
@@ -362,6 +351,24 @@ class AzSubObjectContainer(AzObject):
                 sum([c.get_azsubobject_descendants()
                      for c in cls.get_azsubobject_classes()
                      if c.is_azsubobject_container()], start=[]))
+
+    def get_parent_subcmd_args(self, action, opts):
+        if self.is_azsubobject():
+            return super().get_parent_subcmd_args(action, opts)
+        return {}
+
+    def get_subcmd_args(self, action, opts):
+        return ArgMap(self.get_parent_subcmd_args(action, opts),
+                      self.get_action_subcmd_args(action, opts),
+                      self.get_action_subcmd_self_id_args(action, opts))
+
+    def get_action_subcmd_args(self, action, opts):
+        with suppress(AttributeError):
+            return getattr(self, f'get_{action}_action_subcmd_args')(action, opts)
+        return {}
+
+    def get_action_subcmd_self_id_args(self, action, opts):
+        return {self.azobject_subcmd_arg(): self.azobject_id}
 
     def has_azsubobject_default_id(self, name):
         try:
