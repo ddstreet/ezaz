@@ -1,7 +1,7 @@
 
 from .. import DISTRO_IMAGES
+from ..argutil import ArgConfig
 from ..azobject.vm import VM
-from .command import ActionParserConfig
 from .command import CommonActionCommand
 from .resourcegroup import ResourceGroupCommand
 
@@ -16,13 +16,28 @@ class VMCommand(CommonActionCommand):
         return VM
 
     @classmethod
-    def parser_get_action_parser_configs(cls):
-        return (super().parser_get_action_parser_configs() +
-                [ActionParserConfig('console', description='Attach to serial console'),
-                 ActionParserConfig('log', description='Show serial console log'),
-                 ActionParserConfig('restart', description='Restart the VM'),
-                 ActionParserConfig('start', description='Start the VM'),
-                 ActionParserConfig('stop', description='Stop the VM')])
+    def parser_get_action_names(cls):
+        return super().parser_get_action_names() + ['console', 'log', 'start', 'restart', 'stop']
+
+    @classmethod
+    def parser_get_console_action_config(cls):
+        return ArgConfig('console', description='Attach to serial console')
+
+    @classmethod
+    def parser_get_log_action_config(cls):
+        return ArgConfig('log', description='Show serial console log')
+
+    @classmethod
+    def parser_get_start_action_config(cls):
+        return ArgConfig('start', description='Start the VM')
+
+    @classmethod
+    def parser_get_restart_action_config(cls):
+        return ArgConfig('restart', description='Restart the VM')
+
+    @classmethod
+    def parser_get_stop_action_config(cls):
+        return ArgConfig('stop', description='Stop the VM')
 
     @classmethod
     def parser_add_create_action_arguments(cls, parser):

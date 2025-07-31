@@ -7,6 +7,7 @@ import string
 from contextlib import suppress
 from functools import cached_property
 
+from ..argutil import ArgConfig
 from ..azobject.account import Account
 from ..dialog import AzObjectChoice
 from ..dialog import YesNo
@@ -15,7 +16,6 @@ from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
 from ..filter import FILTER_DEFAULT
-from .command import ActionParserConfig
 from .command import CreateActionCommand
 
 
@@ -29,9 +29,12 @@ class SetupCommand(CreateActionCommand):
         return ['setup']
 
     @classmethod
-    def parser_get_action_parser_configs(cls):
-        return (super().parser_get_action_parser_configs() +
-                [ActionParserConfig('prompt', description='Prompt to select the default for each object type (default)')])
+    def parser_get_action_names(cls):
+        return super().parser_get_action_names() + ['prompt']
+
+    @classmethod
+    def parser_get_prompt_action_config(cls):
+        return ArgConfig('prompt', description='Prompt to select the default for each object type (default)')
 
     @classmethod
     def parser_add_prompt_action_arguments(cls, parser):
@@ -58,7 +61,7 @@ class SetupCommand(CreateActionCommand):
         return 'Automatically create a new default object for all object types without a default'
 
     @classmethod
-    def parser_get_action_default(cls):
+    def parser_get_default_action(cls):
         return 'prompt'
 
     @property

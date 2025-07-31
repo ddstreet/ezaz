@@ -5,7 +5,7 @@ from ..azobject.subscription import Subscription
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgumentGroup
 from .account import AccountCommand
-from .command import ActionParserConfig
+from .command import ArgConfig
 from .command import RoActionCommand
 
 
@@ -23,18 +23,16 @@ class SubscriptionCommand(RoActionCommand):
         return ['sub']
 
     @classmethod
-    def _parser_add_argument_azobject_id(cls, parser, parent):
-        group = parser.add_mutually_exclusive_group()
-        group.add_argument('--subscription-name',
-                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_names
-        group.add_argument(f'--subscription',
-                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_azobject_ids
+    def parser_get_action_names(cls):
+        return super().parser_get_action_names() + ['show-current', 'set-current']
 
     @classmethod
-    def parser_get_action_parser_configs(cls):
-        return (super().parser_get_action_parser_configs() +
-                [ActionParserConfig('show-current', description='Show current subscription'),
-                 ActionParserConfig('set-current', description='Set current subscription (does not affect future logins)')])
+    def parser_get_show_current_action_config(cls):
+        return ArgConfig('show-current', description='Show current subscription')
+
+    @classmethod
+    def parser_get_set_current_action_config(cls):
+        return ArgConfig('set-current', description='Set current subscription (does not affect future logins)')
 
     @classmethod
     def parser_get_set_action_description(cls):
@@ -43,6 +41,14 @@ class SubscriptionCommand(RoActionCommand):
     @classmethod
     def parser_get_clear_action_description(cls):
         return f'Clear default subscription (future logins will use the az-provided default subscription)'
+
+    @classmethod
+    def _parser_add_argument_azobject_id(cls, parser, parent):
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('--subscription-name',
+                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_names
+        group.add_argument(f'--subscription',
+                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_azobject_ids
 
     def _subscription_name_to_id(self, name):
         for s in self.parent_azobject.get_azsubobject_infos(self.azobject_name()):

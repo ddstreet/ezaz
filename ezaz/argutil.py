@@ -42,6 +42,10 @@ class ArgUtil:
         return '--' + name.replace('_', '-')
 
     @classmethod
+    def _arg_to_name(cls, arg):
+        return arg.lstrip('-').replace('-', '_')
+
+    @classmethod
     def _opts_to_args(cls, **kwargs):
         return cls.optional_args(kwargs.keys(), kwargs)
 
@@ -87,3 +91,19 @@ class ArgUtil:
     @classmethod
     def optional_flag_args(cls, args, opts):
         return ArgMap(*[{cls._name_to_arg(a): None} for a in args if opts.get(a, False)])
+
+
+class ArgConfig:
+    def __init__(self, name, aliases=[], description=None):
+        self.name = name
+        self.aliases = aliases
+        self.short_description = description
+
+    @property
+    def description(self):
+        s = self.name
+        if self.aliases:
+            s += ' (' + ','.join(self.aliases) + ')'
+        if self.short_description:
+            s += ': ' + self.short_description
+        return s

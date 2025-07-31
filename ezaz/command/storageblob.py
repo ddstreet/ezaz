@@ -15,7 +15,7 @@ class StorageBlobCommand(AllActionCommand):
 
     @classmethod
     def parser_add_create_action_arguments(cls, parser):
-        parser.add_argument('--file',
+        parser.add_argument('-f', '--file',
                             required=True,
                             help='File to upload')
         parser.add_argument('--type',

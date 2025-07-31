@@ -2,12 +2,12 @@
 from contextlib import suppress
 from functools import cached_property
 
+from ..argutil import ArgConfig
 from ..azobject.account import Account
 from ..config import Config
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import NotLoggedIn
-from .command import ActionParserConfig
 from .command import FilterActionCommand
 from .command import ShowActionCommand
 
@@ -20,9 +20,9 @@ class AccountCommand(FilterActionCommand, ShowActionCommand):
     @classmethod
     def parser_get_action_parser_configs(cls):
         return (super().parser_get_action_parser_configs() +
-                [ActionParserConfig('login', description='Login'),
-                 ActionParserConfig('logout', description='Logout'),
-                 ActionParserConfig('relogin', description='Logout (if needed), then login')])
+                [ArgConfig('login', description='Login'),
+                 ArgConfig('logout', description='Logout'),
+                 ArgConfig('relogin', description='Logout (if needed), then login')])
 
     @classmethod
     def parser_add_login_action_arguments(cls, parser):
