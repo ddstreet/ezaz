@@ -58,7 +58,11 @@ class Main:
 
     @cached_property
     def options(self):
-        return self.parse_args(self.args)
+        try:
+            return self.parse_args(self.args)
+        except Exception as e:
+            traceback.print_exc()
+            raise
 
     @cached_property
     def cache(self):

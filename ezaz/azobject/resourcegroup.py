@@ -1,4 +1,7 @@
 
+from ..argutil import ArgConfig
+from ..argutil import FlagArgConfig
+from ..argutil import RequiredArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
@@ -18,15 +21,11 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return [ImageGallery, SshKey, StorageAccount, VM]
 
     @classmethod
-    def get_cmd_base(cls, action):
+    def get_cmd_base(cls):
         return ['group']
 
     @classmethod
-    def get_action_configmap(cls):
-        return {}
-
-    def get_create_action_cmd_args(self, action, opts):
-        return self.required_arg('location', opts, 'create')
-
-    def get_create_action_cmd_args(self, action, opts):
-        return self.optional_flag_args(['yes', 'no_wait'], opts)
+    def get_create_action_argconfigs(cls):
+        return [RequiredArgConfig('location', help='Location'),
+                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish'),
+                FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]

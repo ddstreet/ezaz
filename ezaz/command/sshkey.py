@@ -2,11 +2,11 @@
 from pathlib import Path
 
 from ..azobject.sshkey import SshKey
-from .command import CommonActionCommand
+from .command import AzSubObjectActionCommand
 from .resourcegroup import ResourceGroupCommand
 
 
-class SshKeyCommand(CommonActionCommand):
+class SshKeyCommand(AzSubObjectActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ResourceGroupCommand

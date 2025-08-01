@@ -2,7 +2,11 @@
 from contextlib import suppress
 
 from .. import DISTRO_IMAGES
+from ..argutil import ArgConfig
 from ..argutil import ArgMap
+from ..argutil import ChoicesArgConfig
+from ..argutil import FlagArgConfig
+from ..argutil import RequiredGroupArgConfig
 from ..exception import InvalidArgumentValue
 from ..exception import RequiredArgument
 from .azobject import AzCommonActionable
@@ -27,28 +31,35 @@ class VM(AzCommonActionable, AzSubObject):
         return []
 
     @classmethod
-    def get_action_configmap(cls):
-        return {}
+    def get_create_action_argconfigs(cls):
+        return [RequiredGroupArgConfig(ArgConfig('image', help='The image id to deploy'),
+                                       ChoicesArgConfig('distro', help='The distro to deploy', choices=DISTRO_IMAGES.keys())),
+                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
 
-    def get_create_action_cmd_args(self, action, opts):
-        return ArgMap(self._image_arg(action, opts),
-                      self._opts.to_args(boot_diagnostics_storage=self.storage_account),
-                      self.optional_flag_arg('no_wait', opts),
-                      self._opts_to_flag_args(accept_term=None,
-                                              enable_secure_boot=None,
-                                              enable_vtpm=None))
+    @classmethod
+    def get_delete_action_argconfigs(cls):
+        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish'),
+                FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]
 
-    def get_delete_action_cmd_args(self, action, opts):
-        return self.optional_flag_args(['yes', 'no_wait'], opts)
+    #def get_create_action_cmd_args(self, action, opts):
+        #self._opts.to_args(boot_diagnostics_storage=self.storage_account),
+        #self._opts_to_flag_args(accept_term=None,
+        #                                      enable_secure_boot=None,
+        #                                      enable_vtpm=None))
 
-    def get_start_action_cmd_args(self, action, opts):
-        return self.optional_flag_arg('no_wait', opts)
+    @classmethod
+    def get_start_action_argconfigs(cls):
+        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
 
-    def get_restart_action_cmd_args(self, action, opts):
-        return self.optional_flag_args(['force', 'no_wait'], opts)
+    @classmethod
+    def get_restart_action_argconfigs(cls):
+        return [FlagArgConfig('force', help='Force-restart'),
+                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
 
-    def get_stop_action_cmd_args(self, action, opts):
-        return self.optional_flag_args(['skip-shutdown', 'no_wait'], opts)
+    @classmethod
+    def get_stop_action_argconfigs(cls):
+        return [FlagArgConfig('skip_shutdown', help='Force-stop'),
+                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
 
     def _image_arg(self, action, opts):
         with suppress(RequiredArgument):

@@ -12,11 +12,12 @@ from ..exception import AlreadyLoggedOut
 from ..exception import AzCommandError
 from ..exception import ConfigNotFound
 from ..exception import NotLoggedIn
+from .azobject import AzShowable
 from .azobject import AzSubObjectContainer
 from .subscription import Subscription
 
 
-class Account(AzSubObjectContainer):
+class Account(AzShowable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['account']
@@ -34,16 +35,12 @@ class Account(AzSubObjectContainer):
         return ActionConfig('login', description='Login', argconfigs=cls.get_login_argconfig())
 
     @classmethod
-    def get_relogin_action_config(cls):
-        return ActionConfig('relogin', description='Logout (if needed), then login', argconfigs=cls.get_login_argconfig())
-
-    @classmethod
     def get_logout_action_config(cls):
         return ActionConfig('logout', description='Logout')
 
     @classmethod
     def get_action_configmap(cls):
-        return dict(login=cls.get_login_action_config(), relogin=cls.get_relogin_action_config(), logout=cls.get_logout_action_config())
+        return ArgMap(super().get_action_configmap(), login=cls.get_login_action_config(), logout=cls.get_logout_action_config())
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -88,11 +85,6 @@ class Account(AzSubObjectContainer):
         with suppress(KeyError):
             # Switch subscriptions, if needed
             self.set_current_subscription_id(self.config['default_subscription'])
-
-    def do_relogin_action(self, action, opts):
-        with suppress(AlreadyLoggedOut):
-            self.do_logout_action(action, opts)
-        self.do_login_action(action, opts)
 
     def do_logout_action(self, action, opts):
         if not self.is_logged_in:

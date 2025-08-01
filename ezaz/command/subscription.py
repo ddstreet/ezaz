@@ -1,15 +1,16 @@
 
 from contextlib import suppress
 
+from ..argutil import ActionConfig
+from ..argutil import ArgMap
 from ..azobject.subscription import Subscription
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgumentGroup
 from .account import AccountCommand
-from .command import ActionConfig
-from .command import RoActionCommand
+from .command import AzSubObjectActionCommand
 
 
-class SubscriptionCommand(RoActionCommand):
+class SubscriptionCommand(AzSubObjectActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return AccountCommand
@@ -23,15 +24,11 @@ class SubscriptionCommand(RoActionCommand):
         return ['sub']
 
     @classmethod
-    def parser_get_action_builtin_names(cls):
-        return super().parser_get_action_builtin_names() + ['show-current', 'set-current']
-
-    @classmethod
-    def parser_get_show_current_action_builtin_config(cls):
+    def parser_get_show_current_action_config(cls):
         return ActionConfig('show-current', description='Show current subscription')
 
     @classmethod
-    def parser_get_set_current_action_builtin_config(cls):
+    def parser_get_set_current_action_config(cls):
         return ActionConfig('set-current', description='Set current subscription (does not affect future logins)')
 
     @classmethod
@@ -41,6 +38,12 @@ class SubscriptionCommand(RoActionCommand):
     @classmethod
     def parser_get_clear_action_builtin_description(cls):
         return f'Clear default subscription (future logins will use the az-provided default subscription)'
+
+    @classmethod
+    def get_action_configmap(cls):
+        return ArgMap(super().get_action_configmap(),
+                      show_current=cls.parser_get_show_current_action_config(),
+                      set_current=cls.parser_get_set_current_action_config())
 
     @classmethod
     def _parser_add_argument_azobject_id(cls, parser, parent):

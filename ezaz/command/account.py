@@ -1,56 +1,59 @@
 
-from abc import abstractmethod
+from contextlib import suppress
 
+from ..argutil import ActionConfig
+from ..argutil import ArgMap
 from ..azobject.account import Account
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import NotLoggedIn
-from .command import AzObjectCommand
-from .command import FilterActionCommand
-from .command import ShowActionCommand
+from .command import AzObjectActionCommand
 
 
-class AzObjectAccountCommand(AzObjectCommand):
+class AccountCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         return Account
 
-    def run_show(self, already=False):
+    @classmethod
+    def get_relogin_action_config(cls):
+        return ActionConfig('relogin', cmdobjmethod='relogin', description='Logout (if needed), then login', argconfigs=Account.get_login_argconfig())
+
+    @classmethod
+    def get_action_configmap(cls):
+        configmap = super().get_action_configmap()
+        configmap.get('show').cmdobjmethod = 'show'
+        configmap.get('login').cmdobjmethod = 'login'
+        configmap.get('logout').cmdobjmethod = 'logout'
+        return ArgMap(configmap, relogin=cls.get_relogin_action_config())
+
+    def show(self, action='show', opts={}, already=False):
         logged = 'Already logged' if already else 'Logged'
         try:
-            info = self.azobject.info
+            info = self.azobject.get_info('show', opts=vars(self.options))
             print(f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})")
         except NotLoggedIn:
             print(f"{logged} out")
 
-    def run_login(self):
+    def login(self, action='login', opts={}, show=True):
         already = False
         try:
-            self._run()
+            self.azobject.do_action(action=action, opts=opts)
         except AlreadyLoggedIn:
             already = True
-        self.run_show(already=already)
+        if show:
+            self.show(already=already)
 
-    def run_relogin(self):
-        self._run()
-        self.run_show()
+    def relogin(self, action='relogin', opts={}):
+        with suppress(AlreadyLoggedOut):
+            self.logout(show=False)
+        self.login()
 
-    def run_logout(self):
+    def logout(self, action='logout', opts={}, show=True):
         already = False
         try:
-            self._run()
+            self.azobject.do_action(action=action, opts=opts)
         except AlreadyLoggedOut:
             already = True
-        self.run_show(already=already)
-
-    @abstractmethod
-    def _run(self):
-        pass
-
-    @abstractmethod
-    def run(self):
-        pass
-
-
-class AccountCommand(FilterActionCommand, ShowActionCommand, AzObjectAccountCommand):
-    pass
+        if show:
+            self.show(already=already)

@@ -1,10 +1,10 @@
 
 from ..azobject.imagegallery import ImageGallery
-from .command import CommonActionCommand
+from .command import AzSubObjectActionCommand
 from .resourcegroup import ResourceGroupCommand
 
 
-class ImageGalleryCommand(CommonActionCommand):
+class ImageGalleryCommand(AzSubObjectActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ResourceGroupCommand

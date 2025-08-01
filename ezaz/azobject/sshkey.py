@@ -2,7 +2,10 @@
 from contextlib import suppress
 from pathlib import Path
 
+from ..argutil import ArgConfig
 from ..argutil import ArgMap
+from ..argutil import FlagArgConfig
+from ..argutil import RequiredGroupArgConfig
 from ..exception import ArgumentError
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
@@ -16,7 +19,7 @@ class SshKey(AzCommonActionable, AzSubObject):
         return ['ssh', 'key']
 
     @classmethod
-    def get_cmd_base(cls, action):
+    def get_cmd_base(cls):
         return ['sshkey']
 
     @classmethod
@@ -24,15 +27,13 @@ class SshKey(AzCommonActionable, AzSubObject):
         return '--ssh-public-key-name'
 
     @classmethod
-    def get_action_configmap(cls):
-        return {}
+    def get_create_action_argconfigs(cls):
+        return [RequiredGroupArgConfig(ArgConfig('public_key', help='Public key data'),
+                                       ArgConfig('public_key_file', help='Public key file'))]
 
-    def get_create_action_cmd_args(self, action, opts):
-        args = self._public_key_arg(opts)
-        return ArgMap(args, self._public_key_type_arg(args.get('--public-key')))
-
-    def get_create_action_cmd_args(self, action, opts):
-        return self.optional_flag_arg('yes', opts)
+    @classmethod
+    def get_delete_action_argconfigs(cls):
+        return [FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]
 
     def _public_key_type_arg(self, keytext):
         if keytext.startswith('ssh-ed25519'):

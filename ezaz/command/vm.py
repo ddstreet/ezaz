@@ -2,11 +2,11 @@
 from .. import DISTRO_IMAGES
 from ..argutil import ArgConfig
 from ..azobject.vm import VM
-from .command import CommonActionCommand
+from .command import AzSubObjectActionCommand
 from .resourcegroup import ResourceGroupCommand
 
 
-class VMCommand(CommonActionCommand):
+class VMCommand(AzSubObjectActionCommand):
     @classmethod
     def parent_command_cls(cls):
         return ResourceGroupCommand

@@ -1,11 +1,13 @@
 
+from ..argutil import ChoicesArgConfig
+from ..argutil import FlagArgConfig
+from ..argutil import RequiredArgConfig
 from ..argutil import ArgMap
 from .azobject import AzCommonActionable
-from .azobject import AzDownloadable
 from .azobject import AzSubObject
 
 
-class StorageBlob(AzCommonActionable, AzDownloadable, AzSubObject):
+class StorageBlob(AzCommonActionable, AzSubObject):
     @classmethod
     def azobject_name_list(cls):
         return ['storage', 'blob']
@@ -15,18 +17,16 @@ class StorageBlob(AzCommonActionable, AzDownloadable, AzSubObject):
         return '--name'
 
     @classmethod
-    def get_create_action_cmd(cls, action):
+    def get_create_action_cmd(cls):
         return ['upload']
 
     @classmethod
-    def get_action_configmap(cls):
-        return {}
+    def get_create_action_argconfigs(cls):
+        return [RequiredArgConfig('file', help='File to upload'),
+                ChoicesArgConfig('type', choices=['append', 'block', 'page'], help='Type of blob to create'),
+                FlagArgConfig('no_progress', help='Do not show upload progress bar')]
 
-    def get_create_action_cmd_args(self, action, opts):
-        return ArgMap(self.required_arg('file', opts, 'create'),
-                      self.optional_arg('type', opts),
-                      self.optional_flag_arg('no_progress', opts))
-
-    def get_delete_action_cmd_args(self, action, opts):
-        return ArgMap(self.required_arg('file', opts, 'delete'),
-                      self.optional_flag_arg('no_progress', opts))
+    @classmethod
+    def get_delete_action_argconfigs(cls):
+        return [RequiredArgConfig('file', help='File to download to'),
+                FlagArgConfig('no_progress', help='Do not show download progress bar')]

@@ -1,10 +1,10 @@
 
 from ..argutil import ArgConfig
 from ..dialog import YesNo
-from .command import ShowActionCommand
+from .command import ActionCommand
 
 
-class ConfigCommand(ShowActionCommand):
+class ConfigCommand(ActionCommand):
     @classmethod
     def command_name_list(cls):
         return ['config']

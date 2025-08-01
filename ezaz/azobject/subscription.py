@@ -1,12 +1,12 @@
 
-from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 from .azobject import AzListable
+from .azobject import AzShowable
 from .location import Location
 from .resourcegroup import ResourceGroup
 
 
-class Subscription(AzListable, AzSubObject, AzSubObjectContainer):
+class Subscription(AzShowable, AzListable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['subscription']
@@ -20,12 +20,5 @@ class Subscription(AzListable, AzSubObject, AzSubObjectContainer):
         return [ResourceGroup, Location]
 
     @classmethod
-    def get_cmd_base(cls, action):
+    def get_cmd_base(cls):
         return ['account']
-
-    @classmethod
-    def get_action_configmap(cls):
-        return {}
-
-    def show(self):
-        print(self.info if self.verbose else f'{self.info.name} ({self.info.id})')

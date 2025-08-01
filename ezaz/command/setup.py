@@ -16,10 +16,10 @@ from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
 from ..filter import FILTER_DEFAULT
-from .command import CreateActionCommand
+from .command import ActionCommand
 
 
-class SetupCommand(CreateActionCommand):
+class SetupCommand(ActionCommand):
     @classmethod
     def azclass(cls):
         return Account
@@ -61,7 +61,7 @@ class SetupCommand(CreateActionCommand):
         return 'Automatically create a new default object for all object types without a default'
 
     @classmethod
-    def parser_get_default_action(cls):
+    def default_action(cls):
         return 'prompt'
 
     @property

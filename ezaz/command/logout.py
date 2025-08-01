@@ -1,8 +1,8 @@
 
-from .account import AzObjectAccountCommand
+from .account import AccountCommand
 
 
-class LogoutCommand(AzObjectAccountCommand):
+class LogoutCommand(AccountCommand):
     @classmethod
     def command_name_list(cls):
         return ['logout']

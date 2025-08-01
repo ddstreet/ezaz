@@ -1,4 +1,5 @@
 
+from ..argutil import FlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
@@ -19,15 +20,13 @@ class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return [ImageDefinition]
 
     @classmethod
-    def get_cmd_base(cls, action):
+    def get_cmd_base(cls):
         return ['sig']
 
     @classmethod
-    def get_action_configmap(cls):
-        return {}
+    def get_create_action_argconfigs(cls):
+        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
 
-    def get_create_action_cmd_args(self, action, opts):
-        return self.optional_flag_arg('no_wait', opts)
-
-    def get_delete_action_cmd_args(self, action, opts):
-        return self.optional_flag_arg('no_wait', opts)
+    @classmethod
+    def get_delete_action_argconfigs(cls):
+        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]

@@ -1,8 +1,8 @@
 
-from .account import AzObjectAccountCommand
+from .account import AccountCommand
 
 
-class LoginCommand(AzObjectAccountCommand):
+class LoginCommand(AccountCommand):
     @classmethod
     def command_name_list(cls):
         return ['login']

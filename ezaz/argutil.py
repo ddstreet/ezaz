@@ -184,12 +184,16 @@ class ArgUtil:
 
 
 class ActionConfig:
-    def __init__(self, action, *, cmd=None, aliases=[], description='', argconfigs=[]):
+    def __init__(self, action, *, cmd=None, aliases=[], description='', argconfigs=[], cmdclsmethod=None, cmdobjmethod=None, azclsmethod=None, azobjmethod=None):
         self.action = action
-        self._cmd = cmd
+        self.cmd = cmd or action
         self.aliases = aliases
         self.description = description
         self.argconfigs = argconfigs
+        self.cmdclsmethod = cmdclsmethod
+        self.cmdobjmethod = cmdobjmethod
+        self.azclsmethod = azclsmethod
+        self.azobjmethod = azobjmethod
 
     def is_action(self, action):
         return action in ([self.action] + self.aliases)
@@ -207,9 +211,6 @@ class ActionConfig:
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(parser)
 
-    def cmd(self):
-        return self.cmd or self.action
-
     def cmd_args(self, opts):
         return ArgMap(*[argconfig.cmd_args(opts) for argconfig in self.argconfigs])
 
@@ -225,10 +226,10 @@ class BaseArgConfig(ArgUtil, ABC):
 
 
 class ArgConfig(BaseArgConfig):
-    def __init__(self, *opts, help=None, dest=None, default=None):
+    def __init__(self, *opts, help=None, dest=None, default=None, hidden=False):
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
-        self.help = help
+        self.help = argparse.SUPPRESS if hidden else help
         self._dest = dest
         self.default = default
 

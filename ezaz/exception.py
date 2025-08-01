@@ -4,6 +4,10 @@ class EzazException(Exception):
     pass
 
 
+class NoActionConfigMethod(EzazException):
+    pass
+
+
 class ChoiceError(EzazException):
     pass
 
