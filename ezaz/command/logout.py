@@ -1,19 +1,14 @@
 
-from functools import cached_property
-
-from ..azobject.account import Account
-from .account import AccountCommand
-from .command import SimpleCommand
+from .account import AzObjectAccountCommand
 
 
-class LogoutCommand(SimpleCommand):
+class LogoutCommand(AzObjectAccountCommand):
     @classmethod
     def command_name_list(cls):
         return ['logout']
 
-    @cached_property
-    def account(self):
-        return Account(cache=self._cache, config=self._config, verbose=self.verbose, dry_run=self.dry_run)
+    def _run(self):
+        self.azobject.do_action('logout')
 
     def run(self):
-        AccountCommand.cls_logout(self.account)
+        self.run_logout()

@@ -11,7 +11,7 @@ class StorageKeyCommand(ListActionCommand, ShowActionCommand):
         return StorageAccountCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return StorageKey
 
     @classmethod

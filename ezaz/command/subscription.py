@@ -5,7 +5,7 @@ from ..azobject.subscription import Subscription
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgumentGroup
 from .account import AccountCommand
-from .command import ArgConfig
+from .command import ActionConfig
 from .command import RoActionCommand
 
 
@@ -15,7 +15,7 @@ class SubscriptionCommand(RoActionCommand):
         return AccountCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return Subscription
 
     @classmethod
@@ -23,23 +23,23 @@ class SubscriptionCommand(RoActionCommand):
         return ['sub']
 
     @classmethod
-    def parser_get_action_names(cls):
-        return super().parser_get_action_names() + ['show-current', 'set-current']
+    def parser_get_action_builtin_names(cls):
+        return super().parser_get_action_builtin_names() + ['show-current', 'set-current']
 
     @classmethod
-    def parser_get_show_current_action_config(cls):
-        return ArgConfig('show-current', description='Show current subscription')
+    def parser_get_show_current_action_builtin_config(cls):
+        return ActionConfig('show-current', description='Show current subscription')
 
     @classmethod
-    def parser_get_set_current_action_config(cls):
-        return ArgConfig('set-current', description='Set current subscription (does not affect future logins)')
+    def parser_get_set_current_action_builtin_config(cls):
+        return ActionConfig('set-current', description='Set current subscription (does not affect future logins)')
 
     @classmethod
-    def parser_get_set_action_description(cls):
+    def parser_get_set_action_builtin_description(cls):
         return f'Set default subscription to current subscription (future logins will automatically switch to this subscription)'
 
     @classmethod
-    def parser_get_clear_action_description(cls):
+    def parser_get_clear_action_builtin_description(cls):
         return f'Clear default subscription (future logins will use the az-provided default subscription)'
 
     @classmethod
@@ -66,10 +66,10 @@ class SubscriptionCommand(RoActionCommand):
                 return self._subscription_name_to_id(self._options.subscription_name)
         return None
 
-    def do_show_current(self):
+    def run_show_current(self):
         self.parent_azobject.get_azsubobject(self.azobject_name(), self.parent_azobject.get_current_subscription_id()).show()
 
-    def do_set_current(self):
+    def run_set_current(self):
         if not self.azobject_specified_id:
             try:
                 if self.parent_azobject.get_current_subscription_id() == self.azobject_default_id:
@@ -80,7 +80,7 @@ class SubscriptionCommand(RoActionCommand):
         # User specified the sub id, or current != default (so we will set current to default)
         self.parent_azobject.set_current_subscription_id(self.azobject_id)
 
-    def do_set(self):
+    def run_set(self):
         if self.azobject_specified_id:
             print(f"Provided subscription '{self.azobject_specified_id}' ignored, using current subscription.")
         self.parent_azobject.set_azsubobject_default_id(self.azobject_name(), self.parent_azobject.get_current_subscription_id())

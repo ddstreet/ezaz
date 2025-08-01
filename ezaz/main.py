@@ -101,4 +101,4 @@ def main():
             print(f'ERROR: {dcnf}')
             print("You can set up defaults with 'ezaz setup'")
         except EzazException as e:
-            print(f'ERROR: {e}')
+            print(f'ERROR ({e.__class__.__name__}): {e}')

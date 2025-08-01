@@ -26,6 +26,10 @@ class VM(AzCommonActionable, AzSubObject):
     def get_console_action_cmd(cls, action):
         return []
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_create_action_cmd_args(self, action, opts):
         return ArgMap(self._image_arg(action, opts),
                       self._opts.to_args(boot_diagnostics_storage=self.storage_account),

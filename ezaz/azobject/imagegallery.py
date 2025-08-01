@@ -22,6 +22,10 @@ class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     def get_cmd_base(cls, action):
         return ['sig']
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_create_action_cmd_args(self, action, opts):
         return self.optional_flag_arg('no_wait', opts)
 

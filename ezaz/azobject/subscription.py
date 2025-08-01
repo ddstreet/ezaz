@@ -23,5 +23,9 @@ class Subscription(AzListable, AzSubObject, AzSubObjectContainer):
     def get_cmd_base(cls, action):
         return ['account']
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def show(self):
         print(self.info if self.verbose else f'{self.info.name} ({self.info.id})')

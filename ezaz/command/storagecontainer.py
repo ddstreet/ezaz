@@ -10,5 +10,5 @@ class StorageContainerCommand(CommonActionCommand):
         return StorageAccountCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return StorageContainer

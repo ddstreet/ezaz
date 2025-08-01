@@ -10,7 +10,7 @@ class ResourceGroupCommand(CommonActionCommand):
         return SubscriptionCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return ResourceGroup
 
     @classmethod

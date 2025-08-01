@@ -10,7 +10,7 @@ class ImageDefinitionCommand(CommonActionCommand):
         return ImageGalleryCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return ImageDefinition
 
     @classmethod

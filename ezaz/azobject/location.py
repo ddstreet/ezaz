@@ -23,6 +23,10 @@ class Location(AzSubObject):
         # We don't want the --subscription param
         return {}
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_cmd_args(self, cmdname, opts):
         # We don't want the --location param
         return {}

@@ -1,76 +1,56 @@
 
-from contextlib import suppress
-from functools import cached_property
+from abc import abstractmethod
 
-from ..argutil import ArgConfig
 from ..azobject.account import Account
-from ..config import Config
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import NotLoggedIn
+from .command import AzObjectCommand
 from .command import FilterActionCommand
 from .command import ShowActionCommand
 
 
-class AccountCommand(FilterActionCommand, ShowActionCommand):
+class AzObjectAccountCommand(AzObjectCommand):
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return Account
 
-    @classmethod
-    def parser_get_action_parser_configs(cls):
-        return (super().parser_get_action_parser_configs() +
-                [ArgConfig('login', description='Login'),
-                 ArgConfig('logout', description='Logout'),
-                 ArgConfig('relogin', description='Logout (if needed), then login')])
-
-    @classmethod
-    def parser_add_login_action_arguments(cls, parser):
-        parser.add_argument('--use-device-code',
-                            action='store_true',
-                            help='Instead of opening a browser window, show the URL and code')
-
-    @classmethod
-    def parser_add_relogin_action_arguments(cls, parser):
-        cls.parser_add_login_action_arguments(parser)
-
-    @classmethod
-    def cls_login(cls, azobject, use_device_code=False):
-        already = False
-        try:
-            azobject.login(use_device_code=use_device_code)
-        except AlreadyLoggedIn:
-            already = True
-        cls.cls_show(azobject, already=already)
-
-    @classmethod
-    def cls_logout(cls, azobject):
-        already = False
-        try:
-            azobject.logout()
-        except AlreadyLoggedOut:
-            already = True
-        cls.cls_show(azobject, already=already)
-
-    @classmethod
-    def cls_show(cls, azobject, already=False):
+    def run_show(self, already=False):
         logged = 'Already logged' if already else 'Logged'
         try:
-            info = azobject.info
+            info = self.azobject.info
             print(f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})")
         except NotLoggedIn:
             print(f"{logged} out")
 
-    def do_login(self):
-        self.cls_login(self.azobject, self._options.use_device_code)
+    def run_login(self):
+        already = False
+        try:
+            self._run()
+        except AlreadyLoggedIn:
+            already = True
+        self.run_show(already=already)
 
-    def do_logout(self):
-        self.cls_logout(self.azobject)
+    def run_relogin(self):
+        self._run()
+        self.run_show()
 
-    def do_relogin(self):
-        with suppress(AlreadyLoggedOut):
-            self.azobject.logout()
-        self.login()
+    def run_logout(self):
+        already = False
+        try:
+            self._run()
+        except AlreadyLoggedOut:
+            already = True
+        self.run_show(already=already)
 
-    def do_show(self):
-        self.cls_show(self.azobject)
+    @abstractmethod
+    def _run(self):
+        pass
+
+    @abstractmethod
+    def run(self):
+        pass
+
+
+class AccountCommand(FilterActionCommand, ShowActionCommand, AzObjectAccountCommand):
+    pass

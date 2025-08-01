@@ -18,6 +18,10 @@ class StorageBlob(AzCommonActionable, AzDownloadable, AzSubObject):
     def get_create_action_cmd(cls, action):
         return ['upload']
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_create_action_cmd_args(self, action, opts):
         return ArgMap(self.required_arg('file', opts, 'create'),
                       self.optional_arg('type', opts),

@@ -23,6 +23,10 @@ class SshKey(AzCommonActionable, AzSubObject):
     def azobject_cmd_arg(cls):
         return '--ssh-public-key-name'
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_create_action_cmd_args(self, action, opts):
         args = self._public_key_arg(opts)
         return ArgMap(args, self._public_key_type_arg(args.get('--public-key')))

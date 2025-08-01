@@ -145,6 +145,15 @@ class AzObject(CachedAzAction):
         return '--' + cls.azobject_name('-')
 
     @classmethod
+    @abstractmethod
+    def get_action_configmap(cls):
+        return {}
+
+    @classmethod
+    def get_action_configs(cls):
+        return list(cls.get_action_configmap().values())
+
+    @classmethod
     def get_cmd_base(cls, action):
         with suppress(AttributeError):
             return getattr(cls, f'get_{action}_action_cmd_base')(action)
@@ -252,8 +261,17 @@ class AzObject(CachedAzAction):
         else:
             self._show()
 
-    def do_action(self, action, opts={}, *, az=None, dry_runnable=False):
+    def _do_action(self, action, opts={}, *, az=None, dry_runnable=False):
         return (az or self.az)(*self.get_cmd(action), cmd_args=self.get_cmd_args(action, opts), dry_runnable=dry_runnable)
+
+    def do_action(self, action, opts={}, *, az=None, dry_runnable=False):
+        try:
+            do_custom_action = getattr(self, f'do_{action}_action')
+        except AttributeError:
+            # should be able to better customize things with the actionconfig
+            #actionconfig = self.get_action_configmap().get(action)
+            return self._do_action(action, opts=opts, az=az, dry_runnable=dry_runnable)
+        return do_custom_action(action, opts)
 
 
 class AzSubObject(AzObject):

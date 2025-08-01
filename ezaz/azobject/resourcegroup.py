@@ -21,6 +21,10 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     def get_cmd_base(cls, action):
         return ['group']
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_create_action_cmd_args(self, action, opts):
         return self.required_arg('location', opts, 'create')
 

@@ -37,6 +37,10 @@ class StorageContainer(AzCommonActionable, AzSubObject, AzSubObjectContainer):
             return keys[0].key_value
         return None
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     @property
     def storage_account_key(self):
         return self.get_parent_storage_account_key(self.parent)

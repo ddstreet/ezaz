@@ -16,6 +16,10 @@ class ImageDefinition(AzCommonActionable, AzSubObject):
     def get_cmd_base(cls, action):
         return ['sig', 'image-definition']
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_create_action_cmd_args(self, action, opts):
         return ArgMap(self.required_args_all(['offer', 'publisher', 'sku'], opts, 'create'),
                       self.optional_args(['os_type', 'architecture'], opts),

@@ -21,7 +21,7 @@ from .command import CreateActionCommand
 
 class SetupCommand(CreateActionCommand):
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return Account
 
     @classmethod

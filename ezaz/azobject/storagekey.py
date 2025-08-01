@@ -17,6 +17,10 @@ class StorageKey(AzSubObject):
     def info_id(cls, info):
         return info.keyName
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     @property
     def key_value(self):
         return self.info.value

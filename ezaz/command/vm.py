@@ -12,7 +12,7 @@ class VMCommand(CommonActionCommand):
         return ResourceGroupCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return VM
 
     @classmethod

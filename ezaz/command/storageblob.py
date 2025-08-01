@@ -10,7 +10,7 @@ class StorageBlobCommand(AllActionCommand):
         return StorageContainerCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return StorageBlob
 
     @classmethod

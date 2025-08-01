@@ -4,6 +4,9 @@ import subprocess
 from contextlib import contextmanager
 from contextlib import suppress
 
+from ..argutil import ActionConfig
+from ..argutil import ArgMap
+from ..argutil import FlagArgConfig
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import AzCommandError
@@ -21,6 +24,26 @@ class Account(AzSubObjectContainer):
     @classmethod
     def get_azsubobject_classes(cls):
         return [Subscription]
+
+    @classmethod
+    def get_login_argconfig(cls):
+        return [FlagArgConfig('use_device_code', help='Instead of opening a browser window, show the URL and code')]
+
+    @classmethod
+    def get_login_action_config(cls):
+        return ActionConfig('login', description='Login', argconfigs=cls.get_login_argconfig())
+
+    @classmethod
+    def get_relogin_action_config(cls):
+        return ActionConfig('relogin', description='Logout (if needed), then login', argconfigs=cls.get_login_argconfig())
+
+    @classmethod
+    def get_logout_action_config(cls):
+        return ActionConfig('logout', description='Logout')
+
+    @classmethod
+    def get_action_configmap(cls):
+        return dict(login=cls.get_login_action_config(), relogin=cls.get_relogin_action_config(), logout=cls.get_logout_action_config())
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -54,24 +77,28 @@ class Account(AzSubObjectContainer):
             elif v:
                 self.az_stdout('config', 'set', f'core.login_experience_v2={v}')
 
-    def login(self, use_device_code=False):
+    def do_login_action(self, action, opts):
         if self.is_logged_in:
             raise AlreadyLoggedIn()
 
-        cmd_args = {'--use-device-code': None} if use_device_code else {}
         with self._disable_subscription_selection():
-            self.az('login', cmd_args=cmd_args)
+            self.az('login', cmd_args=self.get_login_action_config().cmd_args(opts), dry_runnable=False)
 
         self._logged_in = True
         with suppress(KeyError):
             # Switch subscriptions, if needed
             self.set_current_subscription_id(self.config['default_subscription'])
 
-    def logout(self):
+    def do_relogin_action(self, action, opts):
+        with suppress(AlreadyLoggedOut):
+            self.do_logout_action(action, opts)
+        self.do_login_action(action, opts)
+
+    def do_logout_action(self, action, opts):
         if not self.is_logged_in:
             raise AlreadyLoggedOut()
 
-        self.az('logout')
+        self.az('logout', dry_runnable=False)
         self._logged_in = False
         self._info = None
 

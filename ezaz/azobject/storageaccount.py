@@ -23,5 +23,9 @@ class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     def get_azsubobject_classes(cls):
         return [StorageContainer, StorageKey]
 
+    @classmethod
+    def get_action_configmap(cls):
+        return {}
+
     def get_delete_action_cmd_args(self, action, opts):
         return self.optional_flag_arg('yes', opts)

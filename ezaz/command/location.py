@@ -11,7 +11,7 @@ class LocationCommand(ShowActionCommand, ListActionCommand):
         return SubscriptionCommand
 
     @classmethod
-    def azobject_class(cls):
+    def azclass(cls):
         return Location
 
     @classmethod
