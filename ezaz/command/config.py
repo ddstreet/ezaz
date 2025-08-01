@@ -1,5 +1,6 @@
 
-from ..argutil import ArgConfig
+from ..argutil import ActionConfig
+from ..argutil import ArgMap
 from ..dialog import YesNo
 from .command import ActionCommand
 
@@ -10,25 +11,34 @@ class ConfigCommand(ActionCommand):
         return ['config']
 
     @classmethod
-    def parser_get_action_names(cls):
-        return super().parser_get_action_names() + ['remove']
+    def get_action_configmap(cls):
+        return ArgMap(super().get_action_configmap(),
+                      show=cls.get_show_action_config(),
+                      remove=cls.get_remove_action_config())
 
     @classmethod
-    def parser_get_show_action_description(cls):
-        return 'Show configuration'
+    def get_show_action_config(cls):
+        return ActionConfig('show', cmdobjmethod='show', description='Show configuration')
 
     @classmethod
-    def parser_get_remove_action_config(cls):
-        return ArgConfig('remove', description='Remove configuration file')
+    def get_remove_action_config(cls):
+        return ActionConfig('remove', cmdobjmethod='remove', description='Remove configuration file')
 
-    def do_show(self):
-        print(self._config)
+    @classmethod
+    def get_default_action(cls):
+        return 'show'
 
-    def do_remove(self):
-        if not self._config:
+    def show(self, action, opts):
+        print(self.config)
+
+    def remove(self, action, opts):
+        if not self.config:
             print('There is no config to remove.')
         elif YesNo('About to remove the configuration file, are you sure?'):
-            self._config.remove()
+            if self.dry_run:
+                print('DRY-RUN: not removing configuration file.')
+            else:
+                self.config.remove()
             print('Configuration file removed.')
         else:
             print('Configuration file not removed.')

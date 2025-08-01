@@ -199,14 +199,14 @@ class ActionCommand(SimpleCommand):
         return self._arg_to_opt(self.get_specified_action() or self.get_default_action())
 
     def run_action_config_method(self):
-        cmdobjmethod = self.get_action_config(self.action).cmdobjmethod
-        if cmdobjmethod:
-            return getattr(self, cmdobjmethod)(action=self.action, opts=self.opts)
+        config = self.get_action_config(self.action)
+        if config.cmdobjmethod:
+            return getattr(self, config.cmdobjmethod)(config=config, opts=self.opts)
         raise NoActionConfigMethod()
 
-    @abstractmethod
     def _run(self, action, opts):
-        pass
+        # Either implement this, or set up action configs to invoke handler methods
+        raise NotImplementedError()
 
     def run(self):
         with suppress(NoActionConfigMethod):
@@ -259,9 +259,9 @@ class AzObjectActionCommand(AzObjectCommand, ActionCommand):
     def run_action_config_method(self):
         with suppress(NoActionConfigMethod):
             return super().run_action_config_method()
-        azobjmethod = self.get_action_config(self.action).azobjmethod
-        if azobjmethod:
-            return getattr(self.azobject, azobjmethod)(action=self.action, opts=self.opts)
+        config = self.get_action_config(self.action)
+        if config.azobjmethod:
+            return getattr(self.azobject, config.azobjmethod)(config=config, opts=self.opts)
         raise NoActionConfigMethod()
 
     def _run(self, action, opts):
@@ -344,10 +344,32 @@ class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
     def run_action_config_method(self):
         with suppress(NoActionConfigMethod):
             return super().run_action_config_method()
-        cmdclsmethod = self.get_action_config(self.action).cmdclsmethod
-        if cmdclsmethod:
-            return getattr(self, cmdclsmethod)(action=self.action, opts=self.opts, parent=self.parent_command)
-        azclsmethod = self.get_action_config(self.action).azclsmethod
-        if azclsmethod:
-            return getattr(self.azobject, azclsmethod)(action=self.action, opts=self.opts, parent=self.parent_azobject)
+        config = self.get_action_config(self.action)
+        if config.cmdclsmethod:
+            return getattr(self, config.cmdclsmethod)(config=config, opts=self.opts, parent=self.parent_command)
+        if config.azclsmethod:
+            return getattr(self.azobject, config.azclsmethod)(config=config, opts=self.opts, parent=self.parent_azobject)
         raise NoActionConfigMethod()
+
+    @classmethod
+    def _parser_add_argument_azobject_id(cls, parser, is_parent):
+        # Don't add our own object id param, as the list command lists them all
+        if not is_parent and parser._action_config.is_action('list'):
+            return
+        super()._parser_add_argument_azobject_id(parser, is_parent)
+
+    @property
+    def azobject_default_id(self):
+        if not self.is_parent and self.action in ['create', 'delete']:
+            raise RequiredArgument(self.azobject_name(), self.action)
+        return super().azobject_default_id
+
+    def parser_get_list_action_builtin_args(cls):
+        return [ArgConfig('--filter-prefix',
+                          help=f'In addition to configured filters, also filter {cls.command_text()}s that start with the prefix'),
+                ArgConfig('--filter-suffix',
+                          help=f'In addition to configured filters, also filter {cls.command_text()}s that end with the suffix'),
+                ArgConfig('--filter-regex',
+                          help=f'In addition to configured filters, also filter {cls.command_text()}s that match the regular expression'),
+                BoolArgConfig('-N', '--no-filters',
+                          help=f'Do not use any configured filters (the --filter-* parameters will still be used)')]

@@ -7,7 +7,10 @@ import string
 from contextlib import suppress
 from functools import cached_property
 
+from ..argutil import ActionConfig
 from ..argutil import ArgConfig
+from ..argutil import ArgMap
+from ..argutil import BoolArgConfig
 from ..azobject.account import Account
 from ..dialog import AzObjectChoice
 from ..dialog import YesNo
@@ -21,78 +24,77 @@ from .command import ActionCommand
 
 class SetupCommand(ActionCommand):
     @classmethod
-    def azclass(cls):
-        return Account
-
-    @classmethod
     def command_name_list(cls):
         return ['setup']
 
     @classmethod
-    def parser_get_action_names(cls):
-        return super().parser_get_action_names() + ['prompt']
+    def get_action_configmap(cls):
+        return ArgMap(super().get_action_configmap(),
+                      prompt=cls.get_prompt_action_config(),
+                      create=cls.get_create_action_config())
 
     @classmethod
-    def parser_get_prompt_action_config(cls):
-        return ArgConfig('prompt', description='Prompt to select the default for each object type (default)')
+    def get_prompt_action_config(cls):
+        return ActionConfig('prompt', cmdobjmethod='prompt',
+                            description='Prompt to select the default object, if needed (default)',
+                            argconfigs=cls.get_prompt_action_argconfigs())
 
     @classmethod
-    def parser_add_prompt_action_arguments(cls, parser):
-        parser.add_argument('--all', action='store_true',
-                            help=f'Prompt for all object types, even ones with a default')
-        parser.add_argument('--verify-single', action='store_true',
-                            help=f'Prompt even if there is only one object choice')
-        parser.add_argument('-y', '--yes', action='store_true',
-                            help=f'Respond yes to all yes/no questions')
+    def get_prompt_action_argconfigs(cls):
+        return [BoolArgConfig('all', help=f'Prompt for all object types, even ones with a default'),
+                BoolArgConfig('verify_single', help=f'Prompt even if there is only one object choice'),
+                BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions')]
 
     @classmethod
-    def parser_add_prompt_create_arguments(cls, parser):
-        parser.add_argument('--all', action='store_true',
-                            help=f'Create all object types, even ones with a default')
-        parser.add_argument('--subscription',
-                            help=f'Subscription to use (instead of prompting to choose)')
-        parser.add_argument('--location',
-                            help=f'Location to use (instead of prompting to choose)')
-        parser.add_argument('-y', '--yes', action='store_true',
-                            help=f'Respond yes to all yes/no questions')
+    def get_create_action_config(cls):
+        return ActionConfig('create', cmdobjmethod='create',
+                            description='Automatically create a new default object, if needed',
+                            argconfigs=cls.get_create_action_argconfigs())
 
     @classmethod
-    def parser_get_create_action_description(cls):
-        return 'Automatically create a new default object for all object types without a default'
+    def get_create_action_argconfigs(cls):
+        return [ArgConfig('subscription', help='Subscription to use (instead of prompting to choose)'),
+                ArgConfig('location', help='Location to use (instead of prompting to choose)'),
+                BoolArgConfig('all', help=f'Create all object types, even ones with a default'),
+                BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions')]
 
     @classmethod
-    def default_action(cls):
+    def get_default_action(cls):
         return 'prompt'
 
     @property
-    def _yes(self):
-        return getattr(self._options, 'yes', False)
+    def yes(self):
+        return getattr(self.options, 'yes', False)
 
     @property
-    def _all(self):
-        return getattr(self._options, 'all', False)
+    def all(self):
+        return getattr(self.options, 'all', False)
 
     @property
-    def _verify_single(self):
-        return getattr(self._options, 'verify_single', False)
+    def verify_single(self):
+        return getattr(self.options, 'verify_single', False)
 
     @property
-    def _subscription(self):
-        return getattr(self._options, 'subscription', False)
+    def subscription(self):
+        return getattr(self.options, 'subscription', False)
 
     @property
-    def _location(self):
-        return getattr(self._options, 'location', False)
+    def location(self):
+        return getattr(self.options, 'location', False)
 
     def randomhex(self, n):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
 
+    @cached_property
+    def _account(self):
+        return Account(verbose=self.verbose, dry_run=self.dry_run, config=self.config, cache=self.cache)
+
     @property
     def account(self):
-        if not self.azobject.is_logged_in:
+        if not self._account.is_logged_in:
             print("You are not logged in, so let's log you in first.")
-            self.azobject.login()
-        return self.azobject
+            self._account.login()
+        return self._account
 
     def get_azsubobject_text(self, container, name):
         return container.get_azsubobject_class(name).azobject_text()
@@ -111,7 +113,7 @@ class SetupCommand(ActionCommand):
     def choose_azsubobject(self, container, name, *, cmdline_arg_id=None, **kwargs):
         objtype = self.get_azsubobject_text(container, name)
         default = self.get_azsubobject_default(container, name)
-        if self._all or default is None:
+        if self.all or default is None:
             if default is None:
                 print('no default, checking available...')
             else:
@@ -124,7 +126,7 @@ class SetupCommand(ActionCommand):
                     default = None
             if not default:
                 try:
-                    default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self._verify_single, **kwargs)
+                    default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self.verify_single, **kwargs)
                 except NoChoices:
                     print(f'No {objtype} found, please create at least one; skipping')
                     raise
@@ -138,13 +140,13 @@ class SetupCommand(ActionCommand):
 
         return default
 
-    def prompt(self):
+    def prompt(self, config, opts):
         self.choose_subscription()
         print('All done.')
 
     def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self._subscription, hint_fn=lambda o: o.info.name)
+            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self.subscription, hint_fn=lambda o: o.info.name)
 
             self.add_resource_group_filter(subscription)
             self.choose_location(subscription)
@@ -156,10 +158,10 @@ class SetupCommand(ActionCommand):
     def add_resource_group_filter(self, subscription):
         rgfilter = subscription.filters.get_filter('resource_group')
         if subscription.filters.is_empty:
-            if self._yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
+            if self.yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
                 username = getpass.getuser()
                 accountname = self.account.info.user.name.split('@')[0]
-                if self._yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
+                if self.yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
                     rgfilter.prefix = username
                 elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
                     rgfilter.prefix = accountname
@@ -211,7 +213,7 @@ class SetupCommand(ActionCommand):
     def create_azsubobject(self, container, name, **kwargs):
         objtype = self.get_azsubobject_text(container, name)
         default = self.get_azsubobject_default(container, name)
-        if self._all or default is None:
+        if self.all or default is None:
             if default is None:
                 print('no default, creating one...')
             else:
@@ -229,19 +231,19 @@ class SetupCommand(ActionCommand):
 
         return default
 
-    def create(self):
+    def create(self, config, opts):
         self.create_subscription()
         print('All done.')
 
     def create_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self._subscription, hint_fn=lambda o: o.info.name)
+            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self.subscription, hint_fn=lambda o: o.info.name)
             self.add_resource_group_filter(subscription)
             location = self.choose_location(subscription)
             self.create_resource_group(subscription, location)
 
     def create_location(self, subscription):
-        return self.choose_azsubobject(subscription, 'location', arg_id=self._location)
+        return self.choose_azsubobject(subscription, 'location', arg_id=self.location)
 
     def create_resource_group(self, subscription, location):
         rg = self.create_azsubobject(subscription, 'resource_group', location=location.azobject_id)

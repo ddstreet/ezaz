@@ -77,7 +77,7 @@ class ArgUtil:
             raise RuntimeError('Invalid use of _args_to_opts')
         if keys:
             return [cls._arg_to_opt(k) for k in keys]
-        return ArgMap({cls._arg_to_opt(k): v for k, v in kwargs})
+        return ArgMap({cls._arg_to_opt(k): v for k, v in kwargs.items()})
 
     @classmethod
     def _arg_value(cls, key, args):

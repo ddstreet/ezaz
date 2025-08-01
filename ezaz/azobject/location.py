@@ -1,12 +1,10 @@
 
-from ..argutil import ActionConfig
 from ..exception import NoAzObjectExists
+from .azobject import AzRoActionable
 from .azobject import AzSubObject
-from .azobject import AzShowable
-from .azobject import AzListable
 
 
-class Location(AzShowable, AzListable, AzSubObject):
+class Location(AzRoActionable, AzSubObject):
     @classmethod
     def azobject_name_list(cls):
         return ['location']
@@ -17,6 +15,10 @@ class Location(AzShowable, AzListable, AzSubObject):
 
     @classmethod
     def get_list_action_cmd(cls):
+        return cls.get_cmd_base() + ['list-locations']
+
+    @classmethod
+    def get_show_action_cmd(cls):
         return cls.get_cmd_base() + ['list-locations']
 
     @classmethod
