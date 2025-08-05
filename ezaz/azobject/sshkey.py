@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
-from ..argutil import FlagArgConfig
+from ..argutil import YesFlagArgConfig
 from ..argutil import RequiredGroupArgConfig
 from ..exception import ArgumentError
 from ..exception import RequiredArgument
@@ -38,7 +38,7 @@ class SshKey(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]
+        return [YesFlagArgConfig()]
 
     def _public_key_type_arg(self, keytext):
         if keytext.startswith('ssh-ed25519'):

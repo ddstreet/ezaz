@@ -191,12 +191,13 @@ class BaseArgConfig(ArgUtil, ABC):
 
 
 class ArgConfig(BaseArgConfig):
-    def __init__(self, *opts, help=None, dest=None, default=None, hidden=False, completer=None):
+    def __init__(self, *opts, help=None, dest=None, default=None, hidden=False, noncmd=False, completer=None):
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
         self.help = argparse.SUPPRESS if hidden else help
         self._dest = dest
         self.default = default
+        self.noncmd = noncmd
         self.completer = completer
 
     def __repr__(self):
@@ -223,7 +224,7 @@ class ArgConfig(BaseArgConfig):
         return dict(help=self.help, dest=self.dest, default=self.default)
 
     def cmd_args(self, **opts):
-        return self.optional_arg(self.dest, opts)
+        return {} if self.noncmd else self.optional_arg(self.dest, opts)
 
 
 class RequiredArgConfig(ArgConfig):
@@ -241,6 +242,11 @@ class BoolArgConfig(ArgConfig):
 class FlagArgConfig(BoolArgConfig):
     def cmd_args(self, **opts):
         return self.optional_flag_arg(self.dest, opts)
+
+
+class NoWaitFlagArgConfig(FlagArgConfig):
+    def __init__(self, *, help=None, **kwargs):
+        super().__init__('no_wait', help=help or 'Do not wait for long-running tasks to complete', **kwargs)
 
 
 class YesFlagArgConfig(FlagArgConfig):

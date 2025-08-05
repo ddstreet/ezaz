@@ -5,8 +5,9 @@ from .. import DISTRO_IMAGES
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import ChoicesArgConfig
-from ..argutil import FlagArgConfig
+from ..argutil import NoWaitFlagArgConfig
 from ..argutil import RequiredGroupArgConfig
+from ..argutil import YesFlagArgConfig
 from ..exception import InvalidArgumentValue
 from ..exception import RequiredArgument
 from .azobject import AzCommonActionable
@@ -39,12 +40,11 @@ class VM(AzCommonActionable, AzSubObject):
     def get_create_action_argconfigs(cls):
         return [RequiredGroupArgConfig(ArgConfig('image', help='The image id to deploy'),
                                        ChoicesArgConfig('distro', help='The distro to deploy', choices=DISTRO_IMAGES.keys())),
-                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
+                NoWaitFlagArgConfig()]
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish'),
-                FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]
+        return [NoWaitFlagArgConfig(), YesFlagArgConfig()]
 
     #def get_create_action_cmd_args(self, opts):
         #self._opts.to_args(boot_diagnostics_storage=self.storage_account),

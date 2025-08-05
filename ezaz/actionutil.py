@@ -37,7 +37,7 @@ class ActionConfig:
             return NoResponseHandler(response)
         if isinstance(response, Response):
             return ResponseHandler(response)
-        if isinstance(response, ResponseList):
+        if isinstance(response, (ResponseList, list)):
             return ResponseListHandler(response)
         if isinstance(response, str):
             return ResponseTextHandler(response)

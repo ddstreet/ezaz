@@ -1,5 +1,5 @@
 
-from ..argutil import FlagArgConfig
+from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
@@ -27,4 +27,4 @@ class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]
+        return [YesFlagArgConfig()]

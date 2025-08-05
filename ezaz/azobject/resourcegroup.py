@@ -1,7 +1,8 @@
 
 from ..argutil import ArgConfig
-from ..argutil import FlagArgConfig
+from ..argutil import NoWaitFlagArgConfig
 from ..argutil import RequiredArgConfig
+from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
@@ -35,5 +36,4 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish'),
-                FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]
+        return [NoWaitFlagArgConfig(), YesFlagArgConfig()]

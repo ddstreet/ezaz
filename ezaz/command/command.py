@@ -334,17 +334,6 @@ class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
             raise RequiredArgument(self.azobject_name(), self.action)
         return super().azobject_default_id
 
-    # TODO - re-implement list filtering...
-    def __parser_get_list_action_builtin_args(cls):
-        return [ArgConfig('--filter-prefix',
-                          help=f'In addition to configured filters, also filter {cls.command_text()}s that start with the prefix'),
-                ArgConfig('--filter-suffix',
-                          help=f'In addition to configured filters, also filter {cls.command_text()}s that end with the suffix'),
-                ArgConfig('--filter-regex',
-                          help=f'In addition to configured filters, also filter {cls.command_text()}s that match the regular expression'),
-                BoolArgConfig('-N', '--no-filters',
-                          help=f'Do not use any configured filters (the --filter-* parameters will still be used)')]
-
 
 # TODO - re-implement filter configuration
 class FilterActionCommand: #ActionCommand, AzObjectCommand):

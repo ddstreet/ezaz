@@ -399,21 +399,14 @@ class AzSubObjectContainer(AzObject):
         return list(map(lambda info: self.get_child(name, cls.info_id(info), info=info),
                         cls.list(self, **opts)))
 
-    def _filter_child_infos(self, cls, infos, **opts):
-        return [i for i in infos if self._filter_child_info(cls, i, **opts)]
-
-    def _filter_child_info(self, cls, info, no_filters=False, filter_prefix=None, filter_suffix=None, filter_regex=None, **opts):
-        if self.is_child():
-            if not self.parent._filter_child_info(cls, info,
-                                                  no_filters=no_filters,
-                                                  filter_prefix=filter_prefix,
-                                                  filter_suffix=filter_suffix,
-                                                  filter_regex=filter_regex,
-                                                  **opts):
-                return False
-        if not QuickFilter(filter_prefix, filter_suffix, filter_regex).check(cls.info_id(info)):
+    def filter_azobject_id(self, name, azobject_id, prefix=None, suffix=None, regex=None, no_filters=False, **opts):
+        if not QuickFilter(prefix, suffix, regex).check(azobject_id):
             return False
-        return no_filters or self.filters.check(cls.azobject_name(), cls.info_id(info))
+        if no_filters:
+            return True
+        return (self.filters.check(name, azobject_id) and
+                (not self.is_child() or
+                 self.parent.filter_azobject_id(name, azobject_id, prefix=prefix, suffix=suffix, regex=regex, **opts)))
 
 
 class AzShowable(AzObject):
@@ -478,7 +471,10 @@ class AzListable(AzSubObject):
 
     @classmethod
     def get_list_action_argconfigs(cls):
-        return []
+        return [ArgConfig('filter_prefix', noncmd=True, help=f'List only {cls.azobject_text()}s that start with the prefix'),
+                ArgConfig('filter_suffix', noncmd=True, help=f'List only {cls.azobject_text()}s that end with the suffix'),
+                ArgConfig('filter_regex', noncmd=True, help=f'List only {cls.azobject_text()}s that match the regular expression'),
+                BoolArgConfig('-N', '--no-filters', noncmd=True, help=f'Do not use any configured filters (the --filter-* parameters will still be used)')]
 
     @classmethod
     def get_list_action_description(cls):
@@ -489,10 +485,14 @@ class AzListable(AzSubObject):
         return ArgMap(super().get_action_configmap(), list=cls.get_list_action_config())
 
     @classmethod
-    def list(cls, parent, **opts):
+    def list(cls, parent, filter_prefix=None, filter_suffix=None, filter_regex=None, no_filters=False, **opts):
         opts['actioncfg'] = cls.get_list_action_config()
-        return parent.do_action(is_parent=True, **opts)
-
+        opts['prefix'] = filter_prefix
+        opts['suffix'] = filter_suffix
+        opts['regex'] = filter_regex
+        opts['no_filters'] = no_filters
+        return list(filter(lambda info: parent.filter_azobject_id(cls.azobject_name(), cls.info_id(info), **opts),
+                           parent.do_action(is_parent=True, **opts)))
 
 class AzCreatable(AzObject):
     @classmethod
