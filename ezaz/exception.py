@@ -137,15 +137,22 @@ class ArgumentError(EzazException):
 
 
 class RequiredArgument(ArgumentError):
-    def __init__(self, arg, required_by=None):
-        by = f' by {required_by}' if required_by else ''
-        super().__init__(f'The argument {self._arg(arg)} is required{by}.')
+    def __init__(self, arg, required_by=None, **kwargs):
+        super().__init__(self._msg(arg, required_by, **kwargs))
+
+    def _msg(self, arg, by, **kwargs):
+        return f'The argument {self._arg(arg)} is required{self._by(by)}.'
+
+    def _by(self, required_by):
+        return f' by {required_by}' if required_by else ''
 
 
 class RequiredArgumentGroup(RequiredArgument):
-    def __init__(self, arg, required_by=None, exclusive=False):
-        by = f' by {required_by}' if required_by else ''
-        super().__init__(f'{"One" if exclusive else "At least one"} of the arguments ({self._args(args)}) are required{by}.')
+    def __init__(self, args, required_by=None, exclusive=False, **kwargs):
+        super().__init__(args, required_by=required_by, exclusive=exclusive, **kwargs)
+
+    def _msg(self, args, by, exclusive, **kwargs):
+        return f'{"One" if exclusive else "At least one"} of the arguments ({self._args(args)}) are required{self._by(by)}.'
 
 
 class DuplicateArgument(ArgumentError):

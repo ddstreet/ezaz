@@ -280,8 +280,11 @@ class RequiredChoicesArgConfig(ChoicesArgConfig, RequiredArgConfig):
 
 class GroupArgConfig(BaseArgConfig):
     # Note - this is an *exclusive* group, we don't have any use for a non-exclusive group
-    def __init__(self, *argconfigs):
+    def __init__(self, *argconfigs, dest=None):
         self.argconfigs = argconfigs
+        if dest:
+            for argconfig in argconfigs:
+                argconfig._dest = dest
 
     @property
     def opts(self):

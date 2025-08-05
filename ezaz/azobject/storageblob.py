@@ -13,10 +13,6 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return ['storage', 'blob']
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
-        return 'name'
-
-    @classmethod
     def get_parent_class(cls):
         from .storagecontainer import StorageContainer
         return StorageContainer
@@ -35,3 +31,7 @@ class StorageBlob(AzCommonActionable, AzSubObject):
     def get_delete_action_argconfigs(cls):
         return [RequiredArgConfig('file', help='File to download to'),
                 FlagArgConfig('no_progress', help='Do not show download progress bar')]
+
+    @classmethod
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'name'

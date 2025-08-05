@@ -18,6 +18,7 @@ from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import ArgUtil
 from ..argutil import BoolArgConfig
+from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
 from ..cache import Cache
 from ..config import Config
@@ -33,7 +34,10 @@ from ..exception import NotDeletable
 from ..exception import NotDownloadable
 from ..exception import NotListable
 from ..exception import NotLoggedIn
+from ..exception import RequiredArgumentGroup
 from ..exception import UnsupportedAction
+from ..filter import FILTER_ALL
+from ..filter import FILTER_DEFAULT
 from ..filter import Filters
 from ..filter import QuickFilter
 from ..response import lookup_response
@@ -494,6 +498,63 @@ class AzListable(AzSubObject):
         return list(filter(lambda info: parent.filter_azobject_id(cls.azobject_name(), cls.info_id(info), **opts),
                            parent.do_action(is_parent=True, **opts)))
 
+
+class AzFilterer(AzObject):
+    @classmethod
+    def get_filter_action_config(cls):
+        return cls.make_action_config('filter',
+                                      argconfigs=cls.get_filter_action_argconfigs(),
+                                      description=cls.get_filter_action_description())
+
+    @classmethod
+    def get_filter_type_groupargconfig(cls):
+        return GroupArgConfig(ConstArgConfig('filter_all', const=FILTER_ALL,
+                                             help=f'Configure a filter for all object types (use with caution)'),
+                              *[ConstArgConfig(f'filter_{azobject_cls.azobject_name()}', const=azobject_cls.azobject_name(),
+                                               help=f'Configure a filter for only {azobject_cls.azobject_text()}s')
+                                for azobject_cls in cls.get_descendants()],
+                              ConstArgConfig('filter_default', const=FILTER_DEFAULT,
+                                             help=f'Configure a default filter (use with caution)'),
+                              dest='filter_type')
+
+    @classmethod
+    def get_filter_action_argconfigs(cls):
+        return [cls.get_filter_type_groupargconfig(),
+                GroupArgConfig(ArgConfig('--prefix', help=f'Update filter to select only object names that start with the prefix'),
+                               ConstArgConfig('--no-prefix', const='', help=f'Remove prefix filter'),
+                               dest='prefix'),
+                GroupArgConfig(ArgConfig('--suffix', help=f'Update filter to select only object names that end with the suffix'),
+                               ConstArgConfig('--no-suffix', const='', help=f'Remove suffix filter'),
+                               dest='suffix'),
+                GroupArgConfig(ArgConfig('--regex', help=f'Update filter to select only object names that match the regular expression'),
+                               ConstArgConfig('--no-regex', const='', help=f'Remove regex filter'),
+                               dest='regex')]
+                
+
+    @classmethod
+    def get_filter_action_description(cls):
+        return f"Configure the filters for this {cls.azobject_text()}'s descendant objects"
+ 
+    @classmethod
+    def get_action_configmap(cls):
+        configmap = super().get_action_configmap()
+        if cls.is_child_container():
+            return ArgMap(configmap, filter=cls.get_filter_action_config())
+        return configmap
+
+    def filter(self, filter_type=None, **opts):
+        for ftype in ['prefix', 'suffix', 'regex']:
+            if opts.get(ftype) is not None:
+                if not filter_type:
+                    raise RequiredArgumentGroup(self.get_filter_type_groupargconfig().opts, self._opt_to_arg(ftype), exclusive=True)
+                setattr(self.filters.get_filter(filter_type), ftype, opts.get(ftype))
+        return str(self.filters)
+
+
+class AzRoActionable(AzShowable, AzListable, AzFilterer):
+    pass
+
+
 class AzCreatable(AzObject):
     @classmethod
     def get_create_action_config(cls):
@@ -554,10 +615,6 @@ class AzDeletable(AzObject):
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
         opts['actioncfg'] = self.get_delete_action_config()
         self.do_action(**opts)
-
-
-class AzRoActionable(AzShowable, AzListable):
-    pass
 
 
 class AzRwActionable(AzCreatable, AzDeletable):

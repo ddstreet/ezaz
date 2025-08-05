@@ -35,8 +35,11 @@ class Filters:
         return self._get_filter(filter_type, True)
 
     def _get_filter(self, filter_type, create):
-        with suppress(KeyError):
+        try:
             return self._filters[filter_type]
+        except KeyError:
+            if not filter_type:
+                raise
         if create:
             self._filters[filter_type] = Filter(self.config.get_object(filter_type))
         else:

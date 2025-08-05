@@ -11,10 +11,6 @@ class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return ['storage', 'account']
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
-        return 'account_name' if is_parent else 'name'
-
-    @classmethod
     def get_parent_class(cls):
         from .resourcegroup import ResourceGroup
         return ResourceGroup
@@ -24,6 +20,10 @@ class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         from .storagecontainer import StorageContainer
         from .storagekey import StorageKey
         return [StorageContainer, StorageKey]
+
+    @classmethod
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'account_name' if is_parent else 'name'
 
     @classmethod
     def get_delete_action_argconfigs(cls):

@@ -13,10 +13,6 @@ class ImageDefinition(AzCommonActionable, AzSubObject):
         return ['image', 'definition']
 
     @classmethod
-    def azobject_cmd_arg(cls):
-        return '--gallery-image-definition'
-
-    @classmethod
     def get_cmd_base(cls):
         return ['sig', 'image-definition']
 
@@ -24,6 +20,10 @@ class ImageDefinition(AzCommonActionable, AzSubObject):
     def get_parent_class(cls):
         from .imagegallery import ImageGallery
         return ImageGallery
+
+    @classmethod
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'gallery_image_definition'
 
     @classmethod
     def get_create_action_argconfigs(cls):

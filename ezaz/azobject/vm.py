@@ -20,10 +20,6 @@ class VM(AzCommonActionable, AzSubObject):
         return ['vm']
 
     @classmethod
-    def azobject_cmd_arg(cls):
-        return '--name'
-
-    @classmethod
     def get_parent_class(cls):
         from .resourcegroup import ResourceGroup
         return ResourceGroup
@@ -33,8 +29,8 @@ class VM(AzCommonActionable, AzSubObject):
         return ['get-boot-log']
 
     @classmethod
-    def get_console_action_cmd(cls, action):
-        return []
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'name'
 
     @classmethod
     def get_create_action_argconfigs(cls):
@@ -54,17 +50,17 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_start_action_argconfigs(cls):
-        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
+        return [NoWaitFlagArgConfig()]
 
     @classmethod
     def get_restart_action_argconfigs(cls):
         return [FlagArgConfig('force', help='Force-restart'),
-                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
+                NoWaitFlagArgConfig()]
 
     @classmethod
     def get_stop_action_argconfigs(cls):
-        return [FlagArgConfig('skip_shutdown', help='Force-stop'),
-                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
+        return [FlagArgConfig('force', dest='skip_shutdown', help='Force-stop'),
+                NoWaitFlagArgConfig()]
 
     def _image_arg(self, action, opts):
         with suppress(RequiredArgument):

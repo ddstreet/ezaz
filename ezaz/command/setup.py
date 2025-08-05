@@ -216,10 +216,7 @@ class SetupCommand(ActionCommand):
                 print(default.azobject_id)
             default_id = f'{self.prefix}{self.randomhex(8)}'
             default = container.get_child(name, default_id)
-            if self.verbose:
-                print(f'Creating {objtype} {default.azobject_id}')
             kwargs[name] = default_id
-            print(f'kwargs: {kwargs}')
             default.create(**kwargs)
             print(f'Created {objtype} {default.azobject_id}')
             default.parent.set_default_child_id(name, default.azobject_id)

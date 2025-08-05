@@ -30,8 +30,6 @@ from ..exception import NoActionConfigMethod
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
-from ..filter import FILTER_ALL
-from ..filter import FILTER_DEFAULT
 from ..response import lookup_response
 
 
@@ -311,7 +309,7 @@ class AzSubObjectCommand(AzObjectCommand):
 
     @property
     def azobject_specified_id(self):
-        return getattr(self.options, self.azobject_name(), None)
+        return getattr(self.options, self.azclass().get_self_id_argconfig_dest(is_parent=True), None)
 
     @property
     def azobject_default_id(self):
@@ -333,69 +331,3 @@ class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
         if not self.is_parent and self.action in ['create', 'delete']:
             raise RequiredArgument(self.azobject_name(), self.action)
         return super().azobject_default_id
-
-
-# TODO - re-implement filter configuration
-class FilterActionCommand: #ActionCommand, AzObjectCommand):
-    @classmethod
-    def parser_get_action_builtin_names(cls):
-        return (super().parser_get_action_builtin_names() +
-                (['filter'] if cls.azclass().is_child_container() else []))
-
-    @classmethod
-    def parser_get_filter_action_builtin_config(cls):
-        return cls.make_action_config('filter',
-                                      aliases=cls.parser_get_filter_action_builtin_aliases(),
-                                      description=cls.parser_get_filter_action_builtin_description(),
-                                      argconfigs=cls.parser_get_filter_action_builtin_args())
-
-    @classmethod
-    def parser_get_filter_action_builtin_aliases(cls):
-        return []
-
-    @classmethod
-    def parser_get_filter_action_builtin_description(cls):
-        return f'Edit filtering for {cls.command_text()}'
-
-    @classmethod
-    def _parser_filter_type(cls):
-        filter_all = ConstArgConfig('--filter-all', dest='filter_type', const=FILTER_ALL,
-                                    help=f'Add/update/show a filter for all object types (use with caution)')
-        filter_azobjects = [ConstArgConfig(f'--filter-{azobject_cls.azobject_name("-")}', dest='filter_type',
-                                           const=azobject_cls.azobject_name(),
-                                           help=f'Add/update/show a filter for {azobject_cls.azobject_text()}s')
-                            for azobject_cls in cls.azclass().get_descendants()]
-        filter_default = ConstArgConfig('--filter-default', dest='filter_type', const=FILTER_DEFAULT,
-                                        help=f'Add/update/show a default filter (use with caution)')
-        return GroupArgConfig(filter_all, *filter_azobjects, filter_default)
-
-    @classmethod
-    def _parser_filter_actions(cls):
-        return [GroupArgConfig(ArgConfig('--prefix', help=f'Filter object names that start with the prefix'),
-                               ConstArgConfig('--no-prefix', dest='prefix', const='', help=f'Remove prefix filter')),
-                GroupArgConfig(ArgConfig('--suffix', help=f'Filter object names that end with the suffix'),
-                               ConstArgConfig('--no-suffix', dest='suffix', const='', help=f'Remove suffix filter')),
-                GroupArgConfig(ArgConfig('--regex', help=f'Filter object names that match the regular expression'),
-                               ConstArgConfig('--no-regex', dest='regex', const='', help=f'Remove regex filter'))]
-
-    @classmethod
-    def parser_get_filter_action_builtin_args(cls):
-        return [cls._parser_filter_type(), *cls._parser_filter_actions()]
-
-    def _filter_update(self):
-        for k, v in ArgMap(*[arg.action_args(self.options) for arg in self._parser_filter_actions()]).items():
-            if self.options.filter_type:
-                setattr(self.azobject.filters.get_filter(self.options.filter_type), k, v)
-            else:
-                raise RequiredArgumentGroup(self._parser_filter_type().opts, k, exclusive=True)
-
-    def _filter_show(self):
-        print(self.azobject.filters)
-
-    def run(self):
-        if self.action == 'filter':
-            self._filter_update()
-            self._filter_show()
-        else:
-            super().run()
-

@@ -23,13 +23,13 @@ class SshKey(AzCommonActionable, AzSubObject):
         return ['sshkey']
 
     @classmethod
-    def azobject_cmd_arg(cls):
-        return '--ssh-public-key-name'
-
-    @classmethod
     def get_parent_class(cls):
         from .resourcegroup import ResourceGroup
         return ResourceGroup
+
+    @classmethod
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'ssh_public_key_name'
 
     @classmethod
     def get_create_action_argconfigs(cls):
