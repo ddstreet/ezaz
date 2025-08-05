@@ -22,8 +22,13 @@ class Location(AzRoActionable, AzSubObject):
         return cls.get_cmd_base() + ['list-locations']
 
     @classmethod
-    def get_parent_argconfigs(cls):
-        # We don't want the --subscription param
+    def get_parent_class(cls):
+        from .subscription import Subscription
+        return Subscription
+
+    @classmethod
+    def get_common_argconfigs(cls, is_parent=False):
+        # We don't want the --subscription or --location params
         return []
 
     def _get_info(self, **opts):

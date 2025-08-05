@@ -13,8 +13,8 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return ['storage', 'blob']
 
     @classmethod
-    def azobject_cmd_arg(cls):
-        return '--name'
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'name'
 
     @classmethod
     def get_parent_class(cls):

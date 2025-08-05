@@ -27,6 +27,10 @@ class Account(AzShowable, AzSubObjectContainer):
         return [Subscription]
 
     @classmethod
+    def get_self_id_argconfig(cls, is_parent):
+        return []
+
+    @classmethod
     def get_login_action_config(cls):
         return cls.make_action_config('login', cmd=['login'], description='Login', argconfigs=cls.get_login_argconfig())
 
@@ -49,6 +53,9 @@ class Account(AzShowable, AzSubObjectContainer):
     @property
     def config(self):
         return self._config.get_object(self.get_info().user.name)
+
+    def get_self_id(self, is_parent):
+        return {}
 
     @property
     def azobject_id(self):

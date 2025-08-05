@@ -26,12 +26,11 @@ class Main:
 
     def parse_args(self, args):
         parser = argparse.ArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
-        parser.add_argument('--debug-exception', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--debug-argcomplete', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('-v', '--verbose',
-                            action='store_true',
+                            action='count',
+                            default=0,
                             help='Be verbose')
         parser.add_argument('-n', '--dry-run',
                             action='store_true',
@@ -80,7 +79,7 @@ class Main:
         try:
             self.command.run()
         except Exception as e:
-            if self.options.debug_exception:
+            if self.options.verbose > 1:
                 traceback.print_exc()
             raise
 
@@ -99,8 +98,12 @@ def main():
 
         try:
             Main(cmds=COMMAND_CLASSES, venv=venv).run()
+            return 0
         except DefaultConfigNotFound as dcnf:
             print(f'ERROR: {dcnf}')
             print("You can set up defaults with 'ezaz setup'")
         except EzazException as e:
             print(f'ERROR ({e.__class__.__name__}): {e}')
+        except KeyboardInterrupt:
+            print('Aborting.')
+        return -1

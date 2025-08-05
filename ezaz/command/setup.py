@@ -95,23 +95,20 @@ class SetupCommand(ActionCommand):
             self._account.login()
         return self._account
 
-    def get_child_text(self, container, name):
-        return container.get_child_class(name).azobject_text()
-
-    def get_child_default(self, container, name):
-        objtype = self.get_child_text(container, name)
+    def get_default_child(self, container, name):
+        objtype = container.get_child_class(name).azobject_text()
         print(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
 
         with suppress(DefaultConfigNotFound):
-            default = container.get_child(name, container.get_child_default_id(name))
+            default = container.get_child(name, container.get_default_child_id(name))
             if default.exists:
                 return default
             print(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
         return None
 
     def choose_child(self, container, name, *, cmdline_arg_id=None, **kwargs):
-        objtype = self.get_child_text(container, name)
-        default = self.get_child_default(container, name)
+        objtype = container.get_child_class(name).azobject_text()
+        default = self.get_default_child(container, name)
         if self.all or default is None:
             if default is None:
                 print('no default, checking available...')
@@ -132,7 +129,7 @@ class SetupCommand(ActionCommand):
                 except NoneOfTheAboveChoice:
                     print(f'No {objtype} selected; skipping')
                     raise
-            container.set_child_default_id(name, default.azobject_id)
+            container.set_default_child_id(name, default.azobject_id)
             print(f'Default {objtype} is {default.azobject_id}')
         else:
             print(default.azobject_id)
@@ -210,8 +207,8 @@ class SetupCommand(ActionCommand):
             self.choose_child(rg, 'vm')
 
     def create_child(self, container, name, **kwargs):
-        objtype = self.get_child_text(container, name)
-        default = self.get_child_default(container, name)
+        objtype = container.get_child_class(name).azobject_text()
+        default = self.get_default_child(container, name)
         if self.all or default is None:
             if default is None:
                 print('no default, creating one...')
@@ -225,7 +222,7 @@ class SetupCommand(ActionCommand):
             print(f'kwargs: {kwargs}')
             default.create(**kwargs)
             print(f'Created {objtype} {default.azobject_id}')
-            default.parent.set_child_default_id(name, default.azobject_id)
+            default.parent.set_default_child_id(name, default.azobject_id)
             print(f'Default {objtype} is {default.azobject_id}')
         else:
             print(default.azobject_id)

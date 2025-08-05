@@ -11,12 +11,8 @@ class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return ['storage', 'account']
 
     @classmethod
-    def azobject_cmd_arg(cls):
-        return '--name'
-
-    @classmethod
-    def azobject_subcmd_arg(cls):
-        return '--account-name'
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'account_name' if is_parent else 'name'
 
     @classmethod
     def get_parent_class(cls):

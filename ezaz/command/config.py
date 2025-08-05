@@ -1,5 +1,6 @@
 
 from ..argutil import ArgMap
+from ..argutil import YesFlagArgConfig
 from ..dialog import YesNo
 from .command import ActionCommand
 
@@ -21,7 +22,7 @@ class ConfigCommand(ActionCommand):
 
     @classmethod
     def get_remove_action_config(cls):
-        return cls.make_action_config('remove', description='Remove configuration file')
+        return cls.make_action_config('remove', description='Remove configuration file', argconfigs=[YesFlagArgConfig()])
 
     @classmethod
     def get_default_action(cls):
@@ -33,11 +34,11 @@ class ConfigCommand(ActionCommand):
     def remove(self, **opts):
         if not self.config:
             print('There is no config to remove.')
-        elif YesNo('About to remove the configuration file, are you sure?'):
+        elif self.opts.get('yes') or YesNo('About to remove the configuration file, are you sure?'):
             if self.dry_run:
                 print('DRY-RUN: not removing configuration file.')
             else:
                 self.config.remove()
-            print('Configuration file removed.')
+                print('Configuration file removed.')
         else:
             print('Configuration file not removed.')

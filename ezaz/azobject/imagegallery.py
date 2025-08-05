@@ -11,10 +11,6 @@ class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return ['image', 'gallery']
 
     @classmethod
-    def azobject_cmd_arg(cls):
-        return '--gallery-name'
-
-    @classmethod
     def get_parent_class(cls):
         from .resourcegroup import ResourceGroup
         return ResourceGroup
@@ -27,6 +23,10 @@ class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     @classmethod
     def get_cmd_base(cls):
         return ['sig']
+
+    @classmethod
+    def get_self_id_argconfig_dest(cls, is_parent):
+        return 'gallery_name'
 
     @classmethod
     def get_create_action_argconfigs(cls):

@@ -31,6 +31,9 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [RequiredArgConfig('location', help='Location'),
-                FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish'),
+        return [RequiredArgConfig('location', help='Location')]
+
+    @classmethod
+    def get_delete_action_argconfigs(cls):
+        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish'),
                 FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]

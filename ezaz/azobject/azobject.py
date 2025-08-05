@@ -43,7 +43,7 @@ class AzAction(ArgUtil, ABC):
     # For auto-importing
     EZAZ_AZOBJECT_CLASS = True
 
-    def __init__(self, *, verbose=False, dry_run=False, **kwargs):
+    def __init__(self, *, verbose=0, dry_run=False, **kwargs):
         super().__init__()
         self._verbose = verbose
         self._dry_run = dry_run
@@ -87,6 +87,8 @@ class AzAction(ArgUtil, ABC):
                 if any(s in cpe.stderr for s in ["Please run 'az login' to setup account",
                                                  "Interactive authentication is needed"]):
                     raise NotLoggedIn()
+                elif self.verbose > 1:
+                    print(f'az command error: {cpe}')
             raise AzCommandError(cpe)
 
     def az(self, *args, capture_output=False, **kwargs):
@@ -94,6 +96,8 @@ class AzAction(ArgUtil, ABC):
 
     def az_stdout(self, *args, **kwargs):
         cp = self.az(*args, capture_output=True, text=True, **kwargs)
+        if self.verbose > 1:
+            print(f'az_stdout: {cp.stdout}')
         return cp.stdout if cp else ''
 
     def az_json(self, *args, **kwargs):
@@ -150,7 +154,7 @@ class AzObject(CachedAzAction):
         return cls.azobject_name(' ')
 
     @classmethod
-    def get_argconfigs(cls, is_parent=False):
+    def get_common_argconfigs(cls, is_parent=False):
         return cls.get_self_id_argconfig(is_parent=is_parent)
 
     @classmethod
@@ -158,7 +162,7 @@ class AzObject(CachedAzAction):
         return [ArgConfig(cls.azobject_name(),
                           dest=cls.get_self_id_argconfig_dest(is_parent=is_parent),
                           completer=AzObjectCompleter(cls),
-                          help='Use the specified {cls.azobject_text()}, instead of the default')]
+                          help=f'Use the specified {cls.azobject_text()}, instead of the default')]
 
     @classmethod
     def get_self_id_argconfig_dest(cls, is_parent):
@@ -184,22 +188,14 @@ class AzObject(CachedAzAction):
         return None
 
     @classmethod
-    def make_action_config(cls, action, *, handler_fn=None, argconfigs=[], **kwargs):
+    def make_action_config(cls, action, *, handler_fn=None, argconfigs=[], is_parent=False, **kwargs):
         return ActionConfig(action,
                             handler=cls.make_action_handler(handler_fn or getattr(cls, cls._arg_to_opt(action))),
-                            argconfigs=argconfigs + cls.get_argconfigs(),
+                            argconfigs=argconfigs + cls.get_common_argconfigs(is_parent=is_parent),
                             **kwargs)
 
     @classmethod
     def make_action_handler(cls, func):
-        class AzClassActionHandler(ActionHandler):
-            def __call__(self, command, **opts):
-                return self.func(command.parent_azobject, **opts)
-
-        class AzObjectActionHandler(ActionHandler):
-            def __call__(self, command, **opts):
-                return self.func(command.azobject, **opts)
-
         if inspect.ismethod(func):
             return AzClassActionHandler(func)
         else:
@@ -244,6 +240,15 @@ class AzObject(CachedAzAction):
     def get_info(self, **opts):
         pass
 
+    def get_argconfig_default_values(self, is_parent=False):
+        return self.get_self_ids(is_parent=is_parent)
+
+    def get_self_id(self, is_parent):
+        return {self.get_self_id_argconfig_dest(is_parent=is_parent): self.azobject_id}
+
+    def get_self_ids(self, is_parent=False):
+        return self.get_self_id(is_parent=is_parent)
+
     @property
     def exists(self):
         try:
@@ -252,12 +257,17 @@ class AzObject(CachedAzAction):
         except NoAzObjectExists:
             return False
 
-    def do_action(self, *, action=None, actioncfg=None, dry_runnable=False, **opts):
+    def do_action(self, *, action=None, actioncfg=None, dry_runnable=False, is_parent=False, **opts):
+        if self.verbose > 2:
+            print(f'do_action(action={action}, actioncfg={actioncfg}, dry_runnable={dry_runnable}, opts={opts})')
         if not actioncfg:
             print(f'FIXME: do_action without actioncfg, action {action}')
             if not action:
                 raise RuntimeError('Missing both action and actioncfg')
             actioncfg = self.get_action_config(action)
+        for k, v in self.get_argconfig_default_values(is_parent=is_parent).items():
+            if opts.get(k) is None:
+                opts[k] = v
         az = getattr(self, f'az_{actioncfg.az}', self.az)
         return az(*actioncfg.cmd, cmd_args=actioncfg.cmd_args(**opts), dry_runnable=dry_runnable)
 
@@ -281,12 +291,9 @@ class AzSubObject(AzObject):
         return f'{cls.azobject_name()}.{obj_id}'
 
     @classmethod
-    def get_parent_argconfigs(cls):
-        return cls.get_parent_class().get_argconfigs(is_parent=True)
-
-    @classmethod
-    def get_argconfigs(cls, is_parent=False):
-        return cls.get_parent_argconfigs() + super().get_argconfigs(is_parent=is_parent)
+    def get_common_argconfigs(cls, is_parent=False):
+        return (cls.get_parent_class().get_common_argconfigs(is_parent=True) +
+                super().get_common_argconfigs(is_parent=is_parent))
 
     def __init__(self, *, parent, azobject_id, **kwargs):
         super().__init__(**kwargs)
@@ -313,6 +320,12 @@ class AzSubObject(AzObject):
     @property
     def dry_run(self):
         return self.parent.dry_run
+
+    def get_self_ids(self, is_parent=False):
+        self_id = super().get_self_ids(is_parent=is_parent)
+        if self.is_child():
+            return ArgMap(self.parent.get_self_ids(is_parent=True), self_id)
+        return self_id
 
 
 class AzSubObjectContainer(AzObject):
@@ -381,12 +394,10 @@ class AzSubObjectContainer(AzObject):
     def get_default_child(self, name):
         return self.get_child(name, self.get_default_child_id(name))
 
-    def get_child_infos(self, name, **opts):
-        return self._filter_child_infos(self.get_child_class(name), self.do_action(**opts), **opts)
-
     def get_children(self, name, **opts):
-        return list(map(lambda info: self.get_child(name, self.get_child_class(name).info_id(info), info=info),
-                        self.list(name, **opts)))
+        cls = self.get_child_class(name)
+        return list(map(lambda info: self.get_child(name, cls.info_id(info), info=info),
+                        cls.list(self, **opts)))
 
     def _filter_child_infos(self, cls, infos, **opts):
         return [i for i in infos if self._filter_child_info(cls, i, **opts)]
@@ -431,7 +442,7 @@ class AzShowable(AzObject):
         return ArgMap(super().get_action_configmap(), show=cls.get_show_action_config())
 
     def _get_info(self, **opts):
-        opts['action'] = 'show'
+        opts['actioncfg'] = self.get_show_action_config()
         return self.do_action(dry_runnable=True, **opts)
 
     def get_info(self, **opts):
@@ -444,12 +455,11 @@ class AzShowable(AzObject):
 
     @property
     def info(self):
-        # TODO - REMOVE THIS!
+        print('info called, remove!')
         return self.get_info()
 
     def show(self, **opts):
-        # TODO: move outputty-stuff from azobject...should be model ONLY. command class is view/control.
-        print(self.get_info(**opts) if self.verbose else self.info_id(self.get_info(**opts)))
+        return self.get_info(**opts)
 
 
 class AzListable(AzSubObject):
@@ -459,7 +469,8 @@ class AzListable(AzSubObject):
                                       cmd=cls.get_list_action_cmd(),
                                       argconfigs=cls.get_list_action_argconfigs(),
                                       description=cls.get_list_action_description(),
-                                      az='responselist')
+                                      az='responselist',
+                                      is_parent=True)
 
     @classmethod
     def get_list_action_cmd(cls):
@@ -480,7 +491,7 @@ class AzListable(AzSubObject):
     @classmethod
     def list(cls, parent, **opts):
         opts['actioncfg'] = cls.get_list_action_config()
-        return parent.do_action(**opts)
+        return parent.do_action(is_parent=True, **opts)
 
 
 class AzCreatable(AzObject):
@@ -510,6 +521,7 @@ class AzCreatable(AzObject):
     def create(self, **opts):
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
+        opts['actioncfg'] = self.get_create_action_config()
         self.do_action(**opts)
 
 
@@ -540,6 +552,7 @@ class AzDeletable(AzObject):
     def delete(self, **opts):
         if not self.exists:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
+        opts['actioncfg'] = self.get_delete_action_config()
         self.do_action(**opts)
 
 
@@ -572,15 +585,15 @@ class AzDefaultable(AzObject):
         return ArgMap(super().get_action_configmap(), default=cls.get_default_action_config())
 
     @classmethod
-    def default(cls, *, parent, set=False, remove=False, **opts):
+    def default(cls, parent, set=False, remove=False, **opts):
         if set:
-            parent.set_default_child_id(cls.azobject_name(),
-                                              cls.required_arg_value(cls.azobject_name(), opts, '--set'))
+            default_id = cls.required_arg_value(cls.azobject_name(), opts, '--set')
+            parent.set_default_child_id(cls.azobject_name(), default_id)
+            return f'Set default {cls.azobject_text()}: {default_id}'
         elif remove:
             parent.del_default_child_id(cls.azobject_name())
-        else:
-            # TODO: move printout stuff out of az classes
-            print(parent.get_default_child_id(cls.azobject_name()))
+            return f'Unset default {cls.azobject_text()}'
+        return f'Default {cls.azobject_text()}: {parent.get_default_child_id(cls.azobject_name())}'
 
 
 class AzCommonActionable(AzRoActionable, AzRwActionable, AzDefaultable):
@@ -608,7 +621,7 @@ class AzObjectCompleter:
             parsed_args.actioncfg = self.get_list_action_config()
             return map(self.info_attr, self.azclass.list(parent, **vars(parsed_args)))
         except Exception as e:
-            if getattr(parsed_args, 'debug_argcomplete', True):
+            if self.verbose > 1:
                 import argcomplete
                 argcomplete.warn(f'argcomplete error: {e}')
             raise
@@ -620,3 +633,16 @@ class AzObjectCompleter:
 class AzObjectNameCompleter(AzObjectCompleter):
     def info_attr(self, info):
         return info.name
+
+
+class AzObjectActionHandler(ActionHandler):
+    def __call__(self, command, **opts):
+        return self._handle_azobject(command.azobject, is_parent=False, **opts)
+
+    def _handle_azobject(self, azobject, is_parent=False, **opts):
+        return self.func(azobject, **opts)
+
+
+class AzClassActionHandler(AzObjectActionHandler):
+    def __call__(self, command, **opts):
+        return self._handle_azobject(command.parent_azobject, is_parent=True, **opts)

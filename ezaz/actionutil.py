@@ -18,8 +18,16 @@ class ActionConfig:
         self.argconfigs = argconfigs
         self.az = az
 
+        self.handler.actioncfg = self
+
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.action}, aliases={self.aliases}, handler={self.handler}, cmd={self.cmd}, description={self.description}, argconfigs={self.argconfigs}, az={self.az})"
+        return self.__class__.__name__ + '(' + (f"{self.action}, " +
+                                                f"aliases={self.aliases}, " +
+                                                f"handler={self.handler}, " +
+                                                f"cmd={self.cmd}, " +
+                                                f"description={self.description}, " +
+                                                f"argconfigs={self.argconfigs}, " +
+                                                f"az={self.az})")
 
     def handle(self, *args, **kwargs):
         return self._response(self.handler(*args, **kwargs))
@@ -59,6 +67,7 @@ class ActionConfig:
 class ActionHandler(ABC):
     def __init__(self, func):
         self.func = func
+        self.actioncfg = None
 
     @abstractmethod
     def __call__(self, command, **opts):
@@ -97,6 +106,9 @@ class ResponseListHandler(ResponseHandler):
 
 class NoResponseHandler(ResponseHandler):
     def _print(self, response):
+        pass
+
+    def _print_verbose(self, response):
         pass
 
 

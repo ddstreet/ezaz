@@ -199,6 +199,14 @@ class ArgConfig(BaseArgConfig):
         self.default = default
         self.completer = completer
 
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + (f"{', '.join(self.opts)}, " +
+                                                f"help={self.help}, " +
+                                                f"dest={self._dest}, " +
+                                                f"default={self.default}, " +
+                                                f"hidden={self.help == argparse.SUPPRESS}, " +
+                                                f"completer={self.completer})")
+
     @property
     def dest(self):
         return argparse.ArgumentParser().add_argument(*self.parser_args, dest=self._dest).dest
@@ -233,6 +241,11 @@ class BoolArgConfig(ArgConfig):
 class FlagArgConfig(BoolArgConfig):
     def cmd_args(self, **opts):
         return self.optional_flag_arg(self.dest, opts)
+
+
+class YesFlagArgConfig(FlagArgConfig):
+    def __init__(self, *, help=None, **kwargs):
+        super().__init__('y', 'yes', help=help or 'Do not prompt for confirmation', **kwargs)
 
 
 class ConstArgConfig(ArgConfig):
