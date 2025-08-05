@@ -22,16 +22,12 @@ class Location(AzRoActionable, AzSubObject):
         return cls.get_cmd_base() + ['list-locations']
 
     @classmethod
-    def get_subcmd_args_from_parent(cls, parent, cmdname, opts):
+    def get_parent_argconfigs(cls):
         # We don't want the --subscription param
-        return {}
+        return []
 
-    def get_cmd_args(self, cmdname, opts):
-        # We don't want the --location param
-        return {}
-
-    def _get_info(self, action, opts):
-        for info in super()._get_info(action, opts):
+    def _get_info(self, **opts):
+        for info in super()._get_info(**opts):
             if info.name == self.azobject_id:
                 return info
         raise NoAzObjectExists(self.azobject_text(), self.azobject_id)

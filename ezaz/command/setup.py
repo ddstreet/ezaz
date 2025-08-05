@@ -7,7 +7,6 @@ import string
 from contextlib import suppress
 from functools import cached_property
 
-from ..argutil import ActionConfig
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import BoolArgConfig
@@ -35,9 +34,9 @@ class SetupCommand(ActionCommand):
 
     @classmethod
     def get_prompt_action_config(cls):
-        return ActionConfig('prompt', cmdobjmethod='prompt',
-                            description='Prompt to select the default object, if needed (default)',
-                            argconfigs=cls.get_prompt_action_argconfigs())
+        return cls.make_action_config('prompt',
+                                      description='Prompt to select the default object, if needed (default)',
+                                      argconfigs=cls.get_prompt_action_argconfigs())
 
     @classmethod
     def get_prompt_action_argconfigs(cls):
@@ -47,9 +46,9 @@ class SetupCommand(ActionCommand):
 
     @classmethod
     def get_create_action_config(cls):
-        return ActionConfig('create', cmdobjmethod='create',
-                            description='Automatically create a new default object, if needed',
-                            argconfigs=cls.get_create_action_argconfigs())
+        return cls.make_action_config('create',
+                                      description='Automatically create a new default object, if needed',
+                                      argconfigs=cls.get_create_action_argconfigs())
 
     @classmethod
     def get_create_action_argconfigs(cls):
@@ -96,23 +95,23 @@ class SetupCommand(ActionCommand):
             self._account.login()
         return self._account
 
-    def get_azsubobject_text(self, container, name):
-        return container.get_azsubobject_class(name).azobject_text()
+    def get_child_text(self, container, name):
+        return container.get_child_class(name).azobject_text()
 
-    def get_azsubobject_default(self, container, name):
-        objtype = self.get_azsubobject_text(container, name)
+    def get_child_default(self, container, name):
+        objtype = self.get_child_text(container, name)
         print(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
 
         with suppress(DefaultConfigNotFound):
-            default = container.get_azsubobject(name, container.get_azsubobject_default_id(name))
+            default = container.get_child(name, container.get_child_default_id(name))
             if default.exists:
                 return default
             print(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
         return None
 
-    def choose_azsubobject(self, container, name, *, cmdline_arg_id=None, **kwargs):
-        objtype = self.get_azsubobject_text(container, name)
-        default = self.get_azsubobject_default(container, name)
+    def choose_child(self, container, name, *, cmdline_arg_id=None, **kwargs):
+        objtype = self.get_child_text(container, name)
+        default = self.get_child_default(container, name)
         if self.all or default is None:
             if default is None:
                 print('no default, checking available...')
@@ -120,40 +119,40 @@ class SetupCommand(ActionCommand):
                 print(default.azobject_id)
             default = None
             if cmdline_arg_id:
-                default = container.get_azsubobject(name, cmdline_arg_id)
+                default = container.get_child(name, cmdline_arg_id)
                 if not default.exists:
                     print('Provided {objtype} {cmdline_arg_id} does not exist, please choose another...')
                     default = None
             if not default:
                 try:
-                    default = AzObjectChoice(container.get_azsubobjects(name), default, verify_single=self.verify_single, **kwargs)
+                    default = AzObjectChoice(container.get_children(name), default, verify_single=self.verify_single, **kwargs)
                 except NoChoices:
                     print(f'No {objtype} found, please create at least one; skipping')
                     raise
                 except NoneOfTheAboveChoice:
                     print(f'No {objtype} selected; skipping')
                     raise
-            container.set_azsubobject_default_id(name, default.azobject_id)
+            container.set_child_default_id(name, default.azobject_id)
             print(f'Default {objtype} is {default.azobject_id}')
         else:
             print(default.azobject_id)
 
         return default
 
-    def prompt(self, config, opts):
+    def prompt(self, **opts):
         self.choose_subscription()
         print('All done.')
 
     def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self.subscription, hint_fn=lambda o: o.info.name)
+            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info.name)
 
             self.add_resource_group_filter(subscription)
             self.choose_location(subscription)
             self.choose_resource_group(subscription)
 
     def choose_location(self, subscription):
-        return self.choose_azsubobject(subscription, 'location')
+        return self.choose_child(subscription, 'location', cmdline_arg_id=self.location)
 
     def add_resource_group_filter(self, subscription):
         rgfilter = subscription.filters.get_filter('resource_group')
@@ -177,7 +176,7 @@ class SetupCommand(ActionCommand):
 
     def choose_resource_group(self, subscription):
         with suppress(ChoiceError):
-            rg = self.choose_azsubobject(subscription, 'resource_group')
+            rg = self.choose_child(subscription, 'resource_group')
 
             self.choose_storage_account(rg)
             self.choose_image_gallery(rg)
@@ -186,89 +185,88 @@ class SetupCommand(ActionCommand):
 
     def choose_storage_account(self, rg):
         with suppress(ChoiceError):
-            sa = self.choose_azsubobject(rg, 'storage_account')
+            sa = self.choose_child(rg, 'storage_account')
             self.choose_storage_container(sa)
 
     def choose_storage_container(self, sa):
         with suppress(ChoiceError):
-            self.choose_azsubobject(sa, 'storage_container')
+            self.choose_child(sa, 'storage_container')
 
     def choose_image_gallery(self, rg):
         with suppress(ChoiceError):
-            ig = self.choose_azsubobject(rg, 'image_gallery')
+            ig = self.choose_child(rg, 'image_gallery')
             self.choose_image_definition(ig)
 
     def choose_image_definition(self, ig):
         with suppress(ChoiceError):
-            self.choose_azsubobject(ig, 'image_definition')
+            self.choose_child(ig, 'image_definition')
 
     def choose_ssh_key(self, rg):
         with suppress(ChoiceError):
-            self.choose_azsubobject(rg, 'ssh_key')
+            self.choose_child(rg, 'ssh_key')
 
     def choose_vm(self, rg):
         with suppress(ChoiceError):
-            self.choose_azsubobject(rg, 'vm')
+            self.choose_child(rg, 'vm')
 
-    def create_azsubobject(self, container, name, **kwargs):
-        objtype = self.get_azsubobject_text(container, name)
-        default = self.get_azsubobject_default(container, name)
+    def create_child(self, container, name, **kwargs):
+        objtype = self.get_child_text(container, name)
+        default = self.get_child_default(container, name)
         if self.all or default is None:
             if default is None:
                 print('no default, creating one...')
             else:
                 print(default.azobject_id)
             default_id = f'{self.prefix}{self.randomhex(8)}'
-            default = container.get_azsubobject(name, default_id)
+            default = container.get_child(name, default_id)
             if self.verbose:
                 print(f'Creating {objtype} {default.azobject_id}')
+            kwargs[name] = default_id
+            print(f'kwargs: {kwargs}')
             default.create(**kwargs)
             print(f'Created {objtype} {default.azobject_id}')
-            default.set_self_default()
+            default.parent.set_child_default_id(name, default.azobject_id)
             print(f'Default {objtype} is {default.azobject_id}')
         else:
             print(default.azobject_id)
 
         return default
 
-    def create(self, config, opts):
+    def create(self, **opts):
         self.create_subscription()
         print('All done.')
 
     def create_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_azsubobject(self.account, 'subscription', arg_id=self.subscription, hint_fn=lambda o: o.info.name)
+            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info.name)
             self.add_resource_group_filter(subscription)
             location = self.choose_location(subscription)
             self.create_resource_group(subscription, location)
 
-    def create_location(self, subscription):
-        return self.choose_azsubobject(subscription, 'location', arg_id=self.location)
-
     def create_resource_group(self, subscription, location):
-        rg = self.create_azsubobject(subscription, 'resource_group', location=location.azobject_id)
+        rg = self.create_child(subscription, 'resource_group', location=location.azobject_id)
 
         self.create_storage_account(rg)
         self.create_image_gallery(rg)
         self.create_ssh_key(rg)
 
     def create_storage_account(self, rg):
-        sa = self.create_azsubobject(rg, 'storage_account')
+        sa = self.create_child(rg, 'storage_account')
         self.create_storage_container(sa)
 
     def create_storage_container(self, sa):
-        self.create_azsubobject(sa, 'storage_container')
+        self.create_child(sa, 'storage_container')
 
     def create_image_gallery(self, rg):
-        ig = self.create_azsubobject(rg, 'image_gallery')
+        ig = self.create_child(rg, 'image_gallery')
         self.create_image_definition(ig)
 
     def create_image_definition(self, ig):
-        self.create_azsubobject(ig, 'image_definition',
-                                offer=f'{self.prefix}offer{self.randomhex(8)}',
-                                publisher=f'{self.prefix}publisher{self.randomhex(8)}',
-                                sku=f'{self.prefix}sku{self.randomhex(8)}',
-                                os_type='Linux')
+        self.create_child(ig, 'image_definition',
+                          offer=f'{self.prefix}offer{self.randomhex(8)}',
+                          publisher=f'{self.prefix}publisher{self.randomhex(8)}',
+                          sku=f'{self.prefix}sku{self.randomhex(8)}',
+                          os_type='Linux')
 
     def create_ssh_key(self, rg):
-        self.create_azsubobject(rg, 'ssh_key')
+        self.create_child(rg, 'ssh_key')

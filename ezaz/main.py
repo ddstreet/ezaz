@@ -30,10 +30,10 @@ class Main:
         parser.add_argument('--debug-argcomplete', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('-v', '--verbose', dest='toplevel_verbose',
+        parser.add_argument('-v', '--verbose',
                             action='store_true',
                             help='Be verbose')
-        parser.add_argument('-n', '--dry-run', dest='toplevel_dry_run',
+        parser.add_argument('-n', '--dry-run',
                             action='store_true',
                             help='Only print what would be done, do not run commands')
 
@@ -50,9 +50,7 @@ class Main:
             argcomplete.autocomplete(parser)
 
         options = parser.parse_args(args)
-
-        options.verbose |= options.toplevel_verbose
-        options.dry_run |= options.toplevel_dry_run
+        options.full_args = args
 
         return options
 

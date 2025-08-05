@@ -1,4 +1,7 @@
 
+- azobjects should have simple api, e.g. create(), delete(), show(),
+  etc. that can be called directly and simply without opts()
+
 - implement vm actions
   add 'get-instance-view' for vm current/instance info (running, distro, etc)
 

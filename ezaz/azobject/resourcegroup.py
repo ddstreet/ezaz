@@ -5,10 +5,6 @@ from ..argutil import RequiredArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
-from .imagegallery import ImageGallery
-from .sshkey import SshKey
-from .storageaccount import StorageAccount
-from .vm import VM
 
 
 class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
@@ -17,7 +13,16 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return ['resource', 'group']
 
     @classmethod
-    def get_azsubobject_classes(cls):
+    def get_parent_class(cls):
+        from .subscription import Subscription
+        return Subscription
+
+    @classmethod
+    def get_child_classes(cls):
+        from .imagegallery import ImageGallery
+        from .sshkey import SshKey
+        from .storageaccount import StorageAccount
+        from .vm import VM
         return [ImageGallery, SshKey, StorageAccount, VM]
 
     @classmethod

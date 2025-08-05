@@ -1,8 +1,11 @@
 
 import argcomplete
 import argparse
+import inspect
 import json
 import os
+import re
+import string
 import subprocess
 
 from abc import ABC
@@ -12,14 +15,14 @@ from contextlib import suppress
 from functools import cached_property
 from types import SimpleNamespace
 
-from ..argutil import ActionConfig
+from ..actionutil import ActionConfig
+from ..actionutil import ActionHandler
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import ArgUtil
 from ..argutil import BoolArgConfig
 from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
-from ..argutil import noop
 from ..cache import Cache
 from ..config import Config
 from ..exception import DefaultConfigNotFound
@@ -113,13 +116,25 @@ class SimpleCommand(ArgUtil, ABC):
     def cache(self):
         return self._cache
 
-    @property
+    @cached_property
     def verbose(self):
-        return self.options.verbose
+        # Unfortunately, argparse doesn't correctly pass arg values down to subparsers
+        verbose_parser = argparse.ArgumentParser(add_help=False)
+        self.parser_add_argument_verbose(verbose_parser)
+        self.parser_add_argument_dry_run(verbose_parser)
+        # Need this so the parser will pick up -v even in combined short params, e.g. -fvn
+        verbose_parser.add_argument(*map(lambda a: f'-{a}', re.sub(r'[vVnN]', '', string.ascii_letters)), action='store_true')
+        return verbose_parser.parse_known_args(self.options.full_args)[0].verbose
 
-    @property
+    @cached_property
     def dry_run(self):
-        return self.options.dry_run
+        # Unfortunately, argparse doesn't correctly pass arg values down to subparsers
+        dry_run_parser = argparse.ArgumentParser(add_help=False)
+        self.parser_add_argument_verbose(dry_run_parser)
+        self.parser_add_argument_dry_run(dry_run_parser)
+        # Need this so the parser will pick up -n even in combined short params, e.g. -fvn
+        dry_run_parser.add_argument(*map(lambda a: f'-{a}', re.sub(r'[vVnN]', '', string.ascii_letters)), action='store_true')
+        return dry_run_parser.parse_known_args(self.options.full_args)[0].dry_run
 
     @abstractmethod
     def run(self):
@@ -150,7 +165,6 @@ class ActionCommand(SimpleCommand):
     @classmethod
     def parser_add_action_parser(cls, actions_subparser, config):
         parser = actions_subparser.add_parser(config.action, aliases=config.aliases)
-        parser._action_config = config
         parser.formatter_class = argparse.RawTextHelpFormatter
         cls.parser_add_action_arguments(parser, config)
         return parser
@@ -158,8 +172,7 @@ class ActionCommand(SimpleCommand):
     @classmethod
     def parser_add_action_arguments(cls, parser, config):
         cls.parser_add_common_arguments(parser)
-        for argconfig in config.argconfigs:
-            argconfig.add_to_parser(parser)
+        config.add_to_parser(parser)
 
     @classmethod
     def get_action_configmap(cls):
@@ -184,6 +197,27 @@ class ActionCommand(SimpleCommand):
                 return config
         return None
 
+    @classmethod
+    def make_action_config(cls, action, *, handler_fn=None, **kwargs):
+        return ActionConfig(action,
+                            handler=cls.make_action_handler(handler_fn or getattr(cls, cls._arg_to_opt(action))),
+                            **kwargs)
+
+    @classmethod
+    def make_action_handler(cls, func):
+        class CommandClassActionHandler(ActionHandler):
+            def __call__(self, command, **opts):
+                return self.func(command.parent_command, **opts)
+
+        class CommandObjectActionHandler(ActionHandler):
+            def __call__(self, command, **opts):
+                return self.func(command, **opts)
+
+        if inspect.ismethod(func):
+            return CommandClassActionHandler(func)
+        else:
+            return CommandObjectActionHandler(func)
+
     def get_specified_action(self):
         with suppress(AttributeError):
             return self.get_action_config(self.options.action).action
@@ -200,18 +234,23 @@ class ActionCommand(SimpleCommand):
 
     def run_action_config_method(self):
         config = self.get_action_config(self.action)
-        if config.cmdobjmethod:
-            return getattr(self, config.cmdobjmethod)(config=config, opts=self.opts)
+        if config:
+            return config.handle(command=self, **self.opts)
         raise NoActionConfigMethod()
 
-    def _run(self, action, opts):
+    def _run(self, **opts):
         # Either implement this, or set up action configs to invoke handler methods
         raise NotImplementedError()
 
     def run(self):
-        with suppress(NoActionConfigMethod):
-            return self.run_action_config_method()
-        return self._run(action=self.action, opts=self.opts)
+        try:
+            response = self.run_action_config_method()
+            if self.verbose:
+                response.print_verbose()
+            else:
+                response.print()
+        except NoActionConfigMethod:
+            self._run(**self.opts)
 
 
 class AzObjectCommand(SimpleCommand):
@@ -235,16 +274,6 @@ class AzObjectCommand(SimpleCommand):
 
 class AzObjectActionCommand(AzObjectCommand, ActionCommand):
     @classmethod
-    def parser_add_action_arguments(cls, parser, config):
-        cls.parser_add_argument_azobject_id(parser)
-        super().parser_add_action_arguments(parser, config)
-
-    @classmethod
-    def parser_add_argument_azobject_id(cls, parser, is_parent=False):
-        # Only sub-objects have multiple instances, so don't add id argument for non-sub-objects
-        pass
-
-    @classmethod
     def get_azobject_action_configmap(cls):
         return cls.azclass().get_action_configmap()
 
@@ -256,16 +285,9 @@ class AzObjectActionCommand(AzObjectCommand, ActionCommand):
     def get_default_action(cls):
         return 'show'
 
-    def run_action_config_method(self):
-        with suppress(NoActionConfigMethod):
-            return super().run_action_config_method()
-        config = self.get_action_config(self.action)
-        if config.azobjmethod:
-            return getattr(self.azobject, config.azobjmethod)(config=config, opts=self.opts)
-        raise NoActionConfigMethod()
-
-    def _run(self, action, opts):
-        return self.azobject.do_action(action=action, opts=opts)
+    def _run(self, **opts):
+        print('CALLING do_action, FIXME')
+        return self.azobject.do_action(**opts)
 
 
 class AzSubObjectCommand(AzObjectCommand):
@@ -273,37 +295,6 @@ class AzSubObjectCommand(AzObjectCommand):
     @abstractmethod
     def parent_command_cls(cls):
         pass
-
-    @classmethod
-    def parser_add_argument_azobject_id(cls, parser, is_parent=False):
-        cls.parent_command_cls().parser_add_argument_azobject_id(parser, is_parent=True)
-        cls._parser_add_argument_azobject_id(parser, is_parent)
-
-    @classmethod
-    def _parser_add_argument_azobject_id(cls, parser, is_parent):
-        parser.add_argument(f'{cls.command_arg()}',
-                            help=f'Use the specified {cls.command_text()}, instead of the default').completer = cls.completer_azobject_ids
-
-    @classmethod
-    def completer_info_attrs(cls, *, completer_attr=None, parsed_args={}, **kwargs):
-        try:
-            options = parsed_args
-            options.action = 'argcomplete'
-            parent = cls.parent_command_cls()(options=options, cache=Cache(), config=Config(), is_parent=True)
-            return [getattr(info, completer_attr) if completer_attr else cls.azclass().info_id(info)
-                    for info in parent.azobject.get_azsubobject_infos(cls.azobject_name())]
-        except Exception as e:
-            if getattr(parsed_args, 'debug_argcomplete', True):
-                argcomplete.warn(f'argcomplete error: {e}')
-            raise
-
-    @classmethod
-    def completer_names(cls, **kwargs):
-        return cls.completer_info_attrs(completer_attr='name', **kwargs)
-
-    @classmethod
-    def completer_azobject_ids(cls, **kwargs):
-        return cls.completer_info_attrs(completer_attr=None, **kwargs)
 
     def __init__(self, *, is_parent=False, **kwargs):
         super().__init__(**kwargs)
@@ -329,7 +320,7 @@ class AzSubObjectCommand(AzObjectCommand):
 
     @property
     def azobject_default_id(self):
-        return self.parent_azobject.get_azsubobject_default_id(self.azobject_name())
+        return self.parent_azobject.get_default_child_id(self.azobject_name())
 
     @property
     def azobject_id(self):
@@ -337,34 +328,19 @@ class AzSubObjectCommand(AzObjectCommand):
 
     @cached_property
     def azobject(self):
-        return self.parent_azobject.get_azsubobject(self.azobject_name(), self.azobject_id)
+        return self.parent_azobject.get_child(self.azobject_name(), self.azobject_id)
 
 
 class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
-    def run_action_config_method(self):
-        with suppress(NoActionConfigMethod):
-            return super().run_action_config_method()
-        config = self.get_action_config(self.action)
-        if config.cmdclsmethod:
-            return getattr(self, config.cmdclsmethod)(config=config, opts=self.opts, parent=self.parent_command)
-        if config.azclsmethod:
-            return getattr(self.azobject, config.azclsmethod)(config=config, opts=self.opts, parent=self.parent_azobject)
-        raise NoActionConfigMethod()
-
-    @classmethod
-    def _parser_add_argument_azobject_id(cls, parser, is_parent):
-        # Don't add our own object id param, as the list command lists them all
-        if not is_parent and parser._action_config.is_action('list'):
-            return
-        super()._parser_add_argument_azobject_id(parser, is_parent)
-
     @property
     def azobject_default_id(self):
+        # TODO: this logic should be in the actioncfg
         if not self.is_parent and self.action in ['create', 'delete']:
             raise RequiredArgument(self.azobject_name(), self.action)
         return super().azobject_default_id
 
-    def parser_get_list_action_builtin_args(cls):
+    # TODO - re-implement list filtering...
+    def __parser_get_list_action_builtin_args(cls):
         return [ArgConfig('--filter-prefix',
                           help=f'In addition to configured filters, also filter {cls.command_text()}s that start with the prefix'),
                 ArgConfig('--filter-suffix',
@@ -373,3 +349,69 @@ class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
                           help=f'In addition to configured filters, also filter {cls.command_text()}s that match the regular expression'),
                 BoolArgConfig('-N', '--no-filters',
                           help=f'Do not use any configured filters (the --filter-* parameters will still be used)')]
+
+
+# TODO - re-implement filter configuration
+class FilterActionCommand: #ActionCommand, AzObjectCommand):
+    @classmethod
+    def parser_get_action_builtin_names(cls):
+        return (super().parser_get_action_builtin_names() +
+                (['filter'] if cls.azclass().is_child_container() else []))
+
+    @classmethod
+    def parser_get_filter_action_builtin_config(cls):
+        return cls.make_action_config('filter',
+                                      aliases=cls.parser_get_filter_action_builtin_aliases(),
+                                      description=cls.parser_get_filter_action_builtin_description(),
+                                      argconfigs=cls.parser_get_filter_action_builtin_args())
+
+    @classmethod
+    def parser_get_filter_action_builtin_aliases(cls):
+        return []
+
+    @classmethod
+    def parser_get_filter_action_builtin_description(cls):
+        return f'Edit filtering for {cls.command_text()}'
+
+    @classmethod
+    def _parser_filter_type(cls):
+        filter_all = ConstArgConfig('--filter-all', dest='filter_type', const=FILTER_ALL,
+                                    help=f'Add/update/show a filter for all object types (use with caution)')
+        filter_azobjects = [ConstArgConfig(f'--filter-{azobject_cls.azobject_name("-")}', dest='filter_type',
+                                           const=azobject_cls.azobject_name(),
+                                           help=f'Add/update/show a filter for {azobject_cls.azobject_text()}s')
+                            for azobject_cls in cls.azclass().get_descendants()]
+        filter_default = ConstArgConfig('--filter-default', dest='filter_type', const=FILTER_DEFAULT,
+                                        help=f'Add/update/show a default filter (use with caution)')
+        return GroupArgConfig(filter_all, *filter_azobjects, filter_default)
+
+    @classmethod
+    def _parser_filter_actions(cls):
+        return [GroupArgConfig(ArgConfig('--prefix', help=f'Filter object names that start with the prefix'),
+                               ConstArgConfig('--no-prefix', dest='prefix', const='', help=f'Remove prefix filter')),
+                GroupArgConfig(ArgConfig('--suffix', help=f'Filter object names that end with the suffix'),
+                               ConstArgConfig('--no-suffix', dest='suffix', const='', help=f'Remove suffix filter')),
+                GroupArgConfig(ArgConfig('--regex', help=f'Filter object names that match the regular expression'),
+                               ConstArgConfig('--no-regex', dest='regex', const='', help=f'Remove regex filter'))]
+
+    @classmethod
+    def parser_get_filter_action_builtin_args(cls):
+        return [cls._parser_filter_type(), *cls._parser_filter_actions()]
+
+    def _filter_update(self):
+        for k, v in ArgMap(*[arg.action_args(self.options) for arg in self._parser_filter_actions()]).items():
+            if self.options.filter_type:
+                setattr(self.azobject.filters.get_filter(self.options.filter_type), k, v)
+            else:
+                raise RequiredArgumentGroup(self._parser_filter_type().opts, k, exclusive=True)
+
+    def _filter_show(self):
+        print(self.azobject.filters)
+
+    def run(self):
+        if self.action == 'filter':
+            self._filter_update()
+            self._filter_show()
+        else:
+            super().run()
+

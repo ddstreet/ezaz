@@ -27,6 +27,11 @@ class SshKey(AzCommonActionable, AzSubObject):
         return '--ssh-public-key-name'
 
     @classmethod
+    def get_parent_class(cls):
+        from .resourcegroup import ResourceGroup
+        return ResourceGroup
+
+    @classmethod
     def get_create_action_argconfigs(cls):
         return [RequiredGroupArgConfig(ArgConfig('public_key', help='Public key data'),
                                        ArgConfig('public_key_file', help='Public key file'))]

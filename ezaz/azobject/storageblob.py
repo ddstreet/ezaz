@@ -17,6 +17,11 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return '--name'
 
     @classmethod
+    def get_parent_class(cls):
+        from .storagecontainer import StorageContainer
+        return StorageContainer
+
+    @classmethod
     def get_create_action_cmd(cls):
         return ['upload']
 

@@ -23,6 +23,11 @@ class VM(AzCommonActionable, AzSubObject):
         return '--name'
 
     @classmethod
+    def get_parent_class(cls):
+        from .resourcegroup import ResourceGroup
+        return ResourceGroup
+
+    @classmethod
     def get_log_action_cmd(cls, action):
         return ['get-boot-log']
 
@@ -41,7 +46,7 @@ class VM(AzCommonActionable, AzSubObject):
         return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish'),
                 FlagArgConfig('y', 'yes', help='Do not prompt for confirmation')]
 
-    #def get_create_action_cmd_args(self, action, opts):
+    #def get_create_action_cmd_args(self, opts):
         #self._opts.to_args(boot_diagnostics_storage=self.storage_account),
         #self._opts_to_flag_args(accept_term=None,
         #                                      enable_secure_boot=None,
@@ -74,4 +79,4 @@ class VM(AzCommonActionable, AzSubObject):
     @property
     def storage_account(self):
         # TODO: add param to specify storage account instead of default
-        return self.parent.get_azsubobject_default_id(StorageAccount.azobject_name())
+        return self.parent.get_default_child_id(StorageAccount.azobject_name())

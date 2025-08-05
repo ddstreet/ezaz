@@ -21,6 +21,11 @@ class ImageDefinition(AzCommonActionable, AzSubObject):
         return ['sig', 'image-definition']
 
     @classmethod
+    def get_parent_class(cls):
+        from .imagegallery import ImageGallery
+        return ImageGallery
+
+    @classmethod
     def get_create_action_argconfigs(cls):
         return [RequiredArgConfig('publisher', help='Publisher'),
                 RequiredArgConfig('offer', help='Offer'),

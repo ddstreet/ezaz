@@ -3,7 +3,6 @@ from ..argutil import FlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
-from .imagedefinition import ImageDefinition
 
 
 class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
@@ -16,7 +15,13 @@ class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return '--gallery-name'
 
     @classmethod
-    def get_azsubobject_classes(cls):
+    def get_parent_class(cls):
+        from .resourcegroup import ResourceGroup
+        return ResourceGroup
+
+    @classmethod
+    def get_child_classes(cls):
+        from .imagedefinition import ImageDefinition
         return [ImageDefinition]
 
     @classmethod

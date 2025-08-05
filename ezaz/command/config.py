@@ -1,5 +1,4 @@
 
-from ..argutil import ActionConfig
 from ..argutil import ArgMap
 from ..dialog import YesNo
 from .command import ActionCommand
@@ -18,20 +17,20 @@ class ConfigCommand(ActionCommand):
 
     @classmethod
     def get_show_action_config(cls):
-        return ActionConfig('show', cmdobjmethod='show', description='Show configuration')
+        return cls.make_action_config('show', description='Show configuration')
 
     @classmethod
     def get_remove_action_config(cls):
-        return ActionConfig('remove', cmdobjmethod='remove', description='Remove configuration file')
+        return cls.make_action_config('remove', description='Remove configuration file')
 
     @classmethod
     def get_default_action(cls):
         return 'show'
 
-    def show(self, action, opts):
+    def show(self, **opts):
         print(self.config)
 
-    def remove(self, action, opts):
+    def remove(self, **opts):
         if not self.config:
             print('There is no config to remove.')
         elif YesNo('About to remove the configuration file, are you sure?'):

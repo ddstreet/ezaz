@@ -13,6 +13,11 @@ class StorageKey(AzRoActionable, AzSubObject):
         return '--name'
 
     @classmethod
+    def get_parent_class(cls):
+        from .storageaccount import StorageAccount
+        return StorageAccount
+
+    @classmethod
     def info_id(cls, info):
         return info.keyName
 

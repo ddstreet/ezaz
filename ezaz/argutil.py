@@ -11,11 +11,8 @@ from .exception import RequiredArgument
 from .exception import RequiredArgumentGroup
 
 
-def noop(*args, **kwargs):
-    return None
-
-
 class ArgMap(UserDict):
+    """Dictionary that does not allow duplicate keys."""
     def __init__(self, *dicts, **kwargs):
         super().__init__()
         for d in dicts:
@@ -183,62 +180,31 @@ class ArgUtil:
         return ArgMap({k: None for k, v in cls.optional_args(keys, opts).items() if v})
 
 
-class ActionConfig:
-    def __init__(self, action, *, cmd=None, aliases=[], description='', argconfigs=[], cmdclsmethod=None, cmdobjmethod=None, azclsmethod=None, azobjmethod=None):
-        self.action = action
-        self.cmd = cmd or action
-        self.aliases = aliases
-        self.description = description
-        self.argconfigs = argconfigs
-        self.cmdclsmethod = cmdclsmethod
-        self.cmdobjmethod = cmdobjmethod
-        self.azclsmethod = azclsmethod
-        self.azobjmethod = azobjmethod
-
-    def is_action(self, action):
-        return action in ([self.action] + self.aliases)
-
-    @property
-    def summary(self):
-        s = self.action
-        if self.aliases:
-            s += f' ({','.join(self.aliases)})'
-        if self.description:
-            s += f': {self.description}'
-        return s
-
-    def add_to_parser(self, parser):
-        for argconfig in self.argconfigs:
-            argconfig.add_to_parser(parser)
-
-    def cmd_args(self, opts):
-        return ArgMap(*[argconfig.cmd_args(opts) for argconfig in self.argconfigs])
-
-
 class BaseArgConfig(ArgUtil, ABC):
     @abstractmethod
     def add_to_parser(self, parser):
         pass
 
     @abstractmethod
-    def cmd_args(self, opts):
+    def cmd_args(self, **opts):
         pass
 
 
 class ArgConfig(BaseArgConfig):
-    def __init__(self, *opts, help=None, dest=None, default=None, hidden=False):
+    def __init__(self, *opts, help=None, dest=None, default=None, hidden=False, completer=None):
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
         self.help = argparse.SUPPRESS if hidden else help
         self._dest = dest
         self.default = default
+        self.completer = completer
 
     @property
     def dest(self):
         return argparse.ArgumentParser().add_argument(*self.parser_args, dest=self._dest).dest
 
     def add_to_parser(self, parser):
-        parser.add_argument(*self.parser_args, **self.parser_kwargs)
+        parser.add_argument(*self.parser_args, **self.parser_kwargs).completer = self.completer
 
     @property
     def parser_args(self):
@@ -248,7 +214,7 @@ class ArgConfig(BaseArgConfig):
     def parser_kwargs(self):
         return dict(help=self.help, dest=self.dest, default=self.default)
 
-    def cmd_args(self, opts):
+    def cmd_args(self, **opts):
         return self.optional_arg(self.dest, opts)
 
 
@@ -265,7 +231,7 @@ class BoolArgConfig(ArgConfig):
 
 
 class FlagArgConfig(BoolArgConfig):
-    def cmd_args(self, opts):
+    def cmd_args(self, **opts):
         return self.optional_flag_arg(self.dest, opts)
 
 
@@ -312,8 +278,8 @@ class GroupArgConfig(BaseArgConfig):
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(group)
 
-    def cmd_args(self, opts):
-        return ArgMap(*[argconfig.cmd_args(opts) for argconfig in self.argconfigs])
+    def cmd_args(self, **opts):
+        return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
 
 
 class RequiredGroupArgConfig(GroupArgConfig):

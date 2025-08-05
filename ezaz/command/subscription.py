@@ -1,7 +1,6 @@
 
 from contextlib import suppress
 
-from ..argutil import ActionConfig
 from ..argutil import ArgMap
 from ..azobject.subscription import Subscription
 from ..exception import DefaultConfigNotFound
@@ -25,11 +24,11 @@ class SubscriptionCommand(AzSubObjectActionCommand):
 
     @classmethod
     def parser_get_show_current_action_config(cls):
-        return ActionConfig('show-current', description='Show current subscription')
+        return cls.make_action_config('show-current', description='Show current subscription')
 
     @classmethod
     def parser_get_set_current_action_config(cls):
-        return ActionConfig('set-current', description='Set current subscription (does not affect future logins)')
+        return cls.make_action_config('set-current', description='Set current subscription (does not affect future logins)')
 
     @classmethod
     def parser_get_set_action_builtin_description(cls):
@@ -69,10 +68,10 @@ class SubscriptionCommand(AzSubObjectActionCommand):
                 return self._subscription_name_to_id(self._options.subscription_name)
         return None
 
-    def run_show_current(self):
+    def show_current(self):
         self.parent_azobject.get_azsubobject(self.azobject_name(), self.parent_azobject.get_current_subscription_id()).show()
 
-    def run_set_current(self):
+    def set_current(self):
         if not self.azobject_specified_id:
             try:
                 if self.parent_azobject.get_current_subscription_id() == self.azobject_default_id:
@@ -83,7 +82,7 @@ class SubscriptionCommand(AzSubObjectActionCommand):
         # User specified the sub id, or current != default (so we will set current to default)
         self.parent_azobject.set_current_subscription_id(self.azobject_id)
 
-    def run_set(self):
+    def set(self):
         if self.azobject_specified_id:
             print(f"Provided subscription '{self.azobject_specified_id}' ignored, using current subscription.")
         self.parent_azobject.set_azsubobject_default_id(self.azobject_name(), self.parent_azobject.get_current_subscription_id())

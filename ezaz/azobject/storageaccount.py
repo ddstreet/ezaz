@@ -3,8 +3,6 @@ from ..argutil import FlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
-from .storagecontainer import StorageContainer
-from .storagekey import StorageKey
 
 
 class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
@@ -21,7 +19,14 @@ class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return '--account-name'
 
     @classmethod
-    def get_azsubobject_classes(cls):
+    def get_parent_class(cls):
+        from .resourcegroup import ResourceGroup
+        return ResourceGroup
+
+    @classmethod
+    def get_child_classes(cls):
+        from .storagecontainer import StorageContainer
+        from .storagekey import StorageKey
         return [StorageContainer, StorageKey]
 
     @classmethod

@@ -1,8 +1,33 @@
 
 import jsonschema
 
+from abc import ABC
+from abc import abstractmethod
+from collections import UserList
+
 from .dictnamespace import DictNamespace
 from .schema import *
+
+
+class Response(DictNamespace, ABC):
+    def __init__(self, response):
+        super().__init__(response)
+        jsonschema.validate(response, self.schema)
+
+    @property
+    @abstractmethod
+    def schema(self):
+        pass
+
+
+class ResponseList(UserList, ABC):
+    def __init__(self, responses=[]):
+        super().__init__(map(self.response_class, responses))
+
+    @property
+    @abstractmethod
+    def response_class(self):
+        pass
 
 
 def _lookup_response(*args, responses):
@@ -21,18 +46,18 @@ def lookup_response(*args):
     raise RuntimeError(f'No Response type found for cmd: {args}')
 
 def R(schema):
-    class Response(DictNamespace):
-        def __init__(self, response):
-            super().__init__(response)
-            jsonschema.validate(response, schema)
-    return Response
+    class InnerResponse(Response):
+        @property
+        def schema(self):
+            return schema
+    return InnerResponse
 
 def RL(schema):
-    cls = R(schema)
-    class ResponseList(list):
-        def __init__(self, responses):
-            super().__init__([cls(r) for r in responses])
-    return ResponseList
+    class InnerResponseList(ResponseList):
+        @property
+        def response_class(self):
+            return R(schema)
+    return InnerResponseList
 
 
 AccountInfo = OBJ(

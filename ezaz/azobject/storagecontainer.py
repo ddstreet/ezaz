@@ -5,8 +5,6 @@ from ..argutil import ArgMap
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
-from .storageblob import StorageBlob
-from .storagekey import StorageKey
 
 
 class StorageContainer(AzCommonActionable, AzSubObject, AzSubObjectContainer):
@@ -23,17 +21,23 @@ class StorageContainer(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return '--container-name'
 
     @classmethod
-    def get_azsubobject_classes(cls):
+    def get_parent_class(cls):
+        from .storageaccount import StorageAccount
+        return StorageAccount
+
+    @classmethod
+    def get_child_classes(cls):
+        from .storageblob import StorageBlob
         return [StorageBlob]
 
     @classmethod
-    def get_subcmd_args_from_parent(cls, parent, cmdname, opts):
-        args = super().get_subcmd_args_from_parent(parent, cmdname, opts)
+    def get_subcmd_args_from_parent(cls, parent, **opts):
+        args = super().get_subcmd_args_from_parent(parent, **opts)
         return {k: v for k, v in args.items() if k not in ['-g', '--resource-group']}
 
     @classmethod
     def get_parent_storage_account_key(self, parent):
-        keys = parent.get_azsubobjects(StorageKey.azobject_name())
+        keys = parent.get_children(StorageKey.azobject_name())
         with suppress(IndexError):
             return keys[0].key_value
         return None
@@ -42,7 +46,7 @@ class StorageContainer(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     def storage_account_key(self):
         return self.get_parent_storage_account_key(self.parent)
 
-    def get_action_cmd_args(self, action, opts):
-        return ArgMap(super().get_action_cmd_args(action, opts),
+    def get_action_cmd_args(self, **opts):
+        return ArgMap(super().get_action_cmd_args(opts),
                       self._args_to_opts(account_key=self.storage_account_key,
                                          auth_mode='key'))
