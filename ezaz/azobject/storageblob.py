@@ -19,19 +19,20 @@ class StorageBlob(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_cmd(cls):
-        return ['upload']
-
-    @classmethod
-    def get_create_action_argconfigs(cls):
-        return [RequiredArgConfig('file', help='File to upload'),
-                ChoicesArgConfig('type', choices=['append', 'block', 'page'], help='Type of blob to create'),
-                FlagArgConfig('no_progress', help='Do not show upload progress bar')]
-
-    @classmethod
-    def get_delete_action_argconfigs(cls):
-        return [RequiredArgConfig('file', help='File to download to'),
-                FlagArgConfig('no_progress', help='Do not show download progress bar')]
+        return cls.get_cmd_base() + ['upload']
 
     @classmethod
     def get_self_id_argconfig_dest(cls, is_parent):
         return 'name'
+
+    @classmethod
+    def get_create_action_argconfigs(cls):
+        return [RequiredArgConfig('f', 'file', help='File to upload'),
+                ChoicesArgConfig('type', choices=['append', 'block', 'page'], help='Type of blob to create'),
+                FlagArgConfig('no_progress', help='Do not show upload progress bar'),
+                FlagArgConfig('overwrite', help='Overwrite an existing blob')]
+
+    @classmethod
+    def get_delete_action_argconfigs(cls):
+        return [RequiredArgConfig('f', 'file', help='File to download to'),
+                FlagArgConfig('no_progress', help='Do not show download progress bar')]

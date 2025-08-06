@@ -5,8 +5,10 @@ from abc import ABC
 from abc import abstractmethod
 from collections import UserDict
 from contextlib import suppress
+from itertools import combinations
 
 from .exception import DuplicateArgument
+from .exception import InvalidArgument
 from .exception import RequiredArgument
 from .exception import RequiredArgumentGroup
 
@@ -206,6 +208,7 @@ class ArgConfig(BaseArgConfig):
                                                 f"dest={self._dest}, " +
                                                 f"default={self.default}, " +
                                                 f"hidden={self.help == argparse.SUPPRESS}, " +
+                                                f"noncmd={self.noncmd}, " +
                                                 f"completer={self.completer})")
 
     @property
@@ -220,27 +223,40 @@ class ArgConfig(BaseArgConfig):
         return self._opts_to_args(*self.opts)
 
     @property
+    def _parser_kwargs(self):
+        return {}
+
+    @property
     def parser_kwargs(self):
-        return dict(help=self.help, dest=self.dest, default=self.default)
+        return ArgMap(help=self.help, dest=self.dest, default=self.default, **self._parser_kwargs)
+
+    def _cmd_args(self, **opts):
+        return self.optional_arg(self.dest, opts)
 
     def cmd_args(self, **opts):
-        return {} if self.noncmd else self.optional_arg(self.dest, opts)
+        if self.noncmd:
+            return {}
+        else:
+            return self._cmd_args(**opts)
 
 
 class RequiredArgConfig(ArgConfig):
     @property
-    def parser_kwargs(self):
-        return ArgMap(super().parser_kwargs, required=True)
+    def _parser_kwargs(self):
+        return ArgMap(required=True)
+
+    def _cmd_args(self, **opts):
+        return self.required_arg(self.dest, opts)
 
 
 class BoolArgConfig(ArgConfig):
     @property
-    def parser_kwargs(self):
-        return ArgMap(super().parser_kwargs, action='store_true')
+    def _parser_kwargs(self):
+        return ArgMap(action='store_true')
 
 
 class FlagArgConfig(BoolArgConfig):
-    def cmd_args(self, **opts):
+    def _cmd_args(self, **opts):
         return self.optional_flag_arg(self.dest, opts)
 
 
@@ -260,8 +276,8 @@ class ConstArgConfig(ArgConfig):
         self.const = const
 
     @property
-    def parser_kwargs(self):
-        return ArgMap(super().parser_kwargs, action='store_const', const=self.const)
+    def _parser_kwargs(self):
+        return ArgMap(action='store_const', const=self.const)
 
 
 class ChoicesArgConfig(ArgConfig):
@@ -270,11 +286,32 @@ class ChoicesArgConfig(ArgConfig):
         self.choices = choices
 
     @property
-    def parser_kwargs(self):
-        return ArgMap(super().parser_kwargs, choices=self.choices)
+    def _parser_kwargs(self):
+        return ArgMap(choices=self.choices)
 
 
 class RequiredChoicesArgConfig(ChoicesArgConfig, RequiredArgConfig):
+    pass
+
+
+class ChoiceMapArgConfig(ArgConfig):
+    def __init__(self, *opts, choicemap, **kwargs):
+        super().__init__(*opts, **kwargs)
+        self.choicemap = choicemap
+
+    @property
+    def _parser_kwargs(self):
+        return ArgMap(choices=self.choicemap.keys())
+
+    def lookup_choice(self, **opts):
+        opts[self.dest] = self.choicemap.get(opts.get(self.dest))
+        return opts
+
+    def _cmd_args(self, **opts):
+        return super()._cmd_args(**self.lookup_choice(**opts))
+
+
+class RequiredChoiceMapArgConfig(ChoiceMapArgConfig, RequiredArgConfig):
     pass
 
 
@@ -282,9 +319,9 @@ class GroupArgConfig(BaseArgConfig):
     # Note - this is an *exclusive* group, we don't have any use for a non-exclusive group
     def __init__(self, *argconfigs, dest=None):
         self.argconfigs = argconfigs
-        if dest:
-            for argconfig in argconfigs:
-                argconfig._dest = dest
+        self.dest = dest
+        if dest and any(map(lambda combo: combo[0].dest == combo[1].dest, combinations(argconfigs, 2))):
+            raise InvalidArgument(f'Cannot use GroupArgConfig with assigned dest and multiple arguments with the same dest ({a.dest})')
 
     @property
     def opts(self):
@@ -300,8 +337,22 @@ class GroupArgConfig(BaseArgConfig):
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(group)
 
+    def cmd_args_assign_dest(self, **opts):
+        # All our args assign into the same dest, so find the one
+        # whose value != default and use that value; we assume
+        # argparse did its job allowing only one to be specified
+        # (since we're exclusive)
+        for argconfig in self.argconfigs:
+            if opts.get(argconfig.dest) != argconfig.default:
+                return {self._opt_to_arg(self.dest):
+                        self._arg_value(argconfig.dest, argconfig.cmd_args(**opts))}
+        return {}
+
     def cmd_args(self, **opts):
-        return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
+        if self.dest:
+            return self.cmd_args_assign_dest(**opts)
+        else:
+            return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
 
 
 class RequiredGroupArgConfig(GroupArgConfig):

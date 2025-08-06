@@ -4,7 +4,7 @@ from contextlib import suppress
 from .. import DISTRO_IMAGES
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
-from ..argutil import ChoicesArgConfig
+from ..argutil import ChoiceMapArgConfig
 from ..argutil import NoWaitFlagArgConfig
 from ..argutil import RequiredGroupArgConfig
 from ..argutil import YesFlagArgConfig
@@ -35,7 +35,8 @@ class VM(AzCommonActionable, AzSubObject):
     @classmethod
     def get_create_action_argconfigs(cls):
         return [RequiredGroupArgConfig(ArgConfig('image', help='The image id to deploy'),
-                                       ChoicesArgConfig('distro', help='The distro to deploy', choices=DISTRO_IMAGES.keys())),
+                                       ChoiceMapArgConfig('distro', help='The distro to deploy', choicemap=DISTRO_IMAGES),
+                                       dest='image'),
                 NoWaitFlagArgConfig()]
 
     @classmethod
