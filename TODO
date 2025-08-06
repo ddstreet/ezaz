@@ -1,7 +1,4 @@
 
-- azobjects should have simple api, e.g. create(), delete(), show(),
-  etc. that can be called directly and simply without opts()
-
 - implement vm actions
   add 'get-instance-view' for vm current/instance info (running, distro, etc)
 
@@ -17,8 +14,7 @@
   not sure, we always provide the default subscription to az cmds...
   maybe the 'current' sub doesn't make any difference, except to 'ezaz az' cmds?
 
-- move param config stuff into azobject subclasses, so we don't have
-  to keep separate param config that needs to match each other
+- update cacheing to remove specific cache after object create/delete operation
 
 DOCS:
 
