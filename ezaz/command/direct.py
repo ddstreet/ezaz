@@ -14,7 +14,7 @@ class DirectCommand(SimpleCommand):
 
     @classmethod
     def parser_add_arguments(cls, parser):
-        cls.parser_add_common_arguments(parser)
+        super().parser_add_arguments(parser)
         parser.add_argument('command', help='Command to run (i.e. "az COMMAND ...")')
         parser.add_argument('args', nargs=argparse.REMAINDER, help='Additional arguments and parameters')
 

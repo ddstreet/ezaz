@@ -14,9 +14,9 @@ DEFAULT_MAX_AGE = timedelta(minutes=1)
 
 
 class Cache:
-    def __init__(self, cachepath=DEFAULT_CACHE, max_age=DEFAULT_MAX_AGE):
-        self._cachepath = Path(cachepath).expanduser().resolve()
-        self._max_age = max_age
+    def __init__(self, cachepath=None, max_age=None):
+        self._cachepath = Path(cachepath or DEFAULT_CACHE).expanduser().resolve()
+        self._max_age = max_age or DEFAULT_MAX_AGE
 
     def read(self, cmd):
         if cmd:

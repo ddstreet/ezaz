@@ -8,6 +8,8 @@ import traceback
 from contextlib import suppress
 from functools import cached_property
 
+from .argparse import SharedArgumentParser
+
 
 class Main:
     def __init__(self, *, args=sys.argv[1:], cmds=None, venv=None):
@@ -25,14 +27,18 @@ class Main:
                           for c in sorted(self.cmds, key=lambda c: c.command_name_short())])
 
     def parse_args(self, args):
-        parser = argparse.ArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
+        parser = SharedArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
+        parser.add_argument('--cache', shared=True, help='Path to cache directory')
+        parser.add_argument('--config', shared=True, help='Path to config file')
         parser.add_argument('-v', '--verbose',
+                            shared=True,
                             action='count',
                             default=0,
                             help='Be verbose')
         parser.add_argument('-n', '--dry-run',
+                            shared=True,
                             action='store_true',
                             help='Only print what would be done, do not run commands')
 
@@ -64,12 +70,12 @@ class Main:
     @cached_property
     def cache(self):
         from .cache import Cache
-        return Cache()
+        return Cache(self.options.cache)
 
     @cached_property
     def config(self):
         from .config import Config
-        return Config()
+        return Config(self.options.config)
 
     @cached_property
     def command(self):

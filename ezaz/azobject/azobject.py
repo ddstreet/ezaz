@@ -20,8 +20,6 @@ from ..argutil import ArgUtil
 from ..argutil import BoolArgConfig
 from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
-from ..cache import Cache
-from ..config import Config
 from ..exception import AzCommandError
 from ..exception import AzObjectExists
 from ..exception import CacheExpired

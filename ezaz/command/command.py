@@ -23,8 +23,6 @@ from ..argutil import ArgUtil
 from ..argutil import BoolArgConfig
 from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
-from ..cache import Cache
-from ..config import Config
 from ..exception import DefaultConfigNotFound
 from ..exception import NoActionConfigMethod
 from ..exception import NotLoggedIn
@@ -71,22 +69,7 @@ class SimpleCommand(ArgUtil, ABC):
 
     @classmethod
     def parser_add_arguments(cls, parser):
-        cls.parser_add_common_arguments(parser)
-
-    @classmethod
-    def parser_add_common_arguments(cls, parser):
-        cls.parser_add_argument_verbose(parser)
-        cls.parser_add_argument_dry_run(parser)
-
-    @classmethod
-    def parser_add_argument_verbose(cls, parser):
-        return parser.add_argument('-v', '--verbose', action='count', default=0,
-                                   help='Be verbose')
-
-    @classmethod
-    def parser_add_argument_dry_run(cls, parser):
-        return parser.add_argument('-n', '--dry-run', action='store_true',
-                                   help='Only print what would be done, do not run commands')
+        pass
 
     def __init__(self, *, options, config, cache=None, **kwargs):
         self._options = options
@@ -111,23 +94,11 @@ class SimpleCommand(ArgUtil, ABC):
 
     @cached_property
     def verbose(self):
-        # Unfortunately, argparse doesn't correctly pass arg values down to subparsers
-        verbose_parser = argparse.ArgumentParser(add_help=False)
-        self.parser_add_argument_verbose(verbose_parser)
-        self.parser_add_argument_dry_run(verbose_parser)
-        # Need this so the parser will pick up -v even in combined short params, e.g. -fvn
-        verbose_parser.add_argument(*map(lambda a: f'-{a}', re.sub(r'[vVnN]', '', string.ascii_letters)), action='store_true')
-        return verbose_parser.parse_known_args(self.options.full_args)[0].verbose
+        return self.options.verbose
 
     @cached_property
     def dry_run(self):
-        # Unfortunately, argparse doesn't correctly pass arg values down to subparsers
-        dry_run_parser = argparse.ArgumentParser(add_help=False)
-        self.parser_add_argument_verbose(dry_run_parser)
-        self.parser_add_argument_dry_run(dry_run_parser)
-        # Need this so the parser will pick up -n even in combined short params, e.g. -fvn
-        dry_run_parser.add_argument(*map(lambda a: f'-{a}', re.sub(r'[vVnN]', '', string.ascii_letters)), action='store_true')
-        return dry_run_parser.parse_known_args(self.options.full_args)[0].dry_run
+        return self.options.dry_run
 
     @abstractmethod
     def run(self):
@@ -164,7 +135,6 @@ class ActionCommand(SimpleCommand):
 
     @classmethod
     def parser_add_action_arguments(cls, parser, config):
-        cls.parser_add_common_arguments(parser)
         config.add_to_parser(parser)
 
     @classmethod
