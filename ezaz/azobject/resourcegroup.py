@@ -1,7 +1,6 @@
 
 from ..argutil import ArgConfig
 from ..argutil import NoWaitFlagArgConfig
-from ..argutil import RequiredArgConfig
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
@@ -32,7 +31,7 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [RequiredArgConfig('location', help='Location')]
+        return [ArgConfig('location', required=True, help='Location')]
 
     @classmethod
     def get_delete_action_argconfigs(cls):

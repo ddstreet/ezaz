@@ -7,8 +7,8 @@ from collections import UserDict
 from contextlib import suppress
 from itertools import combinations
 
+from .exception import ArgumentError
 from .exception import DuplicateArgument
-from .exception import InvalidArgument
 from .exception import RequiredArgument
 from .exception import RequiredArgumentGroup
 
@@ -193,12 +193,20 @@ class BaseArgConfig(ArgUtil, ABC):
 
 
 class ArgConfig(BaseArgConfig):
-    def __init__(self, *opts, help=None, dest=None, default=None, hidden=False, noncmd=False, completer=None):
+    def __init__(self, *opts,
+                 help=None,
+                 dest=None,
+                 default=None,
+                 required=False,
+                 hidden=False,
+                 noncmd=False,
+                 completer=None):
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
         self.help = argparse.SUPPRESS if hidden else help
         self._dest = dest
         self.default = default
+        self.required = required
         self.noncmd = noncmd
         self.completer = completer
 
@@ -207,6 +215,7 @@ class ArgConfig(BaseArgConfig):
                                                 f"help={self.help}, " +
                                                 f"dest={self._dest}, " +
                                                 f"default={self.default}, " +
+                                                f"required={self.required}, " +
                                                 f"hidden={self.help == argparse.SUPPRESS}, " +
                                                 f"noncmd={self.noncmd}, " +
                                                 f"completer={self.completer})")
@@ -228,10 +237,17 @@ class ArgConfig(BaseArgConfig):
 
     @property
     def parser_kwargs(self):
-        return ArgMap(help=self.help, dest=self.dest, default=self.default, **self._parser_kwargs)
+        return ArgMap(help=self.help,
+                      dest=self.dest,
+                      required=self.required,
+                      default=self.default,
+                      **self._parser_kwargs)
 
     def _cmd_args(self, **opts):
-        return self.optional_arg(self.dest, opts)
+        if self.required:
+            return self.required_arg(self.dest, opts)
+        else:
+            return self.optional_arg(self.dest, opts)
 
     def cmd_args(self, **opts):
         if self.noncmd:
@@ -240,19 +256,20 @@ class ArgConfig(BaseArgConfig):
             return self._cmd_args(**opts)
 
 
-class RequiredArgConfig(ArgConfig):
+class NumberArgConfig(ArgConfig):
     @property
     def _parser_kwargs(self):
-        return ArgMap(required=True)
-
-    def _cmd_args(self, **opts):
-        return self.required_arg(self.dest, opts)
+        return ArgMap(type=int)
 
 
 class BoolArgConfig(ArgConfig):
     @property
     def _parser_kwargs(self):
-        return ArgMap(action='store_true')
+        if self.default is True:
+            return ArgMap(action='store_false')
+        if self.default in [False, None]:
+            return ArgMap(action='store_true')
+        raise ArgumentError(f'Invalid BoolArgConfig default value: {self.default}')
 
 
 class FlagArgConfig(BoolArgConfig):
@@ -290,10 +307,6 @@ class ChoicesArgConfig(ArgConfig):
         return ArgMap(choices=self.choices)
 
 
-class RequiredChoicesArgConfig(ChoicesArgConfig, RequiredArgConfig):
-    pass
-
-
 class ChoiceMapArgConfig(ArgConfig):
     def __init__(self, *opts, choicemap, **kwargs):
         super().__init__(*opts, **kwargs)
@@ -311,17 +324,15 @@ class ChoiceMapArgConfig(ArgConfig):
         return super()._cmd_args(**self.lookup_choice(**opts))
 
 
-class RequiredChoiceMapArgConfig(ChoiceMapArgConfig, RequiredArgConfig):
-    pass
-
-
 class GroupArgConfig(BaseArgConfig):
     # Note - this is an *exclusive* group, we don't have any use for a non-exclusive group
-    def __init__(self, *argconfigs, dest=None):
+    def __init__(self, *argconfigs, dest=None, default=None, required=False):
         self.argconfigs = argconfigs
         self.dest = dest
-        if dest and any(map(lambda combo: combo[0].dest == combo[1].dest, combinations(argconfigs, 2))):
-            raise InvalidArgument(f'Cannot use GroupArgConfig with assigned dest and multiple arguments with the same dest ({a.dest})')
+        self.default = default
+        self.required = required
+        if dest and list(filter(lambda a: a._dest, argconfigs)):
+            raise ArgumentError(f'Do not set dest for both GroupArgConfig and its arguments')
 
     @property
     def opts(self):
@@ -330,7 +341,7 @@ class GroupArgConfig(BaseArgConfig):
                 yield opt
 
     def group(self, parser):
-        return parser.add_mutually_exclusive_group()
+        return parser.add_mutually_exclusive_group(required=self.required)
 
     def add_to_parser(self, parser):
         group = self.group(parser)
@@ -346,7 +357,10 @@ class GroupArgConfig(BaseArgConfig):
             if opts.get(argconfig.dest) != argconfig.default:
                 return {self._opt_to_arg(self.dest):
                         self._arg_value(argconfig.dest, argconfig.cmd_args(**opts))}
-        return {}
+        if self.default is not None:
+            return {self._opt_to_arg(self.dest): self.default}
+        else:
+            return {}
 
     def cmd_args(self, **opts):
         if self.dest:
@@ -355,6 +369,23 @@ class GroupArgConfig(BaseArgConfig):
             return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
 
 
-class RequiredGroupArgConfig(GroupArgConfig):
-    def group(self, parser):
-        return parser.add_mutually_exclusive_group(required=True)
+class BoolGroupArgConfig(GroupArgConfig):
+    def __init__(self, opt, *, dest=None, default=False, **kwargs):
+        super().__init__(*self.create_argconfigs(opt, **kwargs), dest=dest or opt, default=default)
+
+    def create_argconfigs(self, opt, help_true=None, help_false=None, help=None, **kwargs):
+        return self._create_argconfigs(opt_true=opt, opt_false=f'no_{opt}',
+                                       help_true=help_true or help, help_false=help_false or help,
+                                       **kwargs)
+
+    def _create_argconfigs(self, opt_true, opt_false, help_true, help_false, **kwargs):
+        return [BoolArgConfig(opt_true, default=False, help=help_true, **kwargs),
+                BoolArgConfig(opt_false, default=True, help=help_false, **kwargs)]
+
+
+class EnableDisableGroupArgConfig(BoolGroupArgConfig):
+    def create_argconfigs(self, opt, help_enable=None, help_disable=None, help=None, **kwargs):
+        opt = opt.removeprefix('enable_')
+        return self._create_argconfigs(opt_true=f'enable_{opt}', opt_false=f'disable_{opt}',
+                                       help_true=help_enable or help, help_false=help_disable or help,
+                                       **kwargs)

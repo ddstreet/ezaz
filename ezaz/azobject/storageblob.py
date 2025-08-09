@@ -1,7 +1,7 @@
 
+from ..argutil import ArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import FlagArgConfig
-from ..argutil import RequiredArgConfig
 from ..argutil import ArgMap
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
@@ -27,12 +27,12 @@ class StorageBlob(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [RequiredArgConfig('f', 'file', help='File to upload'),
+        return [ArgConfig('f', 'file', required=True, help='File to upload'),
                 ChoicesArgConfig('type', choices=['append', 'block', 'page'], help='Type of blob to create'),
                 FlagArgConfig('no_progress', help='Do not show upload progress bar'),
                 FlagArgConfig('overwrite', help='Overwrite an existing blob')]
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [RequiredArgConfig('f', 'file', help='File to download to'),
+        return [ArgConfig('f', 'file', required=True, help='File to download to'),
                 FlagArgConfig('no_progress', help='Do not show download progress bar')]
