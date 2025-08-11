@@ -17,6 +17,8 @@ from ..exception import InvalidArgumentValue
 from ..exception import RequiredArgument
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
+from .completer import AzObjectCompleter
+from .sshkey import SshKey
 
 
 class VM(AzCommonActionable, AzSubObject):
@@ -56,7 +58,9 @@ class VM(AzCommonActionable, AzSubObject):
                 ArgConfig('password',
                           dest='admin_password',
                           help='User password'),
-                ArgConfig('ssh-key', help='TODO - implement completion for this!'),
+                ArgConfig('ssh-key',
+                          completer=AzObjectCompleter(SshKey),
+                          help='TODO - implement completion for this!'),
                 ChoicesArgConfig('security_type',
                                  choices=['Standard', 'TrustedLaunch', 'ConfidentialVM'],
                                  default='TrustedLaunch',

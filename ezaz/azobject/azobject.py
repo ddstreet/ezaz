@@ -13,7 +13,6 @@ from functools import cached_property
 from itertools import chain
 
 from ..actionutil import ActionConfig
-from ..actionutil import ActionHandler
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import ArgUtil
@@ -196,18 +195,11 @@ class AzObject(CachedAzAction):
         return None
 
     @classmethod
-    def make_action_config(cls, action, *, handler_fn=None, argconfigs=[], is_parent=False, **kwargs):
+    def make_action_config(cls, action, *, argconfigs=[], is_parent=False, **kwargs):
         return ActionConfig(action,
-                            handler=cls.make_action_handler(handler_fn or getattr(cls, cls._arg_to_opt(action))),
+                            cls=cls,
                             argconfigs=argconfigs + cls.get_common_argconfigs(is_parent=is_parent),
                             **kwargs)
-
-    @classmethod
-    def make_action_handler(cls, func):
-        if inspect.ismethod(func):
-            return AzClassActionHandler(func)
-        else:
-            return AzObjectActionHandler(func)
 
     @classmethod
     def get_cmd_base(cls):
@@ -407,14 +399,14 @@ class AzSubObjectContainer(AzObject):
         return list(map(lambda info: self.get_child(name, cls.info_id(info), info=info),
                         cls.list(self, **opts)))
 
-    def filter_azobject_id(self, name, azobject_id, prefix=None, suffix=None, regex=None, no_filters=False, **opts):
+    def filter_azobject_id(self, name, azobject_id, *, prefix=None, suffix=None, regex=None, no_filters=False):
         if not QuickFilter(prefix, suffix, regex).check(azobject_id):
             return False
         if no_filters:
             return True
         return (self.filters.check(name, azobject_id) and
                 (not self.is_child() or
-                 self.parent.filter_azobject_id(name, azobject_id, prefix=prefix, suffix=suffix, regex=regex, **opts)))
+                 self.parent.filter_azobject_id(name, azobject_id, prefix=prefix, suffix=suffix, regex=regex)))
 
 
 class AzShowable(AzObject):
@@ -443,8 +435,7 @@ class AzShowable(AzObject):
         return ArgMap(super().get_action_configmap(), show=cls.get_show_action_config())
 
     def _get_info(self, **opts):
-        opts['actioncfg'] = self.get_show_action_config()
-        return self.do_action(dry_runnable=True, **opts)
+        return self.do_action(actioncfg=self.get_show_action_config(), dry_runnable=True, **opts)
 
     def get_info(self, **opts):
         if not self._info:
@@ -493,14 +484,14 @@ class AzListable(AzSubObject):
         return ArgMap(super().get_action_configmap(), list=cls.get_list_action_config())
 
     @classmethod
-    def list(cls, parent, filter_prefix=None, filter_suffix=None, filter_regex=None, no_filters=False, **opts):
-        opts['actioncfg'] = cls.get_list_action_config()
-        opts['prefix'] = filter_prefix
-        opts['suffix'] = filter_suffix
-        opts['regex'] = filter_regex
-        opts['no_filters'] = no_filters
-        return list(filter(lambda info: parent.filter_azobject_id(cls.azobject_name(), cls.info_id(info), **opts),
-                           parent.do_action(is_parent=True, **opts)))
+    def list(cls, parent, *, filter_prefix=None, filter_suffix=None, filter_regex=None, no_filters=False, **opts):
+        return [info for info in parent.do_action(actioncfg=cls.get_list_action_config(), is_parent=True, **opts)
+                if parent.filter_azobject_id(cls.azobject_name(),
+                                             cls.info_id(info),
+                                             prefix=filter_prefix,
+                                             suffix=filter_suffix,
+                                             regex=filter_regex,
+                                             no_filters=no_filters)]
 
 
 class AzFilterer(AzObject):
@@ -586,8 +577,7 @@ class AzCreatable(AzObject):
     def create(self, **opts):
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
-        opts['actioncfg'] = self.get_create_action_config()
-        self.do_action(**opts)
+        self.do_action(actioncfg=self.get_create_action_config(), **opts)
 
 
 class AzDeletable(AzObject):
@@ -617,8 +607,7 @@ class AzDeletable(AzObject):
     def delete(self, **opts):
         if not self.exists:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
-        opts['actioncfg'] = self.get_delete_action_config()
-        self.do_action(**opts)
+        self.do_action(actioncfg=self.get_delete_action_config(), **opts)
 
 
 class AzRwActionable(AzCreatable, AzDeletable):
@@ -659,16 +648,3 @@ class AzDefaultable(AzObject):
 
 class AzCommonActionable(AzRoActionable, AzRwActionable, AzDefaultable):
     pass
-
-
-class AzObjectActionHandler(ActionHandler):
-    def __call__(self, command, **opts):
-        return self._handle_azobject(command.azobject, is_parent=False, **opts)
-
-    def _handle_azobject(self, azobject, is_parent=False, **opts):
-        return self.func(azobject, **opts)
-
-
-class AzClassActionHandler(AzObjectActionHandler):
-    def __call__(self, command, **opts):
-        return self._handle_azobject(command.parent_azobject, is_parent=True, **opts)

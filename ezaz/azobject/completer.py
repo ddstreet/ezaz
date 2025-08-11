@@ -1,40 +1,35 @@
 
 import argcomplete
 
+from ..cache import Cache
+from ..config import Config
+
 
 class AzObjectCompleter:
-    def __init__(self, azclass):
+    def __init__(self, azclass, info_attr=None):
         self.azclass = azclass
+        self.info_attr = None
 
-    def get_list_action_config(self):
-        # The actual cmdline may have a different action; we need to override with the list action
-        return self.azclass.get_action_config('list')
-
-    def get_instance(self, azclass, parsed_args):
+    def get_instance(self, azclass, cache=None, config=None, **opts):
         if not azclass.is_child():
-            return azclass(cache=Cache(), config=Config(), is_parent=True, options=parsed_args)
+            return azclass(cache=Cache(cache), config=Config(config))
 
-        parent = self.get_instance(azclass.get_parent_class(), parsed_args)
+        parent = self.get_instance(azclass.get_parent_class(), cache=cache, config=config, **opts)
         name = azclass.azobject_name()
-        return parent.get_specified_child(name, **vars(parsed_args)) or parent.get_default_child(name)
+        opts['name'] = name
+        return parent.get_specified_child(**opts) or parent.get_default_child(name)
 
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         try:
-            parent = self.get_instance(self.azclass.get_parent_class(), parsed_args)
-            parsed_args.actioncfg = self.get_list_action_config()
-            return map(self.info_attr, self.azclass.list(parent, **vars(parsed_args)))
+            parent = self.get_instance(self.azclass.get_parent_class(), **vars(parsed_args))
+            return map(self.get_info_attr, self.azclass.list(parent, **vars(parsed_args)))
         except Exception as e:
-            if self.verbose > 1:
-                import argcomplete
+            if getattr(parsed_args, 'verbose', 0) > 1:
                 argcomplete.warn(f'argcomplete error: {e}')
             raise
 
-    def info_attr(self, info):
-        return self.azclass.info_id(info)
-
-
-class AzObjectNameCompleter(AzObjectCompleter):
-    def info_attr(self, info):
-        return info.name
-
-
+    def get_info_attr(self, info):
+        if self.info_attr:
+            return getattr(info, self.info_attr)
+        else:
+            return self.azclass.info_id(info)

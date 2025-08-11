@@ -16,7 +16,6 @@ from functools import cached_property
 from types import SimpleNamespace
 
 from ..actionutil import ActionConfig
-from ..actionutil import ActionHandler
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import ArgUtil
@@ -161,25 +160,8 @@ class ActionCommand(SimpleCommand):
         return None
 
     @classmethod
-    def make_action_config(cls, action, *, handler_fn=None, **kwargs):
-        return ActionConfig(action,
-                            handler=cls.make_action_handler(handler_fn or getattr(cls, cls._arg_to_opt(action))),
-                            **kwargs)
-
-    @classmethod
-    def make_action_handler(cls, func):
-        class CommandClassActionHandler(ActionHandler):
-            def __call__(self, command, **opts):
-                return self.func(command.parent_command, **opts)
-
-        class CommandObjectActionHandler(ActionHandler):
-            def __call__(self, command, **opts):
-                return self.func(command, **opts)
-
-        if inspect.ismethod(func):
-            return CommandClassActionHandler(func)
-        else:
-            return CommandObjectActionHandler(func)
+    def make_action_config(cls, action, **kwargs):
+        return ActionConfig(action, cls=cls, **kwargs)
 
     def get_specified_action(self):
         with suppress(AttributeError):
@@ -202,7 +184,6 @@ class ActionCommand(SimpleCommand):
         raise NoActionConfigMethod()
 
     def _run(self, **opts):
-        # Either implement this, or set up action configs to invoke handler methods
         raise NotImplementedError()
 
     def run(self):

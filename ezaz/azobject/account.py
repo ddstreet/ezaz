@@ -80,8 +80,7 @@ class Account(AzShowable, AzSubObjectContainer):
             raise AlreadyLoggedIn()
 
         with self._disable_subscription_selection():
-            opts['actioncfg'] = self.get_login_action_config()
-            self.do_action(**opts)
+            self.do_action(actioncfg=self.get_login_action_config(), **opts)
 
         self._logged_in = True
         with suppress(DefaultConfigNotFound):
@@ -92,8 +91,7 @@ class Account(AzShowable, AzSubObjectContainer):
         if not self.is_logged_in:
             raise AlreadyLoggedOut()
 
-        opts['actioncfg'] = self.get_logout_action_config()
-        self.do_action(**opts)
+        self.do_action(actioncfg=self.get_logout_action_config(), **opts)
         self._logged_in = False
         self._info = None
 

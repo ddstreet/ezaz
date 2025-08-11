@@ -9,8 +9,9 @@ from .response import ResponseList
 
 
 class ActionConfig:
-    def __init__(self, action, *, aliases=[], handler, cmd=None, description='', argconfigs=[], az=None):
+    def __init__(self, action, *, aliases=[], handler=None, cls=None, cmd=None, description='', argconfigs=[], az=None):
         self.action = action
+        self.cls = cls
         self.handler = handler
         self.cmd = cmd
         self.aliases = aliases
@@ -18,19 +19,35 @@ class ActionConfig:
         self.argconfigs = argconfigs
         self.az = az
 
-        self.handler.actioncfg = self
+        if not cls and not handler:
+            raise RuntimeError('Invalid ActionConfig, must provide cls or handler')
 
     def __repr__(self):
         return self.__class__.__name__ + '(' + (f"{self.action}, " +
                                                 f"aliases={self.aliases}, " +
                                                 f"handler={self.handler}, " +
+                                                f"cls={self.cls}, " +
                                                 f"cmd={self.cmd}, " +
                                                 f"description={self.description}, " +
                                                 f"argconfigs={self.argconfigs}, " +
                                                 f"az={self.az})")
 
-    def handle(self, *args, **kwargs):
-        return self._response(self.handler(*args, **kwargs))
+    def _handle(self, *, command, **kwargs):
+        # TODO - need to think of better way to handle this, dispatch maybe
+        if isinstance(command, self.cls):
+            return getattr(command, self.action)(**kwargs)
+        elif inspect.ismethod(getattr(command.azclass(), self.action)):
+            return getattr(command.azclass(), self.action)(command.parent_azobject, **kwargs)
+        elif isinstance(command.azobject, self.cls):
+            return getattr(command.azobject, self.action)(**kwargs)
+        else:
+            raise RuntimeError('Invalid ActionConfig')
+
+    def handle(self, **kwargs):
+        if self.handler:
+            return self._response(self.handler(**kwargs))
+        elif self.cls:
+            return self._response(self._handle(**kwargs))
 
     def _response(self, response):
         if response is None:
@@ -58,20 +75,9 @@ class ActionConfig:
     def add_to_parser(self, parser):
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(parser)
-        parser.set_defaults(actioncfg=self)
 
     def cmd_args(self, **opts):
         return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
-
-
-class ActionHandler(ABC):
-    def __init__(self, func):
-        self.func = func
-        self.actioncfg = None
-
-    @abstractmethod
-    def __call__(self, command, **opts):
-        pass
 
 
 class ResponseHandler:
