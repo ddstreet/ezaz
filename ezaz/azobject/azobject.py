@@ -221,7 +221,6 @@ class AzObject(CachedAzAction):
     def __init__(self, *, config, info=None, **kwargs):
         super().__init__(**kwargs)
         self._config = config
-        self._info = info
 
     @property
     def config(self):
@@ -237,7 +236,7 @@ class AzObject(CachedAzAction):
         pass
 
     @abstractmethod
-    def get_info(self, **opts):
+    def info(self, **opts):
         pass
 
     def get_argconfig_default_values(self, is_parent=False):
@@ -252,7 +251,7 @@ class AzObject(CachedAzAction):
     @property
     def exists(self):
         try:
-            self.get_info()
+            self.info()
             return True
         except NoAzObjectExists:
             return False
@@ -353,9 +352,9 @@ class AzSubObjectContainer(AzObject):
         raise InvalidAzObjectName(f'AzObject {cls.__name__} does not contain AzObjects with name {name}')
 
     @classmethod
-    def get_descendants(cls):
+    def get_descendant_classes(cls):
         return (cls.get_child_classes() +
-                sum([c.get_descendants()
+                sum([c.get_descendant_classes()
                      for c in cls.get_child_classes()
                      if c.is_child_container()], start=[]))
 
@@ -381,7 +380,7 @@ class AzSubObjectContainer(AzObject):
         with suppress(KeyError):
             del self.config[self.get_child_class(name).default_key()]
 
-    def get_specified_child(self, name, **opts):
+    def get_specified_child(self, name, opts):
         obj_id = opts.get(name)
         if not obj_id:
             return None
@@ -394,10 +393,10 @@ class AzSubObjectContainer(AzObject):
     def get_default_child(self, name):
         return self.get_child(name, self.get_default_child_id(name))
 
-    def get_children(self, name, **opts):
+    def get_children(self, name, opts):
         cls = self.get_child_class(name)
         return list(map(lambda info: self.get_child(name, cls.info_id(info), info=info),
-                        cls.list(self, **opts)))
+                        cls.list(self, opts)))
 
     def filter_azobject_id(self, name, azobject_id, *, prefix=None, suffix=None, regex=None, no_filters=False):
         if not QuickFilter(prefix, suffix, regex).check(azobject_id):
@@ -434,24 +433,20 @@ class AzShowable(AzObject):
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(), show=cls.get_show_action_config())
 
-    def _get_info(self, **opts):
-        return self.do_action(actioncfg=self.get_show_action_config(), dry_runnable=True, **opts)
+    def _info(self, **opts):
+        try:
+            return self.do_action(actioncfg=self.get_show_action_config(), dry_runnable=True, **opts)
+        except AzCommandError as aze:
+            raise NoAzObjectExists(self.azobject_text(), self.azobject_id) from aze
 
-    def get_info(self, **opts):
-        if not self._info:
-            try:
-                self._info = self._get_info(**opts)
-            except AzCommandError as aze:
-                raise NoAzObjectExists(self.azobject_text(), self.azobject_id) from aze
-        return self._info
-
-    @property
-    def info(self):
-        print('info called, remove!')
-        return self.get_info()
+    def info(self, **opts):
+        with suppress(AttributeError):
+            return self._cached_info
+        self._cached_info = self._info(**opts)
+        return self._cached_info
 
     def show(self, **opts):
-        return self.get_info(**opts)
+        return self.info(**opts)
 
 
 class AzListable(AzSubObject):
@@ -507,7 +502,7 @@ class AzFilterer(AzObject):
                                              help=f'Configure a filter for all object types (use with caution)'),
                               *[ConstArgConfig(f'filter_{azobject_cls.azobject_name()}', const=azobject_cls.azobject_name(),
                                                help=f'Configure a filter for only {azobject_cls.azobject_text()}s')
-                                for azobject_cls in cls.get_descendants()],
+                                for azobject_cls in cls.get_descendant_classes()],
                               ConstArgConfig('filter_default', const=FILTER_DEFAULT,
                                              help=f'Configure a default filter (use with caution)'),
                               dest='filter_type')

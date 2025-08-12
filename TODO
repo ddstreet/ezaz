@@ -23,6 +23,8 @@
 
 - update cacheing to remove specific cache after object create/delete operation
 
+- add object caching via class factory methods
+
 DOCS:
 
 - FilterActionCommand

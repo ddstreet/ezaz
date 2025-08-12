@@ -52,7 +52,7 @@ class Account(AzShowable, AzSubObjectContainer):
 
     @property
     def config(self):
-        return self._config.get_object(self.get_info().user.name)
+        return self._config.get_object(self.info().user.name)
 
     def get_self_id(self, is_parent):
         return {}
@@ -93,11 +93,12 @@ class Account(AzShowable, AzSubObjectContainer):
 
         self.do_action(actioncfg=self.get_logout_action_config(), **opts)
         self._logged_in = False
-        self._info = None
+        with suppress(AttributeError):
+            del self._cached_info
 
     @property
     def is_logged_in(self):
-        if self._logged_in is not None:
+        with suppress(AttributeError):
             return self._logged_in
         try:
             # Unfortunately a simple 'account show' returns success
@@ -110,9 +111,10 @@ class Account(AzShowable, AzSubObjectContainer):
         return self._logged_in
 
     def get_current_subscription_id(self):
-        return self.get_info().id
+        return self.info().id
 
     def set_current_subscription_id(self, subscription):
         if self.get_current_subscription_id() != subscription:
             self.az('account', 'set', cmd_args={'-s': subscription}, dry_runnable=False)
-            self._info = None
+        with suppress(AttributeError):
+            del self._cached_info

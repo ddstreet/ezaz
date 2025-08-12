@@ -16,8 +16,7 @@ class AzObjectCompleter:
 
         parent = self.get_instance(azclass.get_parent_class(), cache=cache, config=config, **opts)
         name = azclass.azobject_name()
-        opts['name'] = name
-        return parent.get_specified_child(**opts) or parent.get_default_child(name)
+        return parent.get_specified_child(name, opts=vars(parsed_args)) or parent.get_default_child(name)
 
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         try:

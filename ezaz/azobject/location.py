@@ -31,8 +31,8 @@ class Location(AzRoActionable, AzSubObject):
         # We don't want the --subscription or --location params
         return []
 
-    def _get_info(self, **opts):
-        for info in super()._get_info(**opts):
+    def _info(self, **opts):
+        for info in super()._info(**opts):
             if info.name == self.azobject_id:
                 return info
         raise NoAzObjectExists(self.azobject_text(), self.azobject_id)

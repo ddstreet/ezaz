@@ -69,7 +69,7 @@ class ActionConfig:
     def summary(self):
         s = self.action
         if self.aliases:
-            s += f' ({','.join(self.aliases)})'
+            s += f' ({",".join(self.aliases)})'
         if self.description:
             s += f': {self.description}'
         return s
