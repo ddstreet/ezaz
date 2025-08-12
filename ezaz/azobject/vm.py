@@ -6,6 +6,7 @@ from contextlib import suppress
 from .. import DISTRO_IMAGES
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
+from ..argutil import BoolArgConfig
 from ..argutil import ChoiceMapArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import EnableDisableGroupArgConfig
@@ -32,6 +33,13 @@ class VM(AzCommonActionable, AzSubObject):
         return ResourceGroup
 
     @classmethod
+    def get_action_configmap(cls):
+        return ArgMap(super().get_action_configmap(),
+                      start=cls.get_start_action_config(),
+                      restart=cls.get_restart_action_config(),
+                      stop=cls.get_stop_action_config())
+
+    @classmethod
     def get_log_action_cmd(cls, action):
         return ['get-boot-log']
 
@@ -50,7 +58,7 @@ class VM(AzCommonActionable, AzSubObject):
                                dest='image'),
                 ArgConfig('instance_type',
                           dest='size',
-                          help='TODO - implement completion for this!'),
+                          help='TODO'),
                 ArgConfig('username',
                           dest='admin_username',
                           default=getpass.getuser(),
@@ -59,8 +67,9 @@ class VM(AzCommonActionable, AzSubObject):
                           dest='admin_password',
                           help='User password'),
                 ArgConfig('ssh-key',
+                          dest='ssh_key_name',
                           completer=AzObjectCompleter(SshKey),
-                          help='TODO - implement completion for this!'),
+                          help='ssh key to use for authentication'),
                 ChoicesArgConfig('security_type',
                                  choices=['Standard', 'TrustedLaunch', 'ConfidentialVM'],
                                  default='TrustedLaunch',
@@ -82,7 +91,11 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [NoWaitFlagArgConfig(), YesFlagArgConfig()]
+        return [BoolArgConfig('force',
+                              dest='force_deletion',
+                              help='Force deletion of the VM'),
+                NoWaitFlagArgConfig(),
+                YesFlagArgConfig()]
 
     #def get_create_action_cmd_args(self, opts):
         #self._opts.to_args(boot_diagnostics_storage=self.storage_account),
@@ -96,12 +109,12 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_restart_action_argconfigs(cls):
-        return [FlagArgConfig('force', help='Force-restart'),
+        return [FlagArgConfig('force', help='Force restart of the VM'),
                 NoWaitFlagArgConfig()]
 
     @classmethod
     def get_stop_action_argconfigs(cls):
-        return [FlagArgConfig('force', dest='skip_shutdown', help='Force-stop'),
+        return [FlagArgConfig('force', dest='skip_shutdown', help='Force stop of the VM'),
                 NoWaitFlagArgConfig()]
 
     def _image_arg(self, action, opts):

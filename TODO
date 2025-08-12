@@ -4,6 +4,10 @@
 
 - implement image upload, in imageversion (alias image?)
 
+- add classes for:
+  az vm list-skus (and/or az vm list-sizes)
+  az vm image list-* (publisher,offer,sku,etc)
+
 - fix actioncfg handler, simplify, since direct methods can/should be called
   (e.g. 'show' which manually sets actioncfg before calling do_action)
 
