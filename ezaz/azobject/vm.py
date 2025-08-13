@@ -10,6 +10,7 @@ from ..argutil import BoolArgConfig
 from ..argutil import ChoiceMapArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import EnableDisableGroupArgConfig
+from ..argutil import FlagArgConfig
 from ..argutil import GroupArgConfig
 from ..argutil import NoWaitFlagArgConfig
 from ..argutil import NumberArgConfig
@@ -33,19 +34,21 @@ class VM(AzCommonActionable, AzSubObject):
         return ResourceGroup
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      start=cls.get_start_action_config(),
-                      restart=cls.get_restart_action_config(),
-                      stop=cls.get_stop_action_config())
-
-    @classmethod
-    def get_log_action_cmd(cls, action):
-        return ['get-boot-log']
-
-    @classmethod
     def get_self_id_argconfig_dest(cls, is_parent):
         return 'name'
+
+    @classmethod
+    def get_action_configmap(cls):
+        return ArgMap(super().get_action_configmap(),
+                      log=cls.make_action_config('log'),
+                      console=cls.make_action_config('console'),
+                      start=cls.make_action_config('start'),
+                      restart=cls.make_action_config('restart'),
+                      stop=cls.make_action_config('stop'))
+
+    @classmethod
+    def get_log_action_cmd(cls):
+        return ['get-boot-log']
 
     @classmethod
     def get_create_action_argconfigs(cls):

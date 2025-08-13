@@ -195,10 +195,23 @@ class AzObject(CachedAzAction):
         return None
 
     @classmethod
-    def make_action_config(cls, action, *, argconfigs=[], is_parent=False, **kwargs):
+    def make_action_config(cls, action, *, cmd=None, argconfigs=None, description=None, is_parent=False, **kwargs):
+        if cmd is None:
+            try:
+                cmd = getattr(cls, f'get_{action}_action_cmd')()
+            except AttributeError:
+                cmd = cls.get_cmd_base() + [action]
+        if argconfigs is None:
+            with suppress(AttributeError):
+                argconfigs = getattr(cls, f'get_{action}_action_argconfigs')()
+        if description is None:
+            with suppress(AttributeError):
+                description = getattr(cls, f'get_{action}_action_description')()
         return ActionConfig(action,
                             cls=cls,
-                            argconfigs=argconfigs + cls.get_common_argconfigs(is_parent=is_parent),
+                            cmd=cmd,
+                            argconfigs=(argconfigs or []) + cls.get_common_argconfigs(is_parent=is_parent),
+                            description=description,
                             **kwargs)
 
     @classmethod
@@ -256,17 +269,14 @@ class AzObject(CachedAzAction):
         except NoAzObjectExists:
             return False
 
-    def do_action(self, *, action=None, actioncfg=None, dry_runnable=False, is_parent=False, **opts):
+    def do_action(self, *, actioncfg, dry_runnable=False, is_parent=False, **opts):
         if self.verbose > 2:
-            print(f'do_action(action={action}, actioncfg={actioncfg}, dry_runnable={dry_runnable}, opts={opts})')
-        if not actioncfg:
-            print(f'FIXME: do_action without actioncfg, action {action}')
-            if not action:
-                raise RuntimeError('Missing both action and actioncfg')
-            actioncfg = self.get_action_config(action)
+            print(f'do_action(actioncfg={actioncfg}, dry_runnable={dry_runnable}, opts={opts})')
+
         for k, v in self.get_argconfig_default_values(is_parent=is_parent).items():
             if opts.get(k) is None:
                 opts[k] = v
+
         az = getattr(self, f'az_{actioncfg.az}', self.az)
         return az(*actioncfg.cmd, cmd_args=actioncfg.cmd_args(**opts), dry_runnable=dry_runnable)
 
@@ -411,11 +421,7 @@ class AzSubObjectContainer(AzObject):
 class AzShowable(AzObject):
     @classmethod
     def get_show_action_config(cls):
-        return cls.make_action_config('show',
-                                      cmd=cls.get_show_action_cmd(),
-                                      argconfigs=cls.get_show_action_argconfigs(),
-                                      description=cls.get_show_action_description(),
-                                      az='response')
+        return cls.make_action_config('show', az='response')
 
     @classmethod
     def get_show_action_cmd(cls):
@@ -452,16 +458,7 @@ class AzShowable(AzObject):
 class AzListable(AzSubObject):
     @classmethod
     def get_list_action_config(cls):
-        return cls.make_action_config('list',
-                                      cmd=cls.get_list_action_cmd(),
-                                      argconfigs=cls.get_list_action_argconfigs(),
-                                      description=cls.get_list_action_description(),
-                                      az='responselist',
-                                      is_parent=True)
-
-    @classmethod
-    def get_list_action_cmd(cls):
-        return cls.get_cmd_base() + ['list']
+        return cls.make_action_config('list', az='responselist', is_parent=True)
 
     @classmethod
     def get_list_action_argconfigs(cls):
@@ -492,9 +489,7 @@ class AzListable(AzSubObject):
 class AzFilterer(AzObject):
     @classmethod
     def get_filter_action_config(cls):
-        return cls.make_action_config('filter',
-                                      argconfigs=cls.get_filter_action_argconfigs(),
-                                      description=cls.get_filter_action_description())
+        return cls.make_action_config('filter')
 
     @classmethod
     def get_filter_type_groupargconfig(cls):
@@ -548,18 +543,7 @@ class AzRoActionable(AzShowable, AzListable, AzFilterer):
 class AzCreatable(AzObject):
     @classmethod
     def get_create_action_config(cls):
-        return cls.make_action_config('create',
-                                      cmd=cls.get_create_action_cmd(),
-                                      argconfigs=cls.get_create_action_argconfigs(),
-                                      description=cls.get_create_action_description())
-
-    @classmethod
-    def get_create_action_cmd(cls):
-        return cls.get_cmd_base() + ['create']
-
-    @classmethod
-    def get_create_action_argconfigs(cls):
-        return []
+        return cls.make_action_config('create')
 
     @classmethod
     def get_create_action_description(cls):
@@ -578,18 +562,7 @@ class AzCreatable(AzObject):
 class AzDeletable(AzObject):
     @classmethod
     def get_delete_action_config(cls):
-        return cls.make_action_config('delete',
-                                      cmd=cls.get_delete_action_cmd(),
-                                      argconfigs=cls.get_delete_action_argconfigs(),
-                                      description=cls.get_delete_action_description())
-
-    @classmethod
-    def get_delete_action_cmd(cls):
-        return cls.get_cmd_base() + ['delete']
-
-    @classmethod
-    def get_delete_action_argconfigs(cls):
-        return []
+        return cls.make_action_config('delete')
 
     @classmethod
     def get_delete_action_description(cls):
@@ -610,16 +583,18 @@ class AzRwActionable(AzCreatable, AzDeletable):
 
 
 class AzDefaultable(AzObject):
+    # TODO - redo this. either sub-actions or split actions.
+
     @classmethod
     def get_default_action_config(cls):
-        return cls.make_action_config('default',
-                                      argconfigs=cls.get_default_action_argconfigs(),
-                                      description=cls.get_default_action_description())
+        return cls.make_action_config('default')
 
     @classmethod
     def get_default_action_argconfigs(cls):
-        return [GroupArgConfig(BoolArgConfig('s', 'set', help='Set the default'),
-                               BoolArgConfig('r', 'remove', help='Remove the current default'))]
+        return [GroupArgConfig(ConstArgConfig('s', 'set', const='default_set', help='Set the default'),
+                               ConstArgConfig('u', 'unset', const='default_unset', help='Unset the default'),
+                               ConstArgConfig('show', const='default_show', help='Show the default, if any (default)'),
+                               dest='default_action')]
 
     @classmethod
     def get_default_action_description(cls):
@@ -630,14 +605,30 @@ class AzDefaultable(AzObject):
         return ArgMap(super().get_action_configmap(), default=cls.get_default_action_config())
 
     @classmethod
-    def default(cls, parent, set=False, remove=False, **opts):
-        if set:
-            default_id = cls.required_arg_value(cls.azobject_name(), opts, '--set')
-            parent.set_default_child_id(cls.azobject_name(), default_id)
-            return f'Set default {cls.azobject_text()}: {default_id}'
-        elif remove:
-            parent.del_default_child_id(cls.azobject_name())
-            return f'Unset default {cls.azobject_text()}'
+    def default(cls, parent, **opts):
+        default_action = cls.get_default_action_config().cmd_args(**opts).get('default_action')
+        print(f'args: {cls.get_default_action_config().cmd_args(**opts)}')
+        if default_action:
+            return getattr(cls, default_action)(parent, **opts)
+        else:
+            print(f'default_action: {default_action}')
+
+    @classmethod
+    def default_set(cls, parent, **opts):
+        default_id = cls.required_arg_value(cls.azobject_name(), opts, '--set')
+        parent.set_default_child_id(cls.azobject_name(), default_id)
+        print(f'set default')
+        return f'Set default {cls.azobject_text()}: {default_id}'
+
+    @classmethod
+    def default_unset(cls, parent, **opts):
+        parent.del_default_child_id(cls.azobject_name())
+        print(f'unset default')
+        return f'Unset default {cls.azobject_text()}'
+
+    @classmethod
+    def default_show(cls, parent, **opts):
+        print('show')
         return f'Default {cls.azobject_text()}: {parent.get_default_child_id(cls.azobject_name())}'
 
 

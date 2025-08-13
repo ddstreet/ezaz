@@ -181,20 +181,14 @@ class ActionCommand(SimpleCommand):
         config = self.get_action_config(self.action)
         if config:
             return config.handle(command=self, **self.opts)
-        raise NoActionConfigMethod()
-
-    def _run(self, **opts):
-        raise NotImplementedError()
+        raise NoActionConfigMethod(f'ActionConfig missing for action {self.action}')
 
     def run(self):
-        try:
-            response = self.run_action_config_method()
-            if self.verbose:
-                response.print_verbose()
-            else:
-                response.print()
-        except NoActionConfigMethod:
-            self._run(**self.opts)
+        response = self.run_action_config_method()
+        if self.verbose:
+            response.print_verbose()
+        else:
+            response.print()
 
 
 class AzObjectCommand(SimpleCommand):
@@ -228,10 +222,6 @@ class AzObjectActionCommand(AzObjectCommand, ActionCommand):
     @classmethod
     def get_default_action(cls):
         return 'show'
-
-    def _run(self, **opts):
-        print('CALLING do_action, FIXME')
-        return self.azobject.do_action(**opts)
 
 
 class AzSubObjectCommand(AzObjectCommand):

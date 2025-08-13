@@ -25,6 +25,10 @@
 
 - add object caching via class factory methods
 
+- improve azobject parent/child creation, any class and parents should
+  be creatable with just the parsed args and config defaults (or,
+  action is on/by parent, e.g. list or default)
+
 DOCS:
 
 - FilterActionCommand

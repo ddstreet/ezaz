@@ -32,10 +32,10 @@ class Account(AzShowable, AzSubObjectContainer):
 
     @classmethod
     def get_login_action_config(cls):
-        return cls.make_action_config('login', cmd=['login'], description='Login', argconfigs=cls.get_login_argconfig())
+        return cls.make_action_config('login', cmd=['login'], description='Login')
 
     @classmethod
-    def get_login_argconfig(cls):
+    def get_login_action_argconfigs(cls):
         return [FlagArgConfig('use_device_code', help='Instead of opening a browser window, show the URL and code')]
 
     @classmethod
@@ -45,10 +45,6 @@ class Account(AzShowable, AzSubObjectContainer):
     @classmethod
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(), login=cls.get_login_action_config(), logout=cls.get_logout_action_config())
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._logged_in = None
 
     @property
     def config(self):
