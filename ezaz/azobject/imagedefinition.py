@@ -3,10 +3,11 @@ from ..argutil import ArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import FlagArgConfig
 from .azobject import AzCommonActionable
+from .azobject import AzFilterer
 from .azobject import AzSubObject
 
 
-class ImageDefinition(AzCommonActionable, AzSubObject):
+class ImageDefinition(AzCommonActionable, AzFilterer, AzSubObject):
     @classmethod
     def azobject_name_list(cls):
         return ['image', 'definition']

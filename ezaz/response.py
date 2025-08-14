@@ -9,24 +9,33 @@ from .dictnamespace import DictNamespace
 from .schema import *
 
 
+def response_id(response):
+    if response._schema in [AccountInfo]:
+        return response.id
+    if response._schema in [StorageKeyInfo]:
+        return response.keyName
+    # Most objects use their 'name' field as their unique id
+    return response.name
+
+
 class Response(DictNamespace, ABC):
     def __init__(self, response):
         super().__init__(response)
-        jsonschema.validate(response, self.schema)
+        jsonschema.validate(response, self._schema)
 
     @property
     @abstractmethod
-    def schema(self):
+    def _schema(self):
         pass
 
 
 class ResponseList(UserList, ABC):
     def __init__(self, responses=[]):
-        super().__init__(map(self.response_class, responses))
+        super().__init__(map(self._response_class, responses))
 
     @property
     @abstractmethod
-    def response_class(self):
+    def _response_class(self):
         pass
 
 
@@ -48,14 +57,14 @@ def lookup_response(*args):
 def R(schema):
     class InnerResponse(Response):
         @property
-        def schema(self):
+        def _schema(self):
             return schema
     return InnerResponse
 
 def RL(schema):
     class InnerResponseList(ResponseList):
         @property
-        def response_class(self):
+        def _response_class(self):
             return R(schema)
     return InnerResponseList
 

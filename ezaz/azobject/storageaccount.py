@@ -2,10 +2,11 @@
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
+from .azobject import AzFilterer
 from .azobject import AzSubObjectContainer
 
 
-class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
+class StorageAccount(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['storage', 'account']

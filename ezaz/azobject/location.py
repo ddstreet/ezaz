@@ -1,10 +1,11 @@
 
 from ..exception import NoAzObjectExists
-from .azobject import AzRoActionable
+from .azobject import AzEmulateShowable
+from .azobject import AzListable
 from .azobject import AzSubObject
 
 
-class Location(AzRoActionable, AzSubObject):
+class Location(AzEmulateShowable, AzListable, AzSubObject):
     @classmethod
     def azobject_name_list(cls):
         return ['location']
@@ -18,21 +19,11 @@ class Location(AzRoActionable, AzSubObject):
         return cls.get_cmd_base() + ['list-locations']
 
     @classmethod
-    def get_show_action_cmd(cls):
-        return cls.get_cmd_base() + ['list-locations']
-
-    @classmethod
     def get_parent_class(cls):
         from .subscription import Subscription
         return Subscription
 
     @classmethod
-    def get_common_argconfigs(cls, is_parent=False):
-        # We don't want the --subscription or --location params
+    def get_parent_common_argconfigs(cls):
+        # We don't want the --subscription param
         return []
-
-    def _info(self, **opts):
-        for info in super()._info(**opts):
-            if info.name == self.azobject_id:
-                return info
-        raise NoAzObjectExists(self.azobject_text(), self.azobject_id)

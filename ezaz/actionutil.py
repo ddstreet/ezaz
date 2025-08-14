@@ -8,15 +8,17 @@ from contextlib import suppress
 from .argutil import ArgMap
 from .response import Response
 from .response import ResponseList
+from .response import response_id
 
 
+# TODO - redo this with ActionConfig being azobject-specific, and add command-specific wrapper and/or alt config
 class ActionConfig:
     def __init__(self, action, *, aliases=[], handler=None, cls=None, cmd=None, description='', argconfigs=[], az=None):
         self.action = action
-        self.cls = cls
-        self.handler = handler
-        self.cmd = cmd
         self.aliases = aliases
+        self.handler = handler
+        self.cls = cls
+        self.cmd = cmd
         self.description = description
         self.argconfigs = argconfigs
         self.az = az
@@ -87,10 +89,7 @@ class ResponseHandler:
         self.response = response
 
     def _print(self, response):
-        try:
-            print(response.name)
-        except AttributeError:
-            print(response.id)
+        print(response_id(response))
 
     def print(self):
         self._print(self.response)

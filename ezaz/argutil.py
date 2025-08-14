@@ -1,4 +1,5 @@
 
+import argcomplete
 import argparse
 
 from abc import ABC
@@ -7,7 +8,10 @@ from collections import UserDict
 from contextlib import suppress
 from itertools import combinations
 
+from .cache import Cache
+from .config import Config
 from .exception import ArgumentError
+from .exception import DefaultConfigNotFound
 from .exception import DuplicateArgument
 from .exception import RequiredArgument
 from .exception import RequiredArgumentGroup
@@ -182,6 +186,37 @@ class ArgUtil:
         return ArgMap({k: None for k, v in cls.optional_args(keys, opts).items() if v})
 
 
+class AzObjectInfoHelper:
+    def __init__(self, azclass, info_attr=None):
+        self.azclass = azclass
+        self.info_attr = info_attr
+
+    def get_info_attr(self, info):
+        if self.info_attr:
+            return getattr(info, self.info_attr, None)
+        else:
+            return self.azclass.info_id(info)
+
+
+class AzObjectCompleter(AzObjectInfoHelper):
+    def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
+        opts = vars(parsed_args)
+        try:
+            parent = self.azclass.get_parent_class().create_from_opts(**opts)
+            return map(self.get_info_attr, self.azclass.list(parent, **opts))
+        except Exception as e:
+            if opts.get('verbose', 0) > 1:
+                argcomplete.warn(f'argcomplete error: {e}')
+            raise
+
+
+class AzObjectDefaultId(AzObjectInfoHelper):
+    def __call__(self, **opts):
+        with suppress(DefaultConfigNotFound):
+            return self.get_info_attr(self.azclass.create_from_opts(**opts).info(**opts))
+        return None
+
+
 class BaseArgConfig(ArgUtil, ABC):
     @abstractmethod
     def add_to_parser(self, parser):
@@ -197,6 +232,7 @@ class ArgConfig(BaseArgConfig):
                  help=None,
                  dest=None,
                  default=None,
+                 runtime_default=None,
                  required=False,
                  hidden=False,
                  noncmd=False,
@@ -206,7 +242,8 @@ class ArgConfig(BaseArgConfig):
         self.help = argparse.SUPPRESS if hidden else help
         self._dest = dest
         self.default = default
-        self.required = required
+        self._runtime_default = runtime_default
+        self._required = required
         self.noncmd = noncmd
         self.completer = completer
 
@@ -215,14 +252,31 @@ class ArgConfig(BaseArgConfig):
                                                 f"help={self.help}, " +
                                                 f"dest={self._dest}, " +
                                                 f"default={self.default}, " +
-                                                f"required={self.required}, " +
+                                                f"runtime_default={self._runtime_default}, " +
+                                                f"required={self._required}, " +
                                                 f"hidden={self.help == argparse.SUPPRESS}, " +
                                                 f"noncmd={self.noncmd}, " +
                                                 f"completer={self.completer})")
 
     @property
+    def parser_argname(self):
+        return argparse.ArgumentParser().add_argument(*self.parser_args).dest
+
+    @property
     def dest(self):
         return argparse.ArgumentParser().add_argument(*self.parser_args, dest=self._dest).dest
+
+    @property
+    def required(self):
+        return self._required and not self._runtime_default
+
+    def runtime_default(self, **opts):
+        value = self._runtime_default(**opts) if self._runtime_default else None
+        if value is not None:
+            return {self._opt_to_arg(self.dest): value}
+        if self._required:
+            raise RequiredArgument(self.parser_argname)
+        return {}
 
     def add_to_parser(self, parser):
         parser.add_argument(*self.parser_args, **self.parser_kwargs).completer = self.completer
@@ -244,16 +298,32 @@ class ArgConfig(BaseArgConfig):
                       **self._parser_kwargs)
 
     def _cmd_args(self, **opts):
-        if self.required:
-            return self.required_arg(self.dest, opts)
-        else:
-            return self.optional_arg(self.dest, opts)
+        return self.optional_arg(self.dest, opts) or self.runtime_default(**opts)
 
     def cmd_args(self, **opts):
         if self.noncmd:
             return {}
         else:
             return self._cmd_args(**opts)
+
+
+class AzObjectArgConfig(ArgConfig):
+    def __init__(self, *args, azclass, cmd_attr=None, **kwargs):
+        super().__init__(*args,
+                         completer=AzObjectCompleter(azclass),
+                         runtime_default=AzObjectDefaultId(azclass),
+                         **kwargs)
+        self.azclass = azclass
+        self.cmd_attr = cmd_attr
+
+    def _cmd_args(self, **opts):
+        if self.cmd_attr:
+            parent = self.azclass.get_parent_class().create_from_opts(**opts)
+            child_id = self._arg_value(self.dest, super()._cmd_args(**opts))
+            child = parent.get_child(self.azclass.azobject_name(), child_id)
+            info = child.info(**opts)
+            return {self._opt_to_arg(self.dest): getattr(info, self.cmd_attr, None)}
+        return super()._cmd_args(**opts)
 
 
 class NumberArgConfig(ArgConfig):

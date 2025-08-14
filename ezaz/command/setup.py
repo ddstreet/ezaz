@@ -9,8 +9,8 @@ from functools import cached_property
 
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
+from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
-from ..azobject.account import Account
 from ..dialog import AzObjectChoice
 from ..dialog import YesNo
 from ..exception import ChoiceError
@@ -52,8 +52,9 @@ class SetupCommand(ActionCommand):
 
     @classmethod
     def get_create_action_argconfigs(cls):
+        from ..azobject.location import Location
         return [ArgConfig('subscription', help='Subscription to use (instead of prompting to choose)'),
-                ArgConfig('location', help='Location to use (instead of prompting to choose)'),
+                AzObjectArgConfig('location', azclass=Location, help='Location to use (instead of prompting to choose)'),
                 BoolArgConfig('all', help=f'Create all object types, even ones with a default'),
                 BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions')]
 
@@ -86,6 +87,7 @@ class SetupCommand(ActionCommand):
 
     @cached_property
     def _account(self):
+        from ..azobject.account import Account
         return Account(verbose=self.verbose, dry_run=self.dry_run, config=self.config, cache=self.cache)
 
     @property
@@ -142,7 +144,7 @@ class SetupCommand(ActionCommand):
 
     def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info.name)
+            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().name)
 
             self.add_resource_group_filter(subscription)
             self.choose_location(subscription)
@@ -156,7 +158,7 @@ class SetupCommand(ActionCommand):
         if subscription.filters.is_empty:
             if self.yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
                 username = getpass.getuser()
-                accountname = self.account.info.user.name.split('@')[0]
+                accountname = self.account.info().user.name.split('@')[0]
                 if self.yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
                     rgfilter.prefix = username
                 elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
@@ -183,7 +185,12 @@ class SetupCommand(ActionCommand):
     def choose_storage_account(self, rg):
         with suppress(ChoiceError):
             sa = self.choose_child(rg, 'storage_account')
+            self.choose_storage_key(sa)
             self.choose_storage_container(sa)
+
+    def choose_storage_key(self, sa, cmdline_arg_id=None):
+        with suppress(ChoiceError):
+            self.choose_child(sa, 'storage_key', cmdline_arg_id=cmdline_arg_id)
 
     def choose_storage_container(self, sa):
         with suppress(ChoiceError):
@@ -232,7 +239,7 @@ class SetupCommand(ActionCommand):
 
     def create_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info.name)
+            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().name)
             self.add_resource_group_filter(subscription)
             location = self.choose_location(subscription)
             self.create_resource_group(subscription, location)
@@ -246,6 +253,7 @@ class SetupCommand(ActionCommand):
 
     def create_storage_account(self, rg):
         sa = self.create_child(rg, 'storage_account')
+        self.choose_storage_key(sa, cmdline_arg_id='key1')
         self.create_storage_container(sa)
 
     def create_storage_container(self, sa):

@@ -6,6 +6,7 @@ from contextlib import suppress
 from .. import DISTRO_IMAGES
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
+from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
 from ..argutil import ChoiceMapArgConfig
 from ..argutil import ChoicesArgConfig
@@ -19,8 +20,6 @@ from ..exception import InvalidArgumentValue
 from ..exception import RequiredArgument
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
-from .completer import AzObjectCompleter
-from .sshkey import SshKey
 
 
 class VM(AzCommonActionable, AzSubObject):
@@ -52,6 +51,7 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
+        from .sshkey import SshKey
         return [GroupArgConfig(ArgConfig('image',
                                          help='The image id to deploy'),
                                ChoiceMapArgConfig('distro',
@@ -69,10 +69,10 @@ class VM(AzCommonActionable, AzSubObject):
                 ArgConfig('password',
                           dest='admin_password',
                           help='User password'),
-                ArgConfig('ssh-key',
-                          dest='ssh_key_name',
-                          completer=AzObjectCompleter(SshKey),
-                          help='ssh key to use for authentication'),
+                AzObjectArgConfig('ssh-key',
+                                  dest='ssh_key_name',
+                                  azclass=SshKey,
+                                  help='ssh key to use for authentication'),
                 ChoicesArgConfig('security_type',
                                  choices=['Standard', 'TrustedLaunch', 'ConfidentialVM'],
                                  default='TrustedLaunch',

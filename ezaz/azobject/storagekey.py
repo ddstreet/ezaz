@@ -1,16 +1,17 @@
 
+from .azobject import AzEmulateShowable
+from .azobject import AzListable
 from .azobject import AzSubObject
-from .azobject import AzRoActionable
 
 
-class StorageKey(AzRoActionable, AzSubObject):
+class StorageKey(AzEmulateShowable, AzListable, AzSubObject):
     @classmethod
     def azobject_name_list(cls):
-        return ['storage', 'account', 'keys']
+        return ['storage', 'key']
 
     @classmethod
-    def azobject_cmd_arg(cls):
-        return '--name'
+    def get_cmd_base(cls):
+        return ['storage', 'account', 'keys']
 
     @classmethod
     def get_parent_class(cls):
@@ -20,7 +21,3 @@ class StorageKey(AzRoActionable, AzSubObject):
     @classmethod
     def info_id(cls, info):
         return info.keyName
-
-    @property
-    def key_value(self):
-        return self.info.value
