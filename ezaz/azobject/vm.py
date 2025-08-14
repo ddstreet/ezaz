@@ -39,24 +39,18 @@ class VM(AzCommonActionable, AzSubObject):
     @classmethod
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(),
-                      log=cls.make_action_config('log'),
-                      console=cls.make_action_config('console'),
-                      start=cls.make_action_config('start'),
-                      restart=cls.make_action_config('restart'),
-                      stop=cls.make_action_config('stop'))
-
-    @classmethod
-    def get_log_action_cmd(cls):
-        return ['get-boot-log']
+                      log=cls.make_action_config('log', az='stdout', description='Show vm serial console log'),
+                      console=cls.make_action_config('console', description='Access vm serial console'),
+                      start=cls.make_action_config('start', description='Start vm'),
+                      restart=cls.make_action_config('restart', description='Restart vm'),
+                      stop=cls.make_action_config('stop', description='Stop vm'))
 
     @classmethod
     def get_create_action_argconfigs(cls):
         from .sshkey import SshKey
-        return [GroupArgConfig(ArgConfig('image',
-                                         help='The image id to deploy'),
-                               ChoiceMapArgConfig('distro',
-                                                  choicemap=DISTRO_IMAGES,
-                                                  help='The distro to deploy'),
+        from .storageaccount import StorageAccount
+        return [GroupArgConfig(ArgConfig('image', help='The image id to deploy'),
+                               ChoiceMapArgConfig('distro', choicemap=DISTRO_IMAGES, help='The distro to deploy'),
                                required=True,
                                dest='image'),
                 ArgConfig('instance_type',
@@ -73,6 +67,9 @@ class VM(AzCommonActionable, AzSubObject):
                                   dest='ssh_key_name',
                                   azclass=SshKey,
                                   help='ssh key to use for authentication'),
+                AzObjectArgConfig('boot-diagnostics-storage',
+                                  azclass=StorageAccount,
+                                  hidden=True),
                 ChoicesArgConfig('security_type',
                                  choices=['Standard', 'TrustedLaunch', 'ConfidentialVM'],
                                  default='TrustedLaunch',
@@ -100,11 +97,13 @@ class VM(AzCommonActionable, AzSubObject):
                 NoWaitFlagArgConfig(),
                 YesFlagArgConfig()]
 
-    #def get_create_action_cmd_args(self, opts):
-        #self._opts.to_args(boot_diagnostics_storage=self.storage_account),
-        #self._opts_to_flag_args(accept_term=None,
-        #                                      enable_secure_boot=None,
-        #                                      enable_vtpm=None))
+    @classmethod
+    def get_log_action_cmd(cls):
+        return cls.get_cmd_base() + ['boot-diagnostics', 'get-boot-log']
+
+    @classmethod
+    def get_console_action_cmd(cls):
+        return ['serial-console', 'connect']
 
     @classmethod
     def get_start_action_argconfigs(cls):
@@ -120,17 +119,17 @@ class VM(AzCommonActionable, AzSubObject):
         return [FlagArgConfig('force', dest='skip_shutdown', help='Force stop of the VM'),
                 NoWaitFlagArgConfig()]
 
-    def _image_arg(self, action, opts):
-        with suppress(RequiredArgument):
-            return self.required_arg('image', opts, action)
-        with suppress(RequiredArgument):
-            distro = self.required_arg_value('distro', opts, action)
-            with suppress(KeyError):
-                return self._opts_to_args(image=DISTRO_IMAGES[distro])
-            raise InvalidArgumentValue('distro', distro)
-        raise RequiredArgumentGroup(['image', 'distro'], action, exclusive=True)
+    def start(self, **opts):
+        self.do_action(actioncfg=self.get_action_config('start'), **opts)
 
-    @property
-    def storage_account(self):
-        # TODO: add param to specify storage account instead of default
-        return self.parent.get_default_child_id(StorageAccount.azobject_name())
+    def stop(self, **opts):
+        self.do_action(actioncfg=self.get_action_config('stop'), **opts)
+
+    def restart(self, **opts):
+        self.do_action(actioncfg=self.get_action_config('restart'), **opts)
+
+    def log(self, **opts):
+        return self.do_action(actioncfg=self.get_action_config('log'), **opts)
+
+    def console(self, **opts):
+        self.do_action(actioncfg=self.get_action_config('console'), **opts)

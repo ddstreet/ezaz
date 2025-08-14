@@ -191,6 +191,9 @@ class AzObjectInfoHelper:
         self.azclass = azclass
         self.info_attr = info_attr
 
+    def parent(self, **opts):
+        return self.azclass.get_parent_class().create_from_opts(**opts)
+
     def get_info_attr(self, info):
         if self.info_attr:
             return getattr(info, self.info_attr, None)
@@ -202,8 +205,7 @@ class AzObjectCompleter(AzObjectInfoHelper):
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         opts = vars(parsed_args)
         try:
-            parent = self.azclass.get_parent_class().create_from_opts(**opts)
-            return map(self.get_info_attr, self.azclass.list(parent, **opts))
+            return map(self.get_info_attr, self.azclass.list(self.parent(**opts), **opts))
         except Exception as e:
             if opts.get('verbose', 0) > 1:
                 argcomplete.warn(f'argcomplete error: {e}')
@@ -213,7 +215,13 @@ class AzObjectCompleter(AzObjectInfoHelper):
 class AzObjectDefaultId(AzObjectInfoHelper):
     def __call__(self, **opts):
         with suppress(DefaultConfigNotFound):
-            return self.get_info_attr(self.azclass.create_from_opts(**opts).info(**opts))
+            child = self.parent(**opts).get_default_child(self.azclass.azobject_name())
+            # Remove child's self-id dest arg, as we may be called
+            # from a different argconfig that conflicts (e.g. several
+            # use '--name' as their self-id dest arg). Also, we want
+            # the default here, not specified
+            opts.pop(child.get_self_id_argconfig_dest(is_parent=False), None)
+            return self.get_info_attr(child.info(**opts))
         return None
 
 
