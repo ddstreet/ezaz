@@ -525,56 +525,6 @@ class AzListable(AzSubObject):
                                              no_filters=no_filters)]
 
 
-class AzFilterer(AzObject):
-    @classmethod
-    def get_filter_action_config(cls):
-        return cls.make_action_config('filter')
-
-    @classmethod
-    def get_filter_type_groupargconfig(cls):
-        return GroupArgConfig(ConstArgConfig('filter_all', const=FILTER_ALL,
-                                             help=f'Configure a filter for all object types (use with caution)'),
-                              *[ConstArgConfig(f'filter_{azobject_cls.azobject_name()}', const=azobject_cls.azobject_name(),
-                                               help=f'Configure a filter for only {azobject_cls.azobject_text()}s')
-                                for azobject_cls in cls.get_descendant_classes()],
-                              ConstArgConfig('filter_default', const=FILTER_DEFAULT,
-                                             help=f'Configure a default filter (use with caution)'),
-                              dest='filter_type')
-
-    @classmethod
-    def get_filter_action_argconfigs(cls):
-        return [cls.get_filter_type_groupargconfig(),
-                GroupArgConfig(ArgConfig('--prefix', help=f'Update filter to select only object names that start with the prefix'),
-                               ConstArgConfig('--no-prefix', const='', help=f'Remove prefix filter'),
-                               dest='prefix'),
-                GroupArgConfig(ArgConfig('--suffix', help=f'Update filter to select only object names that end with the suffix'),
-                               ConstArgConfig('--no-suffix', const='', help=f'Remove suffix filter'),
-                               dest='suffix'),
-                GroupArgConfig(ArgConfig('--regex', help=f'Update filter to select only object names that match the regular expression'),
-                               ConstArgConfig('--no-regex', const='', help=f'Remove regex filter'),
-                               dest='regex')]
-                
-
-    @classmethod
-    def get_filter_action_description(cls):
-        return f"Configure the filters for this {cls.azobject_text()}'s descendant objects"
- 
-    @classmethod
-    def get_action_configmap(cls):
-        configmap = super().get_action_configmap()
-        if cls.is_child_container():
-            return ArgMap(configmap, filter=cls.get_filter_action_config())
-        return configmap
-
-    def filter(self, filter_type=None, **opts):
-        for ftype in ['prefix', 'suffix', 'regex']:
-            if opts.get(ftype) is not None:
-                if not filter_type:
-                    raise RequiredArgumentGroup(self.get_filter_type_groupargconfig().opts, self._opt_to_arg(ftype), exclusive=True)
-                setattr(self.filters.get_filter(filter_type), ftype, opts.get(ftype))
-        return str(self.filters)
-
-
 class AzRoActionable(AzShowable, AzListable):
     pass
 
@@ -679,3 +629,52 @@ class AzDefaultable(AzObject):
 
 class AzCommonActionable(AzRoActionable, AzRwActionable, AzDefaultable):
     pass
+
+
+class AzFilterer(AzObject):
+    @classmethod
+    def get_filter_action_config(cls):
+        return cls.make_action_config('filter')
+
+    @classmethod
+    def get_filter_type_groupargconfig(cls):
+        return GroupArgConfig(ConstArgConfig('filter_all', const=FILTER_ALL,
+                                             help=f'Configure a filter for all object types (use with caution)'),
+                              *[ConstArgConfig(f'filter_{azobject_cls.azobject_name()}', const=azobject_cls.azobject_name(),
+                                               help=f'Configure a filter for only {azobject_cls.azobject_text()}s')
+                                for azobject_cls in cls.get_descendant_classes()],
+                              ConstArgConfig('filter_default', const=FILTER_DEFAULT,
+                                             help=f'Configure a default filter (use with caution)'),
+                              dest='filter_type')
+
+    @classmethod
+    def get_filter_action_argconfigs(cls):
+        return [cls.get_filter_type_groupargconfig(),
+                GroupArgConfig(ArgConfig('--prefix', help=f'Update filter to select only object names that start with the prefix'),
+                               ConstArgConfig('--no-prefix', const='', help=f'Remove prefix filter'),
+                               dest='prefix'),
+                GroupArgConfig(ArgConfig('--suffix', help=f'Update filter to select only object names that end with the suffix'),
+                               ConstArgConfig('--no-suffix', const='', help=f'Remove suffix filter'),
+                               dest='suffix'),
+                GroupArgConfig(ArgConfig('--regex', help=f'Update filter to select only object names that match the regular expression'),
+                               ConstArgConfig('--no-regex', const='', help=f'Remove regex filter'),
+                               dest='regex')]
+
+    @classmethod
+    def get_filter_action_description(cls):
+        return f"Configure the filters for this {cls.azobject_text()}'s descendant objects"
+
+    @classmethod
+    def get_action_configmap(cls):
+        configmap = super().get_action_configmap()
+        if cls.is_child_container():
+            return ArgMap(configmap, filter=cls.get_filter_action_config())
+        return configmap
+
+    def filter(self, filter_type=None, **opts):
+        for ftype in ['prefix', 'suffix', 'regex']:
+            if opts.get(ftype) is not None:
+                if not filter_type:
+                    raise RequiredArgumentGroup(self.get_filter_type_groupargconfig().opts, self._opt_to_arg(ftype), exclusive=True)
+                setattr(self.filters.get_filter(filter_type), ftype, opts.get(ftype))
+        return str(self.filters)

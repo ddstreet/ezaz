@@ -1,5 +1,5 @@
 
-from ..argutil import FlagArgConfig
+from ..argutil import NoWaitBoolArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 from .azobject import AzFilterer
@@ -31,8 +31,8 @@ class ImageGallery(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectConta
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
+        return [NoWaitBoolArgConfig()]
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
+        return [NoWaitBoolArgConfig()]

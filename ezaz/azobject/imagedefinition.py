@@ -1,7 +1,7 @@
 
 from ..argutil import ArgConfig
 from ..argutil import ChoicesArgConfig
-from ..argutil import FlagArgConfig
+from ..argutil import NoWaitBoolArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzFilterer
 from .azobject import AzSubObject
@@ -37,4 +37,4 @@ class ImageDefinition(AzCommonActionable, AzFilterer, AzSubObject):
 
     @classmethod
     def get_delete_action_argconfigs(cls):
-        return [FlagArgConfig('no_wait', help='Do not wait for long-running tasks to finish')]
+        return [NoWaitBoolArgConfig()]

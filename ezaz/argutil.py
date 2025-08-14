@@ -355,6 +355,11 @@ class FlagArgConfig(BoolArgConfig):
         return self.optional_flag_arg(self.dest, opts)
 
 
+class NoWaitBoolArgConfig(BoolArgConfig):
+    def __init__(self, *, help=None, **kwargs):
+        super().__init__('no_wait', help=help or 'Do not wait for long-running tasks to complete', **kwargs)
+
+
 class NoWaitFlagArgConfig(FlagArgConfig):
     def __init__(self, *, help=None, **kwargs):
         super().__init__('no_wait', help=help or 'Do not wait for long-running tasks to complete', **kwargs)
