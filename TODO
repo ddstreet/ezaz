@@ -1,11 +1,10 @@
 
-- implement vm actions
-  add 'get-instance-view' for vm current/instance info (running, distro, etc)
-
 - implement image upload, in imageversion (alias image?)
 
 - storage account/key: implement checking account 'shared key access'
   flag, choose auth-mode based on that
+
+- update 'response' to format json into user-readable table/string
 
 - add classes for:
   az vm list-skus (and/or az vm list-sizes)

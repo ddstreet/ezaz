@@ -41,6 +41,7 @@ class VM(AzCommonActionable, AzSubObject):
         return ArgMap(super().get_action_configmap(),
                       log=cls.make_action_config('log', az='stdout', description='Show vm serial console log'),
                       console=cls.make_action_config('console', description='Access vm serial console'),
+                      status=cls.make_action_config('status', az='response', description='Get vm status'),
                       start=cls.make_action_config('start', description='Start vm'),
                       restart=cls.make_action_config('restart', description='Restart vm'),
                       stop=cls.make_action_config('stop', description='Stop vm'))
@@ -86,6 +87,7 @@ class VM(AzCommonActionable, AzSubObject):
                                  choices=['linux', 'windows'],
                                  help='Type of OS'),
                 NumberArgConfig('size',
+                                dest='os_disk_size_gb',
                                 help='Size of OS disk, in GB'),
                 NoWaitFlagArgConfig()]
 
@@ -106,6 +108,10 @@ class VM(AzCommonActionable, AzSubObject):
         return ['serial-console', 'connect']
 
     @classmethod
+    def get_status_action_cmd(cls):
+        return cls.get_cmd_base() + ['get-instance-view']
+
+    @classmethod
     def get_start_action_argconfigs(cls):
         return [NoWaitFlagArgConfig()]
 
@@ -119,6 +125,15 @@ class VM(AzCommonActionable, AzSubObject):
         return [FlagArgConfig('force', dest='skip_shutdown', help='Force stop of the VM'),
                 NoWaitFlagArgConfig()]
 
+    def log(self, **opts):
+        return self.do_action(actioncfg=self.get_action_config('log'), **opts)
+
+    def console(self, **opts):
+        self.do_action(actioncfg=self.get_action_config('console'), **opts)
+
+    def status(self, **opts):
+        return self.do_action(actioncfg=self.get_action_config('status'), **opts)
+
     def start(self, **opts):
         self.do_action(actioncfg=self.get_action_config('start'), **opts)
 
@@ -127,9 +142,3 @@ class VM(AzCommonActionable, AzSubObject):
 
     def restart(self, **opts):
         self.do_action(actioncfg=self.get_action_config('restart'), **opts)
-
-    def log(self, **opts):
-        return self.do_action(actioncfg=self.get_action_config('log'), **opts)
-
-    def console(self, **opts):
-        self.do_action(actioncfg=self.get_action_config('console'), **opts)

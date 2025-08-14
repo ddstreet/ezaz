@@ -201,6 +201,75 @@ VMInfo = OBJ(
     ),
 )
 
+VMInstanceInfo = OBJ(
+    id=STR,
+    instanceView=OBJ(
+        computerName=STR,
+        hyperVGeneration=STR,
+        osName=STR,
+        osVersion=STR,
+        statuses=ARRY(
+            OBJ(
+                code=STR,
+                displayStatus=STR,
+            ),
+        ),
+        vmAgent=OBJ(
+            statuses=ARRY(
+                OBJ(
+                    code=STR,
+                    displayStatus=STR,
+                ),
+            ),
+            vmAgentVersion=STR,
+        ),
+    ),
+    location=STR,
+    name=STR,
+    osProfile=OBJ(
+        adminUsername=STR,
+        computerName=STR,
+    ),
+    provisioningState=STR,
+    resourceGroup=STR,
+    securityProfile=OBJ(
+        securityType=STR,
+        uefiSettings=OBJ(
+            secureBootEnabled=BOOL,
+            vTpmEnabled=BOOL,
+        ),
+    ),
+    storageProfile=OBJ(
+        diskControllerType=STR,
+        imageReference=OBJ(
+            exactVersion=STR,
+            offer=STR,
+            publisher=STR,
+            sku=STR,
+            version=STR,
+        ),
+        osDisk=OBJ(
+            caching=STR,
+            createOption=STR,
+            deleteOption=STR,
+            diskSizeGB=NUM,
+            managedDisk=OBJ(
+                id=STR,
+                resourceGroup=STR,
+                storageAccountType=STR,
+            ),
+            name=STR,
+            osType=STR,
+        ),
+    ),
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+    timeCreated=STR,
+    vmId=STR,
+)
+
 RESPONSES = {
     'account': {
         'show': R(AccountInfo),
@@ -246,5 +315,6 @@ RESPONSES = {
     'vm': {
         'show': R(VMInfo),
         'list': RL(VMInfo),
+        'get-instance-view': R(VMInstanceInfo),
     },
 }

@@ -77,6 +77,8 @@ class AzAction(ArgUtil, ABC):
                 cmd.extend(v)
             elif isinstance(v, bool):
                 cmd.append(str(v))
+            elif isinstance(v, int):
+                cmd.append(str(v))
             elif v is not None:
                 cmd.append(v)
         return cmd
