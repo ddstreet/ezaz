@@ -2,7 +2,6 @@
 from functools import cached_property
 from types import SimpleNamespace
 
-from .account import AccountCommand
 from .command import SimpleCommand
 
 
@@ -13,6 +12,7 @@ class LoginCommand(SimpleCommand):
 
     @cached_property
     def account_command(self):
+        from .account import AccountCommand
         return AccountCommand(options=SimpleNamespace(**self.opts, action='login'),
                               config=self.config,
                               cache=self.cache)

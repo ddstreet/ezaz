@@ -365,6 +365,11 @@ class NoWaitFlagArgConfig(FlagArgConfig):
         super().__init__('no_wait', help=help or 'Do not wait for long-running tasks to complete', **kwargs)
 
 
+class YesBoolArgConfig(BoolArgConfig):
+    def __init__(self, *, help=None, **kwargs):
+        super().__init__('y', 'yes', help=help or 'Do not prompt for confirmation', **kwargs)
+
+
 class YesFlagArgConfig(FlagArgConfig):
     def __init__(self, *, help=None, **kwargs):
         super().__init__('y', 'yes', help=help or 'Do not prompt for confirmation', **kwargs)

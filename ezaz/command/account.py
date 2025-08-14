@@ -3,7 +3,6 @@ from contextlib import suppress
 
 from ..actionutil import ResponseTextHandler
 from ..argutil import ArgMap
-from ..azobject.account import Account
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import NotLoggedIn
@@ -13,6 +12,7 @@ from .command import AzObjectActionCommand
 class AccountCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
+        from ..azobject.account import Account
         return Account
 
     def run_action_config_method(self):

@@ -24,7 +24,7 @@ class ImageVersion(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        raise NotImplementedError('implement me')
+        return []
 
     @classmethod
     def get_delete_action_argconfigs(cls):

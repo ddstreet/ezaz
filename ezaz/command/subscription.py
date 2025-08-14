@@ -2,20 +2,20 @@
 from contextlib import suppress
 
 from ..argutil import ArgMap
-from ..azobject.subscription import Subscription
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgumentGroup
-from .account import AccountCommand
 from .command import AzSubObjectActionCommand
 
 
 class SubscriptionCommand(AzSubObjectActionCommand):
     @classmethod
     def parent_command_cls(cls):
+        from .account import AccountCommand
         return AccountCommand
 
     @classmethod
     def azclass(cls):
+        from ..azobject.subscription import Subscription
         return Subscription
 
     @classmethod

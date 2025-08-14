@@ -1,5 +1,4 @@
 
-import argparse
 import getpass
 import random
 import string
@@ -17,7 +16,6 @@ from ..exception import ChoiceError
 from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
-from ..filter import FILTER_DEFAULT
 from .command import ActionCommand
 
 

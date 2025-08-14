@@ -1,18 +1,14 @@
 
-from ..azobject.storagekey import StorageKey
 from .command import AzSubObjectActionCommand
-from .storageaccount import StorageAccountCommand
 
 
 class StorageKeyCommand(AzSubObjectActionCommand):
     @classmethod
     def parent_command_cls(cls):
+        from .storageaccount import StorageAccountCommand
         return StorageAccountCommand
 
     @classmethod
     def azclass(cls):
+        from ..azobject.storagekey import StorageKey
         return StorageKey
-
-    @classmethod
-    def command_name_list(cls):
-        return ['storage', 'key']

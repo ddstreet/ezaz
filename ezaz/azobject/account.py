@@ -14,7 +14,6 @@ from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
 from .azobject import AzShowable
 from .azobject import AzSubObjectContainer
-from .subscription import Subscription
 
 
 class Account(AzShowable, AzSubObjectContainer):
@@ -24,6 +23,7 @@ class Account(AzShowable, AzSubObjectContainer):
 
     @classmethod
     def get_child_classes(cls):
+        from .subscription import Subscription
         return [Subscription]
 
     @classmethod

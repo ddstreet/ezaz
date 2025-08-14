@@ -3,7 +3,6 @@ import argparse
 
 from functools import cached_property
 
-from ..azobject.direct import DirectAction
 from .command import SimpleCommand
 
 
@@ -20,7 +19,8 @@ class DirectCommand(SimpleCommand):
 
     @cached_property
     def direct(self):
-        return DirectAction(cache=self._cache, verbose=self.verbose, dry_run=self.dry_run)
+        from ..azobject.direct import DirectAction
+        return DirectAction(verbose=self.verbose, dry_run=self.dry_run)
 
     def run(self):
         self.direct.az(self._options.command, *self._options.args)

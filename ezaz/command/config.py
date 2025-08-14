@@ -1,6 +1,6 @@
 
 from ..argutil import ArgMap
-from ..argutil import YesFlagArgConfig
+from ..argutil import YesBoolArgConfig
 from ..dialog import YesNo
 from .command import ActionCommand
 
@@ -13,16 +13,8 @@ class ConfigCommand(ActionCommand):
     @classmethod
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(),
-                      show=cls.get_show_action_config(),
-                      remove=cls.get_remove_action_config())
-
-    @classmethod
-    def get_show_action_config(cls):
-        return cls.make_action_config('show', description='Show configuration')
-
-    @classmethod
-    def get_remove_action_config(cls):
-        return cls.make_action_config('remove', description='Remove configuration file', argconfigs=[YesFlagArgConfig()])
+                      show=cls.make_action_config('show', description='Show configuration (default)'),
+                      remove=cls.make_action_config('remove', description='Remove configuration file', argconfigs=[YesBoolArgConfig()]))
 
     @classmethod
     def get_default_action(cls):

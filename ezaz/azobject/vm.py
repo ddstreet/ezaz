@@ -13,6 +13,7 @@ from ..argutil import ChoicesArgConfig
 from ..argutil import EnableDisableGroupArgConfig
 from ..argutil import FlagArgConfig
 from ..argutil import GroupArgConfig
+from ..argutil import NoWaitBoolArgConfig
 from ..argutil import NoWaitFlagArgConfig
 from ..argutil import NumberArgConfig
 from ..argutil import YesFlagArgConfig
@@ -96,7 +97,7 @@ class VM(AzCommonActionable, AzSubObject):
         return [BoolArgConfig('force',
                               dest='force_deletion',
                               help='Force deletion of the VM'),
-                NoWaitFlagArgConfig(),
+                NoWaitBoolArgConfig(),
                 YesFlagArgConfig()]
 
     @classmethod
@@ -113,11 +114,11 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_start_action_argconfigs(cls):
-        return [NoWaitFlagArgConfig()]
+        return [NoWaitBoolArgConfig()]
 
     @classmethod
     def get_restart_action_argconfigs(cls):
-        return [FlagArgConfig('force', help='Force restart of the VM'),
+        return [FlagArgConfig('force', help='Force restart of the VM by redeploying it'),
                 NoWaitFlagArgConfig()]
 
     @classmethod
