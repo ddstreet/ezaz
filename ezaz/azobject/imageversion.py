@@ -1,4 +1,5 @@
 
+from ..argutil import AzObjectArgConfig
 from ..argutil import NoWaitBoolArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
@@ -24,7 +25,10 @@ class ImageVersion(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return []
+        from .storageaccount import StorageAccount
+        from .storageblob import StorageBlob
+        return [AzObjectArgConfig('storage_account', azclass=StorageAccount, help='Storage account containing OS disk image VHD'),
+                AzObjectArgConfig('image', azclass=StorageBlob, help='VHD to use for the OS disk image')]
 
     @classmethod
     def get_delete_action_argconfigs(cls):
