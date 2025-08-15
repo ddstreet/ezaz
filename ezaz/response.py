@@ -135,6 +135,10 @@ StorageAccountInfo = OBJ(
     name=STR,
     location=STR,
     resourceGroup=STR,
+    allowSharedKeyAccess=ANY(
+        BOOL,
+        NULL,
+    ),
     creationTime=STR,
     tags=ANY(
         OBJ(),

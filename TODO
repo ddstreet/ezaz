@@ -1,14 +1,11 @@
 
 - implement image upload, in imageversion (alias image?)
 
-- storage account/key: implement checking account 'shared key access'
-  flag, choose auth-mode based on that
-
-- update 'response' to format json into user-readable table/string
-
 - add classes for:
   az vm list-skus (and/or az vm list-sizes)
   az vm image list-* (publisher,offer,sku,etc)
+
+- update 'response' to format json into user-readable table/string
 
 - fix actioncfg handler, simplify, since direct methods can/should be called
   (e.g. 'show' which manually sets actioncfg before calling do_action)

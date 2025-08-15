@@ -250,7 +250,7 @@ class AzSubObjectCommand(AzObjectCommand):
 
     @property
     def azobject_specified_id(self):
-        return getattr(self.options, self.azclass().get_self_id_argconfig_dest(is_parent=True), None)
+        return getattr(self.options, self.azclass().get_self_id_argconfig_dest(is_parent=self.is_parent), None)
 
     @property
     def azobject_default_id(self):
@@ -268,7 +268,6 @@ class AzSubObjectCommand(AzObjectCommand):
 class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
     @property
     def azobject_default_id(self):
-        # TODO: this logic should be in the actioncfg
         if not self.is_parent and self.action in ['create', 'delete']:
             raise RequiredArgument(self.azobject_name(), self.action)
         return super().azobject_default_id

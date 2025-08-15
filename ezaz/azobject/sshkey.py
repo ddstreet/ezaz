@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
+from ..argutil import FileArgConfig
 from ..argutil import GroupArgConfig
 from ..argutil import YesFlagArgConfig
 from ..exception import ArgumentError
@@ -33,52 +34,22 @@ class SshKey(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [GroupArgConfig(ArgConfig('public_key', help='Public key data'),
-                               ArgConfig('public_key_file', help='Public key file'),
+        return [GroupArgConfig(ArgConfig('public_key',
+                                         help='Public key data'),
+                               FileArgConfig('public_key_file',
+                                             default=cls.find_public_key_file,
+                                             help='Public key file'),
+                               dest='public_key',
                                required=True)]
 
     @classmethod
     def get_delete_action_argconfigs(cls):
         return [YesFlagArgConfig()]
 
-    def _public_key_type_arg(self, keytext):
-        if keytext.startswith('ssh-ed25519'):
-            return self._opts_to_args(encryption_type='Ed25519')
-        elif keytext.startswith('ssh-rsa'):
-            return self._opts_to_args(encryption_type='RSA')
-        else:
-            raise ArgumentError(f'Invalid ssh public key: {keytext}')
-
-    def _public_key_arg(self, opts, required_by='create'):
-        with suppress(RequiredArgument):
-            return self.required_arg('public_key', opts, required_by)
-        with suppress(FileNotFoundError):
-            public_key_file = opts.get('public_key_file', None)
-            return self._opts_to_args(public_key=self._public_key_text(public_key_file))
-        raise RequiredArgumentGroup(['public_key', 'public_key_file'], required_by)
-
-    def _public_key_text(self, public_key_file):
-        keyfile = self._public_key_path(public_key_file)
-        keytext = keyfile.read_text().strip()
-        if 'PRIVATE KEY' in keytext:
-            if self.verbose:
-                print(f'Private key found in {keyfile}')
-            if keyfile.suffix.lower() != '.pub':
-                pubkeyfile = keyfile.with_suffix('.pub')
-                if self.verbose:
-                    print(f'Trying corresponding public key file {pubkeyfile}')
-                return self._public_key_text(str(pubkeyfile))
-        return keytext
-
-    def _public_key_path(self, public_key_file):
-        for k in (([public_key_file] if public_key_file else []) +
-                  [self._pubkey(keytype) for keytype in ['ed25519', 'rsa']]):
-            keypath = Path(k).expanduser().resolve()
-            if keypath.is_file():
-                if self.verbose:
-                    print(f'Using ssh public key {keypath}')
-                return keypath
-        raise FileNotFoundError()
-
-    def _pubkey(self, keytype):
-        return f'~/.ssh/id_{keytype}.pub'
+    @classmethod
+    def find_public_key_file(cls, **opts):
+        for keytype in ['ed25519', 'rsa']:
+            keyfile = Path(f'~/.ssh/id_{keytype}.pub').expanduser().resolve()
+            if keyfile.is_file():
+                return str(keyfile)
+        return None

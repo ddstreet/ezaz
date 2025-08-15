@@ -51,7 +51,8 @@ class SetupCommand(ActionCommand):
     @classmethod
     def get_create_action_argconfigs(cls):
         from ..azobject.location import Location
-        return [ArgConfig('subscription', help='Subscription to use (instead of prompting to choose)'),
+        from ..azobject.subscription import Subscription
+        return [AzObjectArgConfig('subscription', azclass=Subscription, help='Subscription to use (instead of prompting to choose)'),
                 AzObjectArgConfig('location', azclass=Location, help='Location to use (instead of prompting to choose)'),
                 BoolArgConfig('all', help=f'Create all object types, even ones with a default'),
                 BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions')]
@@ -186,9 +187,10 @@ class SetupCommand(ActionCommand):
             self.choose_storage_key(sa)
             self.choose_storage_container(sa)
 
-    def choose_storage_key(self, sa, cmdline_arg_id=None):
-        with suppress(ChoiceError):
-            self.choose_child(sa, 'storage_key', cmdline_arg_id=cmdline_arg_id)
+    def choose_storage_key(self, sa):
+        if sa.allow_shared_key_access:
+            with suppress(ChoiceError):
+                self.choose_child(sa, 'storage_key', cmdline_arg_id='key1')
 
     def choose_storage_container(self, sa):
         with suppress(ChoiceError):
@@ -251,7 +253,7 @@ class SetupCommand(ActionCommand):
 
     def create_storage_account(self, rg):
         sa = self.create_child(rg, 'storage_account')
-        self.choose_storage_key(sa, cmdline_arg_id='key1')
+        self.choose_storage_key(sa)
         self.create_storage_container(sa)
 
     def create_storage_container(self, sa):

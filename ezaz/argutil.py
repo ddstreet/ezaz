@@ -7,6 +7,7 @@ from abc import abstractmethod
 from collections import UserDict
 from contextlib import suppress
 from itertools import combinations
+from pathlib import Path
 
 from .cache import Cache
 from .config import Config
@@ -226,13 +227,54 @@ class AzObjectDefaultId(AzObjectInfoHelper):
 
 
 class BaseArgConfig(ArgUtil, ABC):
+    def __init__(self, *, dest=None, default=None, required=None, noncmd=False):
+        self._dest = dest
+        self._default = default
+        self._required = required
+        self.noncmd = noncmd
+        if self.required and self.default:
+            # Note that you can have a required argument with a callable default
+            raise ArgumentError('Cannot have required argument with default')
+
+    @property
+    def dest(self):
+        return self._dest
+
+    @property
+    def default(self):
+        return None if callable(self._default) else self._default
+
+    def runtime_default_value(self, **opts):
+        value = self._default(**opts) if callable(self._default) else self._default
+        if value is None and self._required:
+            self.raise_required()
+        return value
+
+    @property
+    def required(self):
+        return self._required and not callable(self._default)
+
+    @abstractmethod
+    def raise_required(self):
+        pass
+
     @abstractmethod
     def add_to_parser(self, parser):
         pass
 
-    @abstractmethod
+    def cmd_arg_value(self, **opts):
+        value = self._opt_value(self.dest, opts)
+        if value is not None:
+            return value
+        return self.runtime_default_value(**opts)
+
+    def _cmd_args(self, **opts):
+        return self.optional_arg(self.dest, {self.dest: self.cmd_arg_value(**opts)})
+
     def cmd_args(self, **opts):
-        pass
+        if self.noncmd:
+            return {}
+        return self._cmd_args(**opts)
 
 
 class ArgConfig(BaseArgConfig):
@@ -240,54 +282,37 @@ class ArgConfig(BaseArgConfig):
                  help=None,
                  dest=None,
                  default=None,
-                 runtime_default=None,
                  required=False,
                  hidden=False,
                  noncmd=False,
                  completer=None):
+        super().__init__(dest=dest, default=default, required=required, noncmd=noncmd)
+
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
         self.help = argparse.SUPPRESS if hidden else help
-        self._dest = dest
-        self.default = default
-        self._runtime_default = runtime_default
-        self._required = required
-        self.noncmd = noncmd
         self.completer = completer
 
     def __repr__(self):
         return self.__class__.__name__ + '(' + (f"{', '.join(self.opts)}, " +
                                                 f"help={self.help}, " +
                                                 f"dest={self._dest}, " +
-                                                f"default={self.default}, " +
-                                                f"runtime_default={self._runtime_default}, " +
+                                                f"default={self._default}, " +
                                                 f"required={self._required}, " +
                                                 f"hidden={self.help == argparse.SUPPRESS}, " +
                                                 f"noncmd={self.noncmd}, " +
                                                 f"completer={self.completer})")
 
-    @property
-    def parser_argname(self):
-        return argparse.ArgumentParser().add_argument(*self.parser_args).dest
+    def raise_required(self):
+        raise RequiredArgument(self.parser_argname)
 
     @property
     def dest(self):
         return argparse.ArgumentParser().add_argument(*self.parser_args, dest=self._dest).dest
 
     @property
-    def required(self):
-        return self._required and not self._runtime_default
-
-    def runtime_default(self, **opts):
-        value = self._runtime_default(**opts) if self._runtime_default else None
-        if value is not None:
-            return {self._opt_to_arg(self.dest): value}
-        if self._required:
-            raise RequiredArgument(self.parser_argname)
-        return {}
-
-    def add_to_parser(self, parser):
-        parser.add_argument(*self.parser_args, **self.parser_kwargs).completer = self.completer
+    def parser_argname(self):
+        return argparse.ArgumentParser().add_argument(*self.parser_args).dest
 
     @property
     def parser_args(self):
@@ -305,33 +330,30 @@ class ArgConfig(BaseArgConfig):
                       default=self.default,
                       **self._parser_kwargs)
 
-    def _cmd_args(self, **opts):
-        return self.optional_arg(self.dest, opts) or self.runtime_default(**opts)
-
-    def cmd_args(self, **opts):
-        if self.noncmd:
-            return {}
-        else:
-            return self._cmd_args(**opts)
+    def add_to_parser(self, parser):
+        parser.add_argument(*self.parser_args, **self.parser_kwargs).completer = self.completer
 
 
 class AzObjectArgConfig(ArgConfig):
-    def __init__(self, *args, azclass, cmd_attr=None, **kwargs):
+    def __init__(self, *args, azclass, cmd_attr=None, completer=None, default=None, **kwargs):
         super().__init__(*args,
-                         completer=AzObjectCompleter(azclass),
-                         runtime_default=AzObjectDefaultId(azclass),
+                         completer=completer or AzObjectCompleter(azclass),
+                         default=default or AzObjectDefaultId(azclass),
                          **kwargs)
         self.azclass = azclass
         self.cmd_attr = cmd_attr
 
-    def _cmd_args(self, **opts):
-        if self.cmd_attr:
-            parent = self.azclass.get_parent_class().create_from_opts(**opts)
-            child_id = self._arg_value(self.dest, super()._cmd_args(**opts))
-            child = parent.get_child(self.azclass.azobject_name(), child_id)
-            info = child.info(**opts)
-            return {self._opt_to_arg(self.dest): getattr(info, self.cmd_attr, None)}
-        return super()._cmd_args(**opts)
+    def cmd_args_value(self, **opts):
+        azobject_id = super().cmd_args_value(**opts)
+        if not self.cmd_attr:
+            return azobject_id
+        # This is problematic, as the azobject ancestors might not be
+        # the same as the cmdline's azobject, meaning the opts don't
+        # lead to an instance of the azobject here
+        parent = self.azclass.get_parent_class().create_from_opts(**opts)
+        child = parent.get_child(self.azclass.azobject_name(), azobject_id)
+        info = child.info(**opts)
+        return getattr(info, self.cmd_attr, None)
 
 
 class NumberArgConfig(ArgConfig):
@@ -352,7 +374,7 @@ class BoolArgConfig(ArgConfig):
 
 class FlagArgConfig(BoolArgConfig):
     def _cmd_args(self, **opts):
-        return self.optional_flag_arg(self.dest, opts)
+        return self.optional_flag_arg(self.dest, {self.dest: self.cmd_arg_value(**opts)})
 
 
 class NoWaitBoolArgConfig(BoolArgConfig):
@@ -404,23 +426,33 @@ class ChoiceMapArgConfig(ArgConfig):
     def _parser_kwargs(self):
         return ArgMap(choices=self.choicemap.keys())
 
-    def lookup_choice(self, **opts):
+    def cmd_arg_value(self, **opts):
+        return self.choicemap.get(super().cmd_arg_value(**opts))
+
+
+class FileArgConfig(ArgConfig):
+    def read_file(self, **opts):
         opts[self.dest] = self.choicemap.get(opts.get(self.dest))
         return opts
 
-    def _cmd_args(self, **opts):
-        return super()._cmd_args(**self.lookup_choice(**opts))
+    def cmd_arg_value(self, **opts):
+        f = super().cmd_arg_value(**opts)
+        if f:
+            with suppress(FileNotFoundError):
+                return Path(f).expanduser().resolve().read_text()
+            raise ArgumentError(f'File does not exist: {f}')
+        return f
 
 
 class GroupArgConfig(BaseArgConfig):
     # Note - this is an *exclusive* group, we don't have any use for a non-exclusive group
     def __init__(self, *argconfigs, dest=None, default=None, required=False):
         self.argconfigs = argconfigs
-        self.dest = dest
-        self.default = default
-        self.required = required
+        super().__init__(dest=dest, default=default, required=required)
         if dest and list(filter(lambda a: a._dest, argconfigs)):
             raise ArgumentError(f'Do not set dest for both GroupArgConfig and its arguments')
+        if list(filter(lambda a: a._required, argconfigs)):
+            raise ArgumentError(f'Do not set required for GroupArgConfig arguments')
 
     @property
     def opts(self):
@@ -436,25 +468,41 @@ class GroupArgConfig(BaseArgConfig):
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(group)
 
-    def cmd_args_assign_dest(self, **opts):
-        # All our args assign into the same dest, so find the one
-        # whose value != default and use that value; we assume
-        # argparse did its job allowing only one to be specified
-        # (since we're exclusive)
-        for argconfig in self.argconfigs:
-            if opts.get(argconfig.dest) != argconfig.default:
-                return {self._opt_to_arg(self.dest):
-                        self._arg_value(argconfig.dest, argconfig.cmd_args(**opts))}
-        if self.default is not None:
-            return {self._opt_to_arg(self.dest): self.default}
-        else:
-            return {}
+    @property
+    def required(self):
+        return super().required and not any([callable(a._default) for a in self.argconfigs])
 
-    def cmd_args(self, **opts):
+    def raise_required(self):
+        raise RequiredArgumentGroup(list(self.opts), exclusive=True)
+
+    def is_argconfig_set(self, argconfig, opts):
+        # This is used by cmd_arg_value below to determine if the
+        # provided argconfig has its value != (non-callable) default,
+        # or if its callable default is not None
+        if argconfig.cmd_arg_value(**opts) != argconfig.default:
+            return True
+        return 
+
+    def cmd_arg_value(self, **opts):
+        # This is only called if dest is set for the group.
+        for argconfig in self.argconfigs:
+            # First, look for the first argconfig whose value is
+            # different from its non-callable default (or None)
+            value = argconfig.cmd_arg_value(**opts)
+            if value != argconfig.default:
+                return value
+        for argconfig in self.argconfigs:
+            # Now, look for the first argconfig whose callable default
+            # is not None
+            value = argconfig.runtime_default_value(**opts)
+            if callable(argconfig._default) and value is not None:
+                return value
+        return self.runtime_default_value(**opts)
+
+    def _cmd_args(self, **opts):
         if self.dest:
-            return self.cmd_args_assign_dest(**opts)
-        else:
-            return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
+            return super()._cmd_args(**opts)
+        return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
 
 
 class BoolGroupArgConfig(GroupArgConfig):

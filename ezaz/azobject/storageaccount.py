@@ -1,4 +1,6 @@
 
+from ..argutil import BoolArgConfig
+from ..argutil import ChoicesArgConfig
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
@@ -27,5 +29,28 @@ class StorageAccount(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectCon
         return 'account_name' if is_parent else 'name'
 
     @classmethod
+    def get_create_action_argconfigs(cls):
+        return [BoolArgConfig('allow_blob_public_access',
+                              default=False,
+                              help='Allow containers/blobs to be configured for public access'),
+                BoolArgConfig('allow_shared_key_access',
+                              default=False,
+                              help='Allow access using storage account shared key'),
+                ChoicesArgConfig('kind',
+                                 choices=['BlobStorage', 'BlockBlobStorage', 'FileStorage', 'Storage', 'StorageV2'],
+                                 help='Type of storage account'),
+                ChoicesArgConfig('sku',
+                                 choices=([f'Premium_{c}' for c in ['LRS', 'ZRS']] +
+                                          [f'PremiumV2_{c}' for c in ['LRS', 'ZRS']] +
+                                          [f'Standard_{c}' for c in ['GRS', 'GZRS', 'LRS', 'RAGRS', 'RAGZRS', 'ZRS']] +
+                                          [f'StandardV2_{c}' for c in ['GRS', 'GZRS', 'LRS', 'ZRS']]),
+                                 help='The storage account SKU.')]
+
+    @classmethod
     def get_delete_action_argconfigs(cls):
         return [YesFlagArgConfig()]
+
+    @property
+    def allow_shared_key_access(self):
+        # The default is True (i.e. None == True)
+        return self.info().allowSharedKeyAccess is not False

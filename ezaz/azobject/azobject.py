@@ -200,21 +200,15 @@ class AzObject(CachedAzAction):
     @classmethod
     def make_action_config(cls, action, *, cmd=None, argconfigs=None, common_argconfigs=None, is_parent=False, description=None, **kwargs):
         if cmd is None:
-            try:
-                cmd = getattr(cls, f'get_{action}_action_cmd')()
-            except AttributeError:
-                cmd = cls.get_cmd_base() + [action]
+            cmd = getattr(cls, f'get_{action}_action_cmd', lambda: cls.get_cmd_base() + [action])()
         if argconfigs is None:
-            with suppress(AttributeError):
-                argconfigs = getattr(cls, f'get_{action}_action_argconfigs')()
+            argconfigs = getattr(cls, f'get_{action}_action_argconfigs', lambda: None)()
         if common_argconfigs is None:
-            try:
-                common_argconfigs = getattr(cls, f'get_{action}_common_argconfigs')(is_parent=is_parent)
-            except AttributeError:
-                common_argconfigs = cls.get_common_argconfigs(is_parent=is_parent)
+            common_argconfigs = getattr(cls,
+                                        f'get_{action}_common_argconfigs',
+                                        lambda is_parent: cls.get_common_argconfigs(is_parent=is_parent))(is_parent=is_parent)
         if description is None:
-            with suppress(AttributeError):
-                description = getattr(cls, f'get_{action}_action_description')()
+            description = getattr(cls, f'get_{action}_action_description', lambda: None)()
         return ActionConfig(action,
                             cls=cls,
                             cmd=cmd,
