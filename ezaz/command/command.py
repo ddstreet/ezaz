@@ -24,6 +24,7 @@ from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
 from ..exception import DefaultConfigNotFound
 from ..exception import NoActionConfigMethod
+from ..exception import NoDefaultAction
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
@@ -65,6 +66,7 @@ class SimpleCommand(ArgUtil, ABC):
         parser.formatter_class = argparse.RawTextHelpFormatter
         cls.parser_add_arguments(parser)
         parser.set_defaults(command_class=cls)
+        cls._parser = parser
 
     @classmethod
     def parser_add_arguments(cls, parser):
@@ -169,9 +171,8 @@ class ActionCommand(SimpleCommand):
         return None
 
     @classmethod
-    @abstractmethod
     def get_default_action(cls):
-        pass
+        raise NoDefaultAction()
 
     @property
     def action(self):
@@ -184,11 +185,14 @@ class ActionCommand(SimpleCommand):
         raise NoActionConfigMethod(f'ActionConfig missing for action {self.action}')
 
     def run(self):
-        response = self.run_action_config_method()
-        if self.verbose:
-            response.print_verbose()
-        else:
-            response.print()
+        try:
+            response = self.run_action_config_method()
+            if self.verbose:
+                response.print_verbose()
+            else:
+                response.print()
+        except NoDefaultAction:
+            self._parser.print_help()
 
 
 class AzObjectCommand(SimpleCommand):

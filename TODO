@@ -1,6 +1,8 @@
 
 - implement image upload, in imageversion (alias image?)
 
+- add 'topology' to show all objects (with filtering)
+
 - add classes for:
   az vm list-skus (and/or az vm list-sizes)
   az vm image list-* (publisher,offer,sku,etc)

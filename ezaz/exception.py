@@ -8,6 +8,10 @@ class NoActionConfigMethod(EzazException):
     pass
 
 
+class NoDefaultAction(EzazException):
+    pass
+
+
 class ChoiceError(EzazException):
     pass
 
@@ -168,3 +172,8 @@ class InvalidArgument(ArgumentError):
 class InvalidArgumentValue(ArgumentError):
     def __init__(self, arg, value):
         super().__init__(f'The argument {self._arg(arg)} value {value} is invalid.')
+
+
+class InvalidDateTimeArgumentValue(ArgumentError):
+    def __init__(self, arg, value):
+        super().__init__(f'The argument {self._arg(arg)} date/time expression was not understood: {value}')

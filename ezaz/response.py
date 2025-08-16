@@ -130,6 +130,34 @@ ImageDefinitionInfo = OBJ(
     ),
 )
 
+ImageVersionInfo = OBJ(
+    id=STR,
+    name=STR,
+    location=STR,
+    provisioningState=STR,
+    publishingProfile=OBJ(
+        excludeFromLatest=BOOL,
+        publishedDate=STR,
+        replicaCount=NUM,
+        storageAccountType=STR,
+        targetRegions=ARRY(
+            OBJ(
+                name=STR,
+                regionalReplicaCount=NUM,
+                storageAccountType=STR,
+            ),
+        ),
+    ),
+    resourceGroup=STR,
+    storageProfile=OBJ(
+        osDiskImage=OBJ(),
+    ),
+    tags=ANY(
+        OBJ(),
+        NULL,
+    ),
+)
+
 StorageAccountInfo = OBJ(
     id=STR,
     name=STR,
@@ -293,6 +321,10 @@ RESPONSES = {
         'image-definition': {
             'show': R(ImageDefinitionInfo),
             'list': RL(ImageDefinitionInfo),
+        },
+        'image-version': {
+            'show': R(ImageVersionInfo),
+            'list': RL(ImageVersionInfo),
         },
     },
     'storage': {

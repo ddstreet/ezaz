@@ -4,10 +4,10 @@ from ..argutil import ChoicesArgConfig
 from ..argutil import NoWaitBoolArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzFilterer
-from .azobject import AzSubObject
+from .azobject import AzSubObjectContainer
 
 
-class ImageDefinition(AzCommonActionable, AzFilterer, AzSubObject):
+class ImageDefinition(AzCommonActionable, AzFilterer, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['image', 'definition']
@@ -20,6 +20,11 @@ class ImageDefinition(AzCommonActionable, AzFilterer, AzSubObject):
     def get_parent_class(cls):
         from .imagegallery import ImageGallery
         return ImageGallery
+
+    @classmethod
+    def get_child_classes(cls):
+        from .imageversion import ImageVersion
+        return [ImageVersion]
 
     @classmethod
     def get_self_id_argconfig_dest(cls, is_parent):

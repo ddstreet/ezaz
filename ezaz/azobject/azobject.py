@@ -198,7 +198,9 @@ class AzObject(CachedAzAction):
         return None
 
     @classmethod
-    def make_action_config(cls, action, *, cmd=None, argconfigs=None, common_argconfigs=None, is_parent=False, description=None, **kwargs):
+    def make_action_config(cls, action, *, aliases=None, cmd=None, argconfigs=None, common_argconfigs=None, is_parent=False, description=None, **kwargs):
+        if aliases is None:
+            aliases = getattr(cls, f'get_{action}_action_aliases', lambda: [])()
         if cmd is None:
             cmd = getattr(cls, f'get_{action}_action_cmd', lambda: cls.get_cmd_base() + [action])()
         if argconfigs is None:
@@ -210,6 +212,7 @@ class AzObject(CachedAzAction):
         if description is None:
             description = getattr(cls, f'get_{action}_action_description', lambda: None)()
         return ActionConfig(action,
+                            aliases=aliases,
                             cls=cls,
                             cmd=cmd,
                             argconfigs=(argconfigs or []) + (common_argconfigs or []),
@@ -236,8 +239,8 @@ class AzObject(CachedAzAction):
     @classmethod
     def create_from_opts(cls, **opts):
         if not cls.is_child():
-            return cls(verbose=opts.get('verbose'),
-                       dry_run=opts.get('dry_run'),
+            return cls(verbose=opts.get('verbose') or 0,
+                       dry_run=opts.get('dry_run') or False,
                        cache=Cache(opts.get('cache')),
                        config=Config(opts.get('config')))
 
@@ -266,14 +269,11 @@ class AzObject(CachedAzAction):
     def info(self, **opts):
         pass
 
-    def get_argconfig_default_values(self, is_parent=False):
-        return self.get_self_ids(is_parent=is_parent)
+    def get_argconfig_default_values(self, is_parent=False, **opts):
+        return self.get_self_id(is_parent=is_parent)
 
     def get_self_id(self, is_parent):
         return {self.get_self_id_argconfig_dest(is_parent=is_parent): self.azobject_id}
-
-    def get_self_ids(self, is_parent=False):
-        return self.get_self_id(is_parent=is_parent)
 
     @property
     def exists(self):
@@ -287,7 +287,7 @@ class AzObject(CachedAzAction):
         if self.verbose > 2:
             print(f'do_action(actioncfg={actioncfg}, dry_runnable={dry_runnable}, opts={opts})')
 
-        for k, v in self.get_argconfig_default_values(is_parent=is_parent).items():
+        for k, v in self.get_argconfig_default_values(is_parent=is_parent, **opts).items():
             if opts.get(k) is None:
                 opts[k] = v
 
@@ -348,11 +348,9 @@ class AzSubObject(AzObject):
     def dry_run(self):
         return self.parent.dry_run
 
-    def get_self_ids(self, is_parent=False):
-        self_id = super().get_self_ids(is_parent=is_parent)
-        if self.is_child():
-            return ArgMap(self.parent.get_self_ids(is_parent=True), self_id)
-        return self_id
+    def get_argconfig_default_values(self, is_parent=False, **opts):
+        return ArgMap(self.parent.get_argconfig_default_values(is_parent=True, **opts),
+                      super().get_argconfig_default_values(is_parent=is_parent, **opts))
 
 
 class AzSubObjectContainer(AzObject):

@@ -41,8 +41,8 @@ class StorageContainer(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectC
                 [ArgConfig('storage_key', dest='account_key', hidden=True),
                  ChoicesArgConfig('auth_mode', choices=['key', 'login'], hidden=True)])
 
-    def get_argconfig_default_values(self, is_parent=False):
-        return ArgMap(super().get_argconfig_default_values(is_parent=is_parent),
+    def get_argconfig_default_values(self, is_parent=False, **opts):
+        return ArgMap(super().get_argconfig_default_values(is_parent=is_parent, **opts),
                       auth_mode=self.auth_mode,
                       account_key=self.account_key)
 

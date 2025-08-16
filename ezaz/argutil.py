@@ -158,6 +158,11 @@ class ArgUtil:
         return ArgMap(*[cls.required_arg(k, opts, requiring_arg) for k in keys])
 
     @classmethod
+    def optional_arg_value(cls, key, opts):
+        """Same as _opt_value."""
+        return cls._opt_value(key, opts)
+
+    @classmethod
     def optional_arg(cls, key, opts):
         """Return a dict with the (arg-format) key, or an empty dict
         if the key is missing or has a value of None."""
@@ -436,12 +441,28 @@ class FileArgConfig(ArgConfig):
         return opts
 
     def cmd_arg_value(self, **opts):
-        f = super().cmd_arg_value(**opts)
-        if f:
-            with suppress(FileNotFoundError):
-                return Path(f).expanduser().resolve().read_text()
-            raise ArgumentError(f'File does not exist: {f}')
-        return f
+        filename = super().cmd_arg_value(**opts)
+        if not filename:
+            return None
+
+        try:
+            return Path(filename).expanduser().resolve().read_text()
+        except FileNotFoundError as fnfe:
+            raise ArgumentError(f'File does not exist: {filename}') from fnfe
+
+
+class DateTimeArgConfig(ArgConfig):
+    def cmd_arg_value(self, **opts):
+        datetime_expression = super().cmd_arg_value(**opts)
+        if not datetime_expression:
+            return None
+
+        import dateparser
+        settings=dict(TO_TIMEZONE='UTC', RETURN_AS_TIMEZONE_AWARE=True, PREFER_DATES_FROM='future')
+        datetime_value = dateparser.parse(datetime_expression, settings=settings)
+        if datetime_value:
+            return datetime_value.strftime('%Y-%m-%dT%H:%MZ')
+        raise InvalidDateTimeArgumentValue(self.parser_argname, datetime_expression)
 
 
 class GroupArgConfig(BaseArgConfig):
