@@ -235,27 +235,7 @@ VMInfo = OBJ(
 
 VMInstanceInfo = OBJ(
     id=STR,
-    instanceView=OBJ(
-        computerName=STR,
-        hyperVGeneration=STR,
-        osName=STR,
-        osVersion=STR,
-        statuses=ARRY(
-            OBJ(
-                code=STR,
-                displayStatus=STR,
-            ),
-        ),
-        vmAgent=OBJ(
-            statuses=ARRY(
-                OBJ(
-                    code=STR,
-                    displayStatus=STR,
-                ),
-            ),
-            vmAgentVersion=STR,
-        ),
-    ),
+    instanceView=OBJ(),
     location=STR,
     name=STR,
     osProfile=OBJ(
@@ -273,13 +253,7 @@ VMInstanceInfo = OBJ(
     ),
     storageProfile=OBJ(
         diskControllerType=STR,
-        imageReference=OBJ(
-            exactVersion=STR,
-            offer=STR,
-            publisher=STR,
-            sku=STR,
-            version=STR,
-        ),
+        imageReference=OBJ(),
         osDisk=OBJ(
             caching=STR,
             createOption=STR,
