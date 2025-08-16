@@ -1,5 +1,7 @@
 
-- implement image upload, in imageversion (alias image?)
+- implement image-version creation with custom UEFI cert
+
+- update vm creation --image param to reference image-version (with autocomplete)
 
 - add 'topology' to show all objects (with filtering)
 
