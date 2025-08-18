@@ -1,5 +1,6 @@
 
 from ..argutil import BoolArgConfig
+from ..argutil import BoolGroupArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
@@ -30,12 +31,12 @@ class StorageAccount(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectCon
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [BoolArgConfig('allow_blob_public_access',
-                              default=False,
-                              help='Allow containers/blobs to be configured for public access'),
-                BoolArgConfig('allow_shared_key_access',
-                              default=False,
-                              help='Allow access using storage account shared key'),
+        return [BoolGroupArgConfig('allow_blob_public_access',
+                                   default=False,
+                                   help='Allow containers/blobs to be configured for public access'),
+                BoolGroupArgConfig('allow_shared_key_access',
+                                   default=False,
+                                   help='Allow access using storage account shared key'),
                 ChoicesArgConfig('kind',
                                  choices=['BlobStorage', 'BlockBlobStorage', 'FileStorage', 'Storage', 'StorageV2'],
                                  help='Type of storage account'),
@@ -44,7 +45,11 @@ class StorageAccount(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectCon
                                           [f'PremiumV2_{c}' for c in ['LRS', 'ZRS']] +
                                           [f'Standard_{c}' for c in ['GRS', 'GZRS', 'LRS', 'RAGRS', 'RAGZRS', 'ZRS']] +
                                           [f'StandardV2_{c}' for c in ['GRS', 'GZRS', 'LRS', 'ZRS']]),
-                                 help='The storage account SKU.')]
+                                 help='The storage account SKU.'),
+                ChoicesArgConfig('min_tls_version',
+                                 choices=['TLS1_0', 'TLS1_1', 'TLS1_2', 'TLS1_3'],
+                                 default='TLS1_2',
+                                 help='Minimum TLS version to allow')]
 
     @classmethod
     def get_delete_action_argconfigs(cls):

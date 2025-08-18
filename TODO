@@ -1,6 +1,10 @@
 
 - implement image-version creation with custom UEFI cert
 
+- add 'not defaultable' as some items (user, roleassignment) have no 'default' selection
+
+- add 'nonexistent' azobject instance, to use for operations not requiring current instance id, e.g. list, or roleassignment create
+
 - update vm creation --image param to reference image-version (with autocomplete)
 
 - add 'topology' to show all objects (with filtering)

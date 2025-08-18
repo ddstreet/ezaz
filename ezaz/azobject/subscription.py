@@ -23,7 +23,8 @@ class Subscription(AzShowable, AzListable, AzDefaultable, AzSubObjectContainer):
     def get_child_classes(cls):
         from .location import Location
         from .resourcegroup import ResourceGroup
-        return [ResourceGroup, Location]
+        from .roleassignment import RoleAssignment
+        return [ResourceGroup, RoleAssignment, Location]
 
     @classmethod
     def get_cmd_base(cls):

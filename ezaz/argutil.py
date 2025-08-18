@@ -348,8 +348,8 @@ class AzObjectArgConfig(ArgConfig):
         self.azclass = azclass
         self.cmd_attr = cmd_attr
 
-    def cmd_args_value(self, **opts):
-        azobject_id = super().cmd_args_value(**opts)
+    def cmd_arg_value(self, **opts):
+        azobject_id = super().cmd_arg_value(**opts)
         if not self.cmd_attr:
             return azobject_id
         # This is problematic, as the azobject ancestors might not be

@@ -22,7 +22,6 @@ from ..argutil import ArgUtil
 from ..argutil import BoolArgConfig
 from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
-from ..exception import DefaultConfigNotFound
 from ..exception import NoActionConfigMethod
 from ..exception import NoDefaultAction
 from ..exception import NotLoggedIn

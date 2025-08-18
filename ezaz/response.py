@@ -10,7 +10,7 @@ from .schema import *
 
 
 def response_id(response):
-    if response._schema in [AccountInfo]:
+    if response._schema in [AccountInfo, UserInfo]:
         return response.id
     if response._schema in [StorageKeyInfo]:
         return response.keyName
@@ -75,6 +75,17 @@ AccountInfo = OBJ(
     user=OBJ(
         name=STR,
     ),
+)
+
+UserInfo = OBJ(
+    id=STR,
+    displayName=STR,
+    userPrincipalName=STR,
+)
+
+RoleAssignmentInfo = OBJ(
+    id=STR,
+    name=STR,
 )
 
 ConfigVar = OBJ(
@@ -282,12 +293,24 @@ RESPONSES = {
         'list': RL(AccountInfo),
         'list-locations': RL(LocationInfo),
     },
+    'ad': {
+        'user': {
+            'show': R(UserInfo),
+            'list': RL(UserInfo),
+        },
+        'signed-in-user': R(UserInfo),
+    },
     'config': {
         'get': R(ConfigVar),
     },
     'group': {
         'show': R(GroupInfo),
         'list': RL(GroupInfo),
+    },
+    'role': {
+        'assignment': {
+            'list': RL(RoleAssignmentInfo),
+        },
     },
     'sig': {
         'show': R(ImageGalleryInfo),

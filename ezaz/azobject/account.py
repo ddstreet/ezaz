@@ -24,7 +24,8 @@ class Account(AzShowable, AzSubObjectContainer):
     @classmethod
     def get_child_classes(cls):
         from .subscription import Subscription
-        return [Subscription]
+        from .user import User
+        return [Subscription, User]
 
     @classmethod
     def get_self_id_argconfig(cls, is_parent):
@@ -81,6 +82,7 @@ class Account(AzShowable, AzSubObjectContainer):
         self._logged_in = True
         with suppress(DefaultConfigNotFound):
             # Switch subscriptions, if needed
+            from .subscription import Subscription
             self.set_current_subscription_id(self.get_default_child_id(Subscription.azobject_name()))
 
     def logout(self, **opts):
@@ -114,3 +116,18 @@ class Account(AzShowable, AzSubObjectContainer):
             self.az('account', 'set', cmd_args={'-s': subscription}, dry_runnable=False)
         with suppress(AttributeError):
             del self._cached_info
+
+    def signed_in_user_info(self):
+        return self.az_response('ad', 'signed-in-user', 'show')
+
+    def get_default_child_id(self, name):
+        from .user import User
+        if name == User.azobject_name():
+            return User.info_id(self.signed_in_user_info())
+        return super().get_default_child_id(name)
+
+    def set_default_child_id(self, name, value):
+        from .user import User
+        if name == User.azobject_name():
+            raise ArgumentError('Cannot change default user id')
+        return super().set_default_child_id(name, value)
