@@ -3,6 +3,7 @@ from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
+from ..argutil import BoolGroupArgConfig
 from ..argutil import NoWaitFlagArgConfig
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
@@ -61,9 +62,17 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return [NoWaitFlagArgConfig(), YesFlagArgConfig()]
 
     @classmethod
+    def get_deploy_action_cmd(cls):
+        return ['deployment', 'group', 'create']
+
+    @classmethod
     def get_deploy_action_argconfigs(cls):
         return [ArgConfig('template_file', required=True, help='Template to deploy'),
-                ArgConfig('parameter_file', help='Parameters for deployment')]
+                ArgConfig('parameter_file', help='Parameters for deployment'),
+                BoolGroupArgConfig('no_prompt',
+                                   help_no='Do not prompt for missing parameters',
+                                   help_yes='Prompt for missing parameters'),
+                NoWaitFlagArgConfig()]
 
     def deploy(self, *, template_file, **opts):
         self.do_action(actioncfg=self.get_action_config('deploy'), template_file=template_file, **opts)

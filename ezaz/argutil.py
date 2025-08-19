@@ -446,10 +446,6 @@ class ChoiceMapArgConfig(ArgConfig):
 
 
 class FileArgConfig(ArgConfig):
-    def read_file(self, **opts):
-        opts[self.dest] = self.choicemap.get(opts.get(self.dest))
-        return opts
-
     def cmd_arg_value(self, **opts):
         filename = super().cmd_arg_value(**opts)
         if not filename:
@@ -537,12 +533,24 @@ class GroupArgConfig(BaseArgConfig):
 
 
 class BoolGroupArgConfig(GroupArgConfig):
+    # Create dual XXX and no_XXX args.
+    # The opt param (either XXX or no_XXX) sets the value to True.
+    # Examples for use:
+    #   opt=prompt
+    #     --prompt -> (prompt=True, help=help_yes)
+    #     --no-prompt -> (prompt=False, help=help_no)
+    #   opt=no_prompt
+    #     --prompt -> (no_prompt=False, help=help_yes)
+    #     --no-prompt -> (no_prompt=True, help=help_no)
     def __init__(self, opt, *, dest=None, default=False, **kwargs):
         super().__init__(*self.create_argconfigs(opt, **kwargs), dest=dest or opt, default=default)
 
-    def create_argconfigs(self, opt, help_true=None, help_false=None, help=None, **kwargs):
-        return self._create_argconfigs(opt_true=opt, opt_false=f'no_{opt}',
-                                       help_true=help_true or help, help_false=help_false or help,
+    def create_argconfigs(self, opt, help_yes=None, help_no=None, help=None, **kwargs):
+        inverse = opt.startswith('no_')
+        return self._create_argconfigs(opt_true=opt,
+                                       opt_false=opt.removeprefix('no_') if inverse else f'no_{opt}',
+                                       help_true=(help_no if inverse else help_yes) or help,
+                                       help_false=(help_yes if inverse else help_no) or help,
                                        **kwargs)
 
     def _create_argconfigs(self, opt_true, opt_false, help_true, help_false, **kwargs):
@@ -550,9 +558,24 @@ class BoolGroupArgConfig(GroupArgConfig):
                 BoolArgConfig(opt_false, default=True, help=help_false, **kwargs)]
 
 
+class FlagGroupArgConfig(BoolGroupArgConfig, FlagArgConfig):
+    # Same as BoolGroupArgConfig, but result is a flag instead of bool.
+    pass
+
+
 class EnableDisableGroupArgConfig(BoolGroupArgConfig):
+    # Same as BoolGroupArgConfig, but user-facing params will be enable_XXX and disable_XXX.
+    # The opt should be either enable_XXX or disable_XXX.
     def create_argconfigs(self, opt, help_enable=None, help_disable=None, help=None, **kwargs):
-        opt = opt.removeprefix('enable_')
-        return self._create_argconfigs(opt_true=f'enable_{opt}', opt_false=f'disable_{opt}',
-                                       help_true=help_enable or help, help_false=help_disable or help,
+        inverse = opt.startswith('disable_')
+        if inverse:
+            opt_false = 'enable_' + opt.removeprefix('disable_')
+        elif opt.startswith('enable_'):
+            opt_false = 'disable_' + opt.removeprefix('enable_')
+        else:
+            raise ArgumentError('opt must start with enable_ or disable_')
+        return self._create_argconfigs(opt_true=opt,
+                                       opt_false=opt_false,
+                                       help_true=(help_disable if inverse else help_enable) or help,
+                                       help_false=(help_enable if inverse else help_disable) or help,
                                        **kwargs)
