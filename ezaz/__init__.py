@@ -26,8 +26,3 @@ DISTRO_IMAGES = {
     'ubuntu2504': 'Canonical:ubuntu-25_04-daily:server:latest',
     'ubuntu2510': 'Canonical:ubuntu-25_10-daily:server:latest',
 }
-
-BUILT_IN_ROLES = {
-    'contributor': 'b24988ac-6180-42a0-ab88-20f7382dd24c',
-    'owner': '8e3af657-a8ff-443c-a75c-2fe8c4bcb635',
-}

@@ -340,25 +340,35 @@ class ArgConfig(BaseArgConfig):
 
 
 class AzObjectArgConfig(ArgConfig):
-    def __init__(self, *args, azclass, cmd_attr=None, completer=None, default=None, **kwargs):
+    def __init__(self, *args, azclass, info_attr=None, cmd_attr=None, completer=None, nocompleter=False, default=None, nodefault=False, **kwargs):
         super().__init__(*args,
-                         completer=completer or AzObjectCompleter(azclass),
-                         default=default or AzObjectDefaultId(azclass),
+                         completer=None if nocompleter else completer or AzObjectCompleter(azclass, info_attr=info_attr),
+                         default=None if nodefault else default or AzObjectDefaultId(azclass, info_attr=info_attr),
                          **kwargs)
         self.azclass = azclass
+        self.info_attr = info_attr
         self.cmd_attr = cmd_attr
 
     def cmd_arg_value(self, **opts):
         azobject_id = super().cmd_arg_value(**opts)
-        if not self.cmd_attr:
+        if not self.info_attr and not self.cmd_attr:
             return azobject_id
+
         # This is problematic, as the azobject ancestors might not be
         # the same as the cmdline's azobject, meaning the opts don't
         # lead to an instance of the azobject here
         parent = self.azclass.get_parent_class().create_from_opts(**opts)
-        child = parent.get_child(self.azclass.azobject_name(), azobject_id)
-        info = child.info(**opts)
-        return getattr(info, self.cmd_attr, None)
+
+        info_id = (lambda info: getattr(info, self.info_attr, None)) if self.info_attr else self.azclass.info_id
+        infos = [info for info in self.azclass.list(parent=parent, **opts)
+                 if info_id(info) == azobject_id]
+
+        if not infos:
+            return None
+        if len(infos) > 1:
+            raise ArgumentError(f'Multiple results found with attribute {self.info_attr} == {azobject_id}')
+
+        return getattr(infos[0], self.cmd_attr, None)
 
 
 class NumberArgConfig(ArgConfig):

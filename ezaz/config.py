@@ -15,12 +15,23 @@ DEFAULT_CONFIGFILE = DEFAULT_CONFIGPATH / DEFAULT_FILENAME
 
 
 class SubConfig(MutableMapping):
-    def __init__(self, config, mapping):
-        self._config = config
+    def __init__(self, parent, mapping):
+        self._parent = parent
         self._mapping = mapping
 
     def __repr__(self):
-        return json.dumps(self._config._prep_file_config(self), indent=2, sort_keys=True)
+        return json.dumps(self._prep_file_config(self), indent=2, sort_keys=True)
+
+    def _prep_file_config(self, d):
+        # Copy everything except empty dicts, which we don't need to save
+        cleand = {}
+        for k, v in d.items():
+            if isinstance(v, Mapping):
+                v = self._prep_file_config(v)
+                if not v:
+                    continue
+            cleand[k] = v
+        return cleand
 
     def __getitem__(self, key):
         return self._mapping[key]
@@ -31,19 +42,30 @@ class SubConfig(MutableMapping):
                 del self[key]
         else:
             if isinstance(value, Mapping):
-                value = SubConfig(self._config, value)
+                value = SubConfig(self, value)
             self._mapping[key] = value
-            self._config._save()
+            self.save()
 
     def __delitem__(self, key):
         del self._mapping[key]
-        self._config._save()
+        self.save()
 
     def __iter__(self):
         return iter(self._mapping)
 
     def __len__(self):
         return len(self._mapping)
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def configfile(self):
+        return self.parent.configfile
+
+    def save(self):
+        return self.parent.save()
 
     def setdefault(self, key, value):
         with suppress(KeyError):
@@ -63,35 +85,29 @@ class Config(SubConfig):
         self._file_config = self._prep_file_config(self)
         # TODO - check with jsonschema
 
-    def __repr__(self):
-        return json.dumps(self._prep_file_config(self), indent=2, sort_keys=True)
-
     def _read_config(self):
         try:
-            return json.loads(self._configfile.read_text(), object_hook=partial(SubConfig, self))
+            return json.loads(self.configfile.read_text(), object_hook=partial(SubConfig, self))
         except FileNotFoundError:
             return SubConfig(self, {})
 
-    def _prep_file_config(self, d):
-        # Copy everything except empty dicts, which we don't need to save
-        cleand = {}
-        for k, v in d.items():
-            if isinstance(v, Mapping):
-                v = self._prep_file_config(v)
-                if not v:
-                    continue
-            cleand[k] = v
-        return cleand
+    @property
+    def parent(self):
+        return self
 
-    def _save(self):
+    @property
+    def configfile(self):
+        return self._configfile
+
+    def save(self):
         file_config = self._prep_file_config(self)
         if file_config == self._file_config:
             return
 
         self._file_config = file_config
-        self._configfile.parent.mkdir(parents=True, exist_ok=True)
-        self._configfile.write_text(str(self) + '\n')
+        self.configfile.parent.mkdir(parents=True, exist_ok=True)
+        self.configfile.write_text(str(self) + '\n')
 
     def remove(self):
-        self._configfile.unlink(missing_ok=True)
-        self.__init__(configfile=self._configfile)
+        self.configfile.unlink(missing_ok=True)
+        self.__init__(configfile=self.configfile)

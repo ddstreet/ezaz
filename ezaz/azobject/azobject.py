@@ -237,14 +237,14 @@ class AzObject(CachedAzAction):
         return info.name
 
     @classmethod
-    def create_from_opts(cls, **opts):
+    def create_from_opts(cls, *, verbose=0, dry_run=False, cache=None, configfile=None, **opts):
         if not cls.is_child():
-            return cls(verbose=opts.get('verbose') or 0,
-                       dry_run=opts.get('dry_run') or False,
-                       cache=Cache(opts.get('cache')),
-                       config=Config(opts.get('config')))
+            return cls(verbose=verbose,
+                       dry_run=dry_run,
+                       cache=cache,
+                       config=Config(configfile))
 
-        parent = cls.get_parent_class().create_from_opts(**opts)
+        parent = cls.get_parent_class().create_from_opts(verbose=verbose, dry_run=dry_run, cache=cache, configfile=configfile, **opts)
         name = cls.azobject_name()
         return parent.get_specified_child(name, opts) or parent.get_default_child(name)
 
@@ -255,6 +255,10 @@ class AzObject(CachedAzAction):
     @property
     def config(self):
         return self._config
+
+    @property
+    def azobject_creation_opts(self):
+        return dict(verbose=self.verbose, dry_run=self.dry_run, cache=self.cache, configfile=self.config.configfile)
 
     @cached_property
     def filters(self):

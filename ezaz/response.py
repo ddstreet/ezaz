@@ -83,6 +83,13 @@ UserInfo = OBJ(
     userPrincipalName=STR,
 )
 
+RoleDefinitionInfo = OBJ(
+    id=STR,
+    name=STR,
+    roleName=STR,
+    roleType=STR,
+)
+
 RoleAssignmentInfo = OBJ(
     id=STR,
     name=STR,
@@ -308,6 +315,10 @@ RESPONSES = {
         'list': RL(GroupInfo),
     },
     'role': {
+        'definition': {
+            'show': R(RoleDefinitionInfo),
+            'list': RL(RoleDefinitionInfo),
+        },
         'assignment': {
             'list': RL(RoleAssignmentInfo),
         },

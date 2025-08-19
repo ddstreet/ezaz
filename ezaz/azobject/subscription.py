@@ -24,7 +24,8 @@ class Subscription(AzShowable, AzListable, AzDefaultable, AzSubObjectContainer):
         from .location import Location
         from .resourcegroup import ResourceGroup
         from .roleassignment import RoleAssignment
-        return [ResourceGroup, RoleAssignment, Location]
+        from .roledefinition import RoleDefinition
+        return [ResourceGroup, RoleAssignment, RoleDefinition, Location]
 
     @classmethod
     def get_cmd_base(cls):
