@@ -13,9 +13,7 @@ class LoginCommand(SimpleCommand):
     @cached_property
     def account_command(self):
         from .account import AccountCommand
-        return AccountCommand(options=SimpleNamespace(**self.opts, action='login'),
-                              config=self.config,
-                              cache=self.cache)
+        return AccountCommand(options=SimpleNamespace(**self.opts, action='login'))
 
     def run(self):
         self.account_command.run()

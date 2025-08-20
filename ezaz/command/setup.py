@@ -87,7 +87,7 @@ class SetupCommand(ActionCommand):
     @cached_property
     def _account(self):
         from ..azobject.account import Account
-        return Account(verbose=self.verbose, dry_run=self.dry_run, config=self.config, cache=self.cache)
+        return Account(**self.azobject_creation_opts)
 
     @property
     def account(self):

@@ -1,6 +1,9 @@
 
+from functools import cached_property
+
 from ..argutil import ArgMap
 from ..argutil import YesBoolArgConfig
+from ..config import Config
 from ..dialog import YesNo
 from .command import ActionCommand
 
@@ -19,6 +22,10 @@ class ConfigCommand(ActionCommand):
     @classmethod
     def get_default_action(cls):
         return 'show'
+
+    @cached_property
+    def config(self):
+        return Config(self.options.configfile)
 
     def show(self, **opts):
         print(self.config)

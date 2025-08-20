@@ -6,13 +6,14 @@ from abc import abstractmethod
 from contextlib import suppress
 
 from .argutil import ArgMap
+from .argutil import ArgUtil
 from .response import Response
 from .response import ResponseList
 from .response import response_id
 
 
 # TODO - redo this with ActionConfig being azobject-specific, and add command-specific wrapper and/or alt config
-class ActionConfig:
+class ActionConfig(ArgUtil):
     def __init__(self, action, *, aliases=[], handler=None, cls=None, cmd=None, description='', argconfigs=[], az=None):
         self.action = action
         self.aliases = aliases
@@ -82,6 +83,10 @@ class ActionConfig:
 
     def cmd_args(self, **opts):
         return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
+
+    def get_arg_value(self, arg, **opts):
+        opt = self._arg_to_opt(arg)
+        return self.cmd_args(**{opt: opts.get(opt)}).get(self._opt_to_arg(opt))
 
 
 class ResponseHandler:

@@ -30,8 +30,8 @@ class Main:
         parser = SharedArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
-        parser.add_argument('--cache', shared=True, help='Path to cache directory')
-        parser.add_argument('--config', shared=True, help='Path to config file')
+        parser.add_argument('--cachedir', shared=True, help='Path to cache directory')
+        parser.add_argument('--configfile', shared=True, help='Path to config file')
         parser.add_argument('-v', '--verbose',
                             shared=True,
                             action='count',
@@ -68,18 +68,8 @@ class Main:
             raise
 
     @cached_property
-    def cache(self):
-        from .cache import Cache
-        return Cache(self.options.cache)
-
-    @cached_property
-    def config(self):
-        from .config import Config
-        return Config(self.options.config)
-
-    @cached_property
     def command(self):
-        return self.options.command_class(config=self.config, options=self.options, cache=self.cache)
+        return self.options.command_class(options=self.options)
 
     def run(self):
         try:

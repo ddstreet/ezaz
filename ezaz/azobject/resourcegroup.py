@@ -51,7 +51,7 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
 
         # Add owner and contributor RBAC for the signed-in user
         from .roleassignment import RoleAssignment
-        roleassignment = RoleAssignment.create_from_opts(role_assignment='NONEXISTENT', **self.azobject_creation_opts, **opts)
+        roleassignment = RoleAssignment.create_from_opts(role_assignment='NONEXISTENT', **self.azobject_creation_opts(**opts))
         opts['resource_group'] = self.azobject_id
         roleassignment.create(role='Owner', **opts)
         roleassignment.create(role='Contributor', **opts)

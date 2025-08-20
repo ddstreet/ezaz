@@ -3,6 +3,7 @@ import subprocess
 
 from contextlib import contextmanager
 from contextlib import suppress
+from functools import cached_property
 
 from ..argutil import ArgMap
 from ..argutil import FlagArgConfig
@@ -47,9 +48,9 @@ class Account(AzShowable, AzSubObjectContainer):
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(), login=cls.get_login_action_config(), logout=cls.get_logout_action_config())
 
-    @property
+    @cached_property
     def config(self):
-        return self._config.get_object(self.info().user.name)
+        return super().config.get_object(self.info().user.name)
 
     def get_self_id(self, is_parent):
         return {}

@@ -12,6 +12,7 @@ DEFAULT_CACHEPATH = Path(os.environ.get('XDG_CACHE_HOME', '~/.cache')) / 'ezaz'
 REQUIRED_PACKAGES = [
     RequiredPackage('azure-cli', programs=['az']),
     RequiredPackage('argcomplete', modules=['argcomplete']),
+    RequiredPackage('cryptography', modules=['cryptography']),
     RequiredPackage('dateparser', modules=['dateparser']),
     RequiredPackage('jsonschema', modules=['jsonschema']),
 ]

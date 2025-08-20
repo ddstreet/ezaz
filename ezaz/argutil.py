@@ -14,6 +14,9 @@ from .config import Config
 from .exception import ArgumentError
 from .exception import DefaultConfigNotFound
 from .exception import DuplicateArgument
+from .exception import InvalidArgumentValue
+from .exception import InvalidDateTimeArgumentValue
+from .exception import InvalidX509DERArgumentValue
 from .exception import RequiredArgument
 from .exception import RequiredArgumentGroup
 
@@ -232,10 +235,11 @@ class AzObjectDefaultId(AzObjectInfoHelper):
 
 
 class BaseArgConfig(ArgUtil, ABC):
-    def __init__(self, *, dest=None, default=None, required=None, noncmd=False):
+    def __init__(self, *, dest=None, default=None, required=None, multiple=False, noncmd=False):
         self._dest = dest
         self._default = default
         self._required = required
+        self.multiple = multiple
         self.noncmd = noncmd
         if self.required and self.default:
             # Note that you can have a required argument with a callable default
@@ -267,11 +271,35 @@ class BaseArgConfig(ArgUtil, ABC):
     def add_to_parser(self, parser):
         pass
 
-    def cmd_arg_value(self, **opts):
+    def _process_value(self, value, **opts):
+        return value
+
+    def process_value(self, value, **opts):
+        if value is None:
+            return None
+        return self._process_value(value, **opts)
+
+    def _cmd_arg_value(self, **opts):
         value = self._opt_value(self.dest, opts)
-        if value is not None:
-            return value
-        return self.runtime_default_value(**opts)
+        if value is None:
+            value = self.runtime_default_value(**opts)
+        return self.process_value(value, **opts)
+
+    def _cmd_arg_values(self, **opts):
+        values = self._opt_value(self.dest, opts)
+        if values is None:
+            values = self.runtime_default_value(**opts)
+        if values is None:
+            return None
+        if not isinstance(values, list):
+            raise InvalidArgumentValue(self.parser_argname, values)
+        return [self.process_value(v) for v in values]
+
+    def cmd_arg_value(self, **opts):
+        if self.multiple:
+            return self._cmd_arg_values(**opts)
+        else:
+            return self._cmd_arg_value(**opts)
 
     def _cmd_args(self, **opts):
         return self.optional_arg(self.dest, {self.dest: self.cmd_arg_value(**opts)})
@@ -288,10 +316,11 @@ class ArgConfig(BaseArgConfig):
                  dest=None,
                  default=None,
                  required=False,
+                 multiple=False,
                  hidden=False,
                  noncmd=False,
                  completer=None):
-        super().__init__(dest=dest, default=default, required=required, noncmd=noncmd)
+        super().__init__(dest=dest, default=default, required=required, multiple=multiple, noncmd=noncmd)
 
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
@@ -304,6 +333,7 @@ class ArgConfig(BaseArgConfig):
                                                 f"dest={self._dest}, " +
                                                 f"default={self._default}, " +
                                                 f"required={self._required}, " +
+                                                f"multiple={self.multiple}, " +
                                                 f"hidden={self.help == argparse.SUPPRESS}, " +
                                                 f"noncmd={self.noncmd}, " +
                                                 f"completer={self.completer})")
@@ -333,6 +363,7 @@ class ArgConfig(BaseArgConfig):
                       dest=self.dest,
                       required=self.required,
                       default=self.default,
+                      **(dict(action='append') if self.multiple else {}),
                       **self._parser_kwargs)
 
     def add_to_parser(self, parser):
@@ -349,10 +380,9 @@ class AzObjectArgConfig(ArgConfig):
         self.info_attr = info_attr
         self.cmd_attr = cmd_attr
 
-    def cmd_arg_value(self, **opts):
-        azobject_id = super().cmd_arg_value(**opts)
+    def _process_value(self, value, **opts):
         if not self.info_attr and not self.cmd_attr:
-            return azobject_id
+            return value
 
         # This is problematic, as the azobject ancestors might not be
         # the same as the cmdline's azobject, meaning the opts don't
@@ -361,12 +391,12 @@ class AzObjectArgConfig(ArgConfig):
 
         info_id = (lambda info: getattr(info, self.info_attr, None)) if self.info_attr else self.azclass.info_id
         infos = [info for info in self.azclass.list(parent=parent, **opts)
-                 if info_id(info) == azobject_id]
+                 if info_id(info) == value]
 
         if not infos:
             return None
         if len(infos) > 1:
-            raise ArgumentError(f'Multiple results found with attribute {self.info_attr} == {azobject_id}')
+            raise ArgumentError(f'Multiple results found with attribute {self.info_attr} == {value}')
 
         return getattr(infos[0], self.cmd_attr, None)
 
@@ -441,34 +471,48 @@ class ChoiceMapArgConfig(ArgConfig):
     def _parser_kwargs(self):
         return ArgMap(choices=self.choicemap.keys())
 
-    def cmd_arg_value(self, **opts):
-        return self.choicemap.get(super().cmd_arg_value(**opts))
+    def _process_value(self, value, **opts):
+        return self.choicemap.get(value)
 
 
 class FileArgConfig(ArgConfig):
-    def cmd_arg_value(self, **opts):
-        filename = super().cmd_arg_value(**opts)
-        if not filename:
-            return None
+    def _process_value(self, value, **opts):
+        try:
+            return self.read_file(Path(value).expanduser().resolve())
+        except FileNotFoundError as fnfe:
+            raise ArgumentError(f'File does not exist: {value}') from fnfe
+
+    def read_file(self, path):
+        return path.read_text()
+
+
+class BinaryFileArgConfig(FileArgConfig):
+    def read_file(self, path):
+        return path.read_bytes()
+
+
+class X509DERFileArgConfig(BinaryFileArgConfig):
+    def _process_value(self, value, **opts):
+        cert = super()._process_value(value, **opts)
+
+        from cryptography import x509
 
         try:
-            return Path(filename).expanduser().resolve().read_text()
-        except FileNotFoundError as fnfe:
-            raise ArgumentError(f'File does not exist: {filename}') from fnfe
+            x509.load_der_x509_certificate(cert)
+        except ValueError:
+            raise InvalidX509DERArgumentValue(self.parser_argname)
+
+        return cert
 
 
 class DateTimeArgConfig(ArgConfig):
-    def cmd_arg_value(self, **opts):
-        datetime_expression = super().cmd_arg_value(**opts)
-        if not datetime_expression:
-            return None
-
+    def _process_value(self, value, **opts):
         import dateparser
         settings=dict(TO_TIMEZONE='UTC', RETURN_AS_TIMEZONE_AWARE=True, PREFER_DATES_FROM='future')
-        datetime_value = dateparser.parse(datetime_expression, settings=settings)
+        datetime_value = dateparser.parse(value, settings=settings)
         if datetime_value:
             return datetime_value.strftime('%Y-%m-%dT%H:%MZ')
-        raise InvalidDateTimeArgumentValue(self.parser_argname, datetime_expression)
+        raise InvalidDateTimeArgumentValue(self.parser_argname, value)
 
 
 class GroupArgConfig(BaseArgConfig):

@@ -71,10 +71,8 @@ class SimpleCommand(ArgUtil, ABC):
     def parser_add_arguments(cls, parser):
         pass
 
-    def __init__(self, *, options, config, cache=None, **kwargs):
+    def __init__(self, *, options, **kwargs):
         self._options = options
-        self._config = config
-        self._cache = cache
 
     @property
     def options(self):
@@ -85,20 +83,16 @@ class SimpleCommand(ArgUtil, ABC):
         return vars(self.options)
 
     @property
-    def config(self):
-        return self._config
-
-    @property
-    def cache(self):
-        return self._cache
-
-    @cached_property
     def verbose(self):
         return self.options.verbose
 
-    @cached_property
+    @property
     def dry_run(self):
         return self.options.dry_run
+
+    @property
+    def azobject_creation_opts(self):
+        return dict(verbose=self.verbose, dry_run=self.dry_run, configfile=self.options.configfile, cachedir=self.options.cachedir)
 
     @abstractmethod
     def run(self):
@@ -210,7 +204,7 @@ class AzObjectCommand(SimpleCommand):
 
     @cached_property
     def azobject(self):
-        return self.azclass()(config=self.config, cache=self.cache, verbose=self.verbose, dry_run=self.dry_run)
+        return self.azclass()(**self.azobject_creation_opts)
 
 
 class AzObjectActionCommand(AzObjectCommand, ActionCommand):

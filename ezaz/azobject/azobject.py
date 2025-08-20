@@ -126,9 +126,9 @@ class AzAction(ArgUtil, ABC):
 
 
 class CachedAzAction(AzAction):
-    def __init__(self, *, cache=None, **kwargs):
+    def __init__(self, *, cache=None, cachedir=None, **kwargs):
         super().__init__(**kwargs)
-        self._cache = cache
+        self._cache = cache or Cache(cachedir)
 
     @property
     def cache(self):
@@ -237,28 +237,37 @@ class AzObject(CachedAzAction):
         return info.name
 
     @classmethod
-    def create_from_opts(cls, *, verbose=0, dry_run=False, cache=None, configfile=None, **opts):
+    def create_from_opts(cls, *, verbose=0, dry_run=False, cache=None, cachedir=None, config=None, configfile=None, **opts):
         if not cls.is_child():
             return cls(verbose=verbose,
                        dry_run=dry_run,
-                       cache=cache,
-                       config=Config(configfile))
+                       cache=cache or Cache(cachedir),
+                       config=config or Config(configfile))
 
-        parent = cls.get_parent_class().create_from_opts(verbose=verbose, dry_run=dry_run, cache=cache, configfile=configfile, **opts)
+        parent = cls.get_parent_class().create_from_opts(verbose=verbose,
+                                                         dry_run=dry_run,
+                                                         cache=cache,
+                                                         cachedir=cachedir,
+                                                         config=config,
+                                                         configfile=configfile,
+                                                         **opts)
         name = cls.azobject_name()
         return parent.get_specified_child(name, opts) or parent.get_default_child(name)
 
-    def __init__(self, *, config, info=None, **kwargs):
+    def __init__(self, *, config=None, configfile=None, **kwargs):
         super().__init__(**kwargs)
-        self._config = config
+        self._config = config or Config(configfile)
 
     @property
     def config(self):
         return self._config
 
-    @property
-    def azobject_creation_opts(self):
-        return dict(verbose=self.verbose, dry_run=self.dry_run, cache=self.cache, configfile=self.config.configfile)
+    def azobject_creation_opts(self, **opts):
+        opts.setdefault('verbose', self.verbose)
+        opts.setdefault('dry_run', self.dry_run)
+        opts.setdefault('cache', self.cache)
+        opts.setdefault('configfile', self.config.configfile)
+        return opts
 
     @cached_property
     def filters(self):

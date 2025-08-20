@@ -1,10 +1,10 @@
 
 
-def OBJ(**properties):
+def OBJ(_required_keys=None, /, **properties):
     return {
         "type": "object",
         "properties": properties,
-        "required": list(properties.keys()),
+        "required": _required_keys if _required_keys is not None else list(properties.keys()),
     }
 
 def ARRY(items):

@@ -177,3 +177,8 @@ class InvalidArgumentValue(ArgumentError):
 class InvalidDateTimeArgumentValue(ArgumentError):
     def __init__(self, arg, value):
         super().__init__(f'The argument {self._arg(arg)} date/time expression was not understood: {value}')
+
+
+class InvalidX509DERArgumentValue(ArgumentError):
+    def __init__(self, arg):
+        super().__init__(f'The argument {self._arg(arg)} value is not a DER-format X509 certificate')
