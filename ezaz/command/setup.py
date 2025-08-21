@@ -16,13 +16,18 @@ from ..exception import ChoiceError
 from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
-from .command import ActionCommand
+from .command import AzObjectActionCommand
 
 
-class SetupCommand(ActionCommand):
+class SetupCommand(AzObjectActionCommand):
     @classmethod
     def command_name_list(cls):
         return ['setup']
+
+    @classmethod
+    def azclass(cls):
+        from ..azobject.account import Account
+        return Account
 
     @classmethod
     def get_action_configmap(cls):
@@ -84,17 +89,12 @@ class SetupCommand(ActionCommand):
     def randomhex(self, n):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
 
-    @cached_property
-    def _account(self):
-        from ..azobject.account import Account
-        return Account(**self.azobject_creation_opts)
-
     @property
     def account(self):
-        if not self._account.is_logged_in:
+        if not self.azobject.is_logged_in:
             print("You are not logged in, so let's log you in first.")
-            self._account.login()
-        return self._account
+            self.azobject.login()
+        return self.azobject
 
     def get_default_child(self, container, name):
         objtype = container.get_child_class(name).azobject_text()

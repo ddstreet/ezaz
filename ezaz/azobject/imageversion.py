@@ -84,12 +84,12 @@ class ImageVersion(AzCommonActionable, AzSubObject):
 
     def os_vhd_uri(self, *, storage_account, storage_blob, **opts):
         from .storageblob import StorageBlob
-        blob = StorageBlob.create_from_opts(storage_account=storage_account, storage_blob=storage_blob, **self.azobject_creation_opts(**opts))
+        blob = StorageBlob.get_instance(resource_group=self.parent.parent.parent.azobject_id, storage_account=storage_account, storage_blob=storage_blob)
         return blob.url(**opts)
 
     def deploy(self, *, storage_account, os_vhd_uri=None, uefi_extend=False, pk=None, kek=None, db=None, dbx=None, **opts):
-        from .storageaccount import StorageAccount
-        sainfo = StorageAccount.create_from_opts(storage_account=storage_account, **self.azobject_creation_opts(**opts)).info(**opts)
+        sa = self.parent.parent.parent.get_child('storage_account', storage_account)
+        sainfo = sa.info(**opts)
         location = sainfo.location
         storage_account_id = sainfo.id
 
@@ -117,9 +117,7 @@ class ImageVersion(AzCommonActionable, AzSubObject):
                                         db_x509=db,
                                         dbx_x509=dbx)
 
-        from .resourcegroup import ResourceGroup
-        group = ResourceGroup.create_from_opts(**self.azobject_creation_opts(**opts))
-
+        group = self.parent.parent.parent
         with tempfile.NamedTemporaryFile(delete_on_close=False) as template_file:
             Path(template_file.name).write_text(template.to_json())
             group.deploy(template_file=template_file.name, **opts)

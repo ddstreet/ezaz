@@ -50,20 +50,9 @@ class ActionConfig(ArgUtil):
 
     def handle(self, **kwargs):
         if self.handler:
-            return self._response(self.handler(**kwargs))
+            return self.handler(**kwargs)
         elif self.cls:
-            return self._response(self._handle(**kwargs))
-
-    def _response(self, response):
-        if response is None:
-            return NoResponseHandler(response)
-        if isinstance(response, Response):
-            return ResponseHandler(response)
-        if isinstance(response, (ResponseList, list)):
-            return ResponseListHandler(response)
-        if isinstance(response, str):
-            return ResponseTextHandler(response)
-        return UnknownResponseHandler(response)
+            return self._handle(**kwargs)
 
     def is_action(self, action):
         return action in ([self.action] + self.aliases)
@@ -87,48 +76,3 @@ class ActionConfig(ArgUtil):
     def get_arg_value(self, arg, **opts):
         opt = self._arg_to_opt(arg)
         return self.cmd_args(**{opt: opts.get(opt)}).get(self._opt_to_arg(opt))
-
-
-class ResponseHandler:
-    def __init__(self, response):
-        self.response = response
-
-    def _print(self, response):
-        print(response_id(response))
-
-    def print(self):
-        self._print(self.response)
-
-    def _print_verbose(self, response):
-        print(response)
-
-    def print_verbose(self):
-        self._print_verbose(self.response)
-
-
-class ResponseListHandler(ResponseHandler):
-    def print(self):
-        for response in self.response:
-            self._print(response)
-
-    def print_verbose(self):
-        for response in self.response:
-            self._print_verbose(response)
-
-
-class NoResponseHandler(ResponseHandler):
-    def _print(self, response):
-        pass
-
-    def _print_verbose(self, response):
-        pass
-
-
-class ResponseTextHandler(ResponseHandler):
-    def _print(self, response):
-        print(response)
-
-
-class UnknownResponseHandler(ResponseHandler):
-    def _print(self, response):
-        print(f'Unknown response: {response}')

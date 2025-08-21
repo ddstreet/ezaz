@@ -90,10 +90,6 @@ class SimpleCommand(ArgUtil, ABC):
     def dry_run(self):
         return self.options.dry_run
 
-    @property
-    def azobject_creation_opts(self):
-        return dict(verbose=self.verbose, dry_run=self.dry_run, configfile=self.options.configfile, cachedir=self.options.cachedir)
-
     @abstractmethod
     def run(self):
         pass
@@ -179,11 +175,9 @@ class ActionCommand(SimpleCommand):
 
     def run(self):
         try:
-            response = self.run_action_config_method()
-            if self.verbose:
-                response.print_verbose()
-            else:
-                response.print()
+            result = self.run_action_config_method()
+            if result:
+                print(result)
         except NoDefaultAction:
             self._parser.print_help()
 
@@ -204,7 +198,7 @@ class AzObjectCommand(SimpleCommand):
 
     @cached_property
     def azobject(self):
-        return self.azclass()(**self.azobject_creation_opts)
+        return self.azclass().get_instance(**self.opts)
 
 
 class AzObjectActionCommand(AzObjectCommand, ActionCommand):

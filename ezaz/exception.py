@@ -65,6 +65,11 @@ class AzObjectExists(EzazException):
         super().__init__(f'{obj_name} (id: {obj_id}) already exists.')
 
 
+class NullAzObject(EzazException):
+    def __init__(self, func):
+        super().__init__(f'Internal error: null object attempt to use {func}')
+
+
 class InvalidAzObjectName(EzazException):
     pass
 

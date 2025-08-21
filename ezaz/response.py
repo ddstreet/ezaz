@@ -170,10 +170,6 @@ ImageVersionInfo = OBJ(
     storageProfile=OBJ(
         osDiskImage=OBJ(),
     ),
-    tags=ANY(
-        OBJ(),
-        NULL,
-    ),
 )
 
 StorageAccountInfo = OBJ(

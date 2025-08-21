@@ -1,7 +1,6 @@
 
 from contextlib import suppress
 
-from ..actionutil import ResponseTextHandler
 from ..argutil import ArgMap
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
@@ -25,6 +24,6 @@ class AccountCommand(AzObjectActionCommand):
         logged = 'Already logged' if already else 'Logged'
         try:
             info = self.azobject.info(**self.opts)
-            return ResponseTextHandler(f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})")
+            return f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})"
         except NotLoggedIn:
-            return ResponseTextHandler(f"{logged} out")
+            return f"{logged} out"

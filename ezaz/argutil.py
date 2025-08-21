@@ -201,7 +201,7 @@ class AzObjectInfoHelper:
         self.info_attr = info_attr
 
     def parent(self, **opts):
-        return self.azclass.get_parent_class().create_from_opts(**opts)
+        return self.azclass.get_parent_class().get_instance(**opts)
 
     def get_info_attr(self, info):
         if self.info_attr:
@@ -214,7 +214,7 @@ class AzObjectCompleter(AzObjectInfoHelper):
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         opts = vars(parsed_args)
         try:
-            return map(self.get_info_attr, self.azclass.list(self.parent(**opts), **opts))
+            return map(self.get_info_attr, self.azclass.get_null_instance(**opts).list(**opts))
         except Exception as e:
             if opts.get('verbose', 0) > 1:
                 argcomplete.warn(f'argcomplete error: {e}')
@@ -381,17 +381,16 @@ class AzObjectArgConfig(ArgConfig):
         self.cmd_attr = cmd_attr
 
     def _process_value(self, value, **opts):
-        if not self.info_attr and not self.cmd_attr:
+        if self.info_attr == self.cmd_attr:
             return value
 
         # This is problematic, as the azobject ancestors might not be
         # the same as the cmdline's azobject, meaning the opts don't
         # lead to an instance of the azobject here
-        parent = self.azclass.get_parent_class().create_from_opts(**opts)
+        null_instance = self.azclass.get_null_instance(**opts)
 
         info_id = (lambda info: getattr(info, self.info_attr, None)) if self.info_attr else self.azclass.info_id
-        infos = [info for info in self.azclass.list(parent=parent, **opts)
-                 if info_id(info) == value]
+        infos = [info for info in null_instance.list(**opts) if info_id(info) == value]
 
         if not infos:
             return None

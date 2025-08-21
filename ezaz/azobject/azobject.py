@@ -35,6 +35,7 @@ from ..exception import NotDeletable
 from ..exception import NotDownloadable
 from ..exception import NotListable
 from ..exception import NotLoggedIn
+from ..exception import NullAzObject
 from ..exception import RequiredArgumentGroup
 from ..exception import UnsupportedAction
 from ..filter import FILTER_ALL
@@ -62,7 +63,7 @@ class AzAction(ArgUtil, ABC):
         return self._dry_run
 
     def _trace(self, msg):
-        if self.verbose:
+        if self.verbose > 2:
             print(msg)
 
     @property
@@ -126,9 +127,9 @@ class AzAction(ArgUtil, ABC):
 
 
 class CachedAzAction(AzAction):
-    def __init__(self, *, cache=None, cachedir=None, **kwargs):
+    def __init__(self, *, cache=None, **kwargs):
         super().__init__(**kwargs)
-        self._cache = cache or Cache(cachedir)
+        self._cache = cache
 
     @property
     def cache(self):
@@ -198,7 +199,7 @@ class AzObject(CachedAzAction):
         return None
 
     @classmethod
-    def make_action_config(cls, action, *, aliases=None, cmd=None, argconfigs=None, common_argconfigs=None, is_parent=False, description=None, **kwargs):
+    def make_action_config(cls, action, *, aliases=None, cmd=None, argconfigs=None, common_argconfigs=None, description=None, **kwargs):
         if aliases is None:
             aliases = getattr(cls, f'get_{action}_action_aliases', lambda: [])()
         if cmd is None:
@@ -206,9 +207,7 @@ class AzObject(CachedAzAction):
         if argconfigs is None:
             argconfigs = getattr(cls, f'get_{action}_action_argconfigs', lambda: None)()
         if common_argconfigs is None:
-            common_argconfigs = getattr(cls,
-                                        f'get_{action}_common_argconfigs',
-                                        lambda is_parent: cls.get_common_argconfigs(is_parent=is_parent))(is_parent=is_parent)
+            common_argconfigs = getattr(cls, f'get_{action}_common_argconfigs', cls.get_common_argconfigs)()
         if description is None:
             description = getattr(cls, f'get_{action}_action_description', lambda: None)()
         return ActionConfig(action,
@@ -237,37 +236,21 @@ class AzObject(CachedAzAction):
         return info.name
 
     @classmethod
-    def create_from_opts(cls, *, verbose=0, dry_run=False, cache=None, cachedir=None, config=None, configfile=None, **opts):
-        if not cls.is_child():
-            return cls(verbose=verbose,
-                       dry_run=dry_run,
-                       cache=cache or Cache(cachedir),
-                       config=config or Config(configfile))
+    def get_instance(cls, **opts):
+        if not getattr(cls, '_cached_instance', False):
+            cls._cached_instance = cls(**opts)
+        return cls._cached_instance
 
-        parent = cls.get_parent_class().create_from_opts(verbose=verbose,
-                                                         dry_run=dry_run,
-                                                         cache=cache,
-                                                         cachedir=cachedir,
-                                                         config=config,
-                                                         configfile=configfile,
-                                                         **opts)
-        name = cls.azobject_name()
-        return parent.get_specified_child(name, opts) or parent.get_default_child(name)
-
-    def __init__(self, *, config=None, configfile=None, **kwargs):
+    def __init__(self, *, config, **kwargs):
         super().__init__(**kwargs)
-        self._config = config or Config(configfile)
+        self._config = config
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(azobject_id={self.azobject_id})'
 
     @property
     def config(self):
         return self._config
-
-    def azobject_creation_opts(self, **opts):
-        opts.setdefault('verbose', self.verbose)
-        opts.setdefault('dry_run', self.dry_run)
-        opts.setdefault('cache', self.cache)
-        opts.setdefault('configfile', self.config.configfile)
-        return opts
 
     @cached_property
     def filters(self):
@@ -335,15 +318,72 @@ class AzSubObject(AzObject):
         return (cls.get_parent_common_argconfigs() +
                 super().get_common_argconfigs(is_parent=is_parent))
 
-    def __init__(self, *, parent, azobject_id, **kwargs):
+    @classmethod
+    def get_instance(cls, **opts):
+        if not hasattr(cls, '_instance_cache'):
+            cls._instance_cache = {}
+
+        name = cls.azobject_name()
+        azobject_id = opts.get(name)
+
+        azobject = cls._instance_cache.get(azobject_id)
+        if azobject:
+            return azobject
+
+        parent = cls.get_parent_class().get_instance(**opts)
+        if not azobject_id:
+            azobject_id = parent.get_default_child_id(name)
+
+        config = parent.config.get_object(cls.object_key(azobject_id))
+        cls._instance_cache[azobject_id] = cls(parent=parent, azobject_id=azobject_id, config=config)
+
+        return cls._instance_cache[azobject_id]
+
+    @classmethod
+    def get_null_instance(cls, **opts):
+        if not getattr(cls, '_null_instance', False):
+            parent = cls.get_parent_class().get_instance(**opts)
+            cls._null_instance = cls(parent=parent, azobject_id=None, config=None, is_null=True)
+        return cls._null_instance
+
+    def __init__(self, *, parent, azobject_id, is_null=False, **kwargs):
         super().__init__(**kwargs)
         self._parent = parent
         self._azobject_id = azobject_id
+        self._is_null = is_null
         assert self._parent.is_child_container()
 
     @property
+    def is_null(self):
+        return self._is_null
+
+    def __repr__(self):
+        if self.is_null:
+            return f'{self.__class__.__name__}(null)'
+        return super().__repr__()
+
+    @property
+    def exists(self):
+        if self.is_null:
+            return False
+        return super().exists
+
+    @property
     def azobject_id(self):
+        if self.is_null:
+            raise NullAzObject('azobject_id')
         return self._azobject_id
+
+    def get_self_id(self, is_parent):
+        if self.is_null:
+            return {}
+        return super().get_self_id(is_parent=is_parent)
+
+    @property
+    def config(self):
+        if self.is_null:
+            raise NullAzObject('config')
+        return super().config
 
     @property
     def parent(self):
@@ -425,24 +465,25 @@ class AzSubObjectContainer(AzObject):
             return None
         return self.get_child(name, obj_id)
 
-    @cache
-    def get_child_cache(self, name):
-        return {}
-
     def get_child(self, name, obj_id, info=None):
-        if not obj_id in self.get_child_cache(name):
-            cls = self.get_child_class(name)
-            self.get_child_cache(name)[obj_id] = cls(parent=self, azobject_id=obj_id, config=self.config.get_object(cls.object_key(obj_id)), info=info)
-        return self.get_child_cache(name)[obj_id]
+        opts = {
+            self.azobject_name(): self.azobject_id,
+            name: obj_id,
+            'info': info,
+        }
+        return self.get_child_class(name).get_instance(**opts)
+
+    def get_null_child(self, name):
+        return self.get_child_class(name).get_null_instance(**{self.azobject_name(): self.azobject_id})
 
     def get_default_child(self, name):
         return self.get_child(name, self.get_default_child_id(name))
 
     def get_children(self, name, opts={}):
-        cls = self.get_child_class(name)
-        assert issubclass(cls, AzListable)
-        return list(map(lambda info: self.get_child(name, cls.info_id(info), info=info),
-                        cls.list(self, **opts)))
+        null_instance = self.get_null_child(name)
+        assert isinstance(null_instance, AzListable)
+        for info in null_instance.list(**opts):
+            yield self.get_child(name, null_instance.info_id(info), info=info)
 
     def filter_azobject_id(self, name, azobject_id, *, prefix=None, suffix=None, regex=None, no_filters=False):
         if not QuickFilter(prefix, suffix, regex).check(azobject_id):
@@ -473,6 +514,32 @@ class AzShowable(AzObject):
             cls._info_cache = {}
         return cls._info_cache
 
+    def __init__(self, *, info=None, **kwargs):
+        super().__init__(**kwargs)
+        if info:
+            self.info_cache().setdefault(self.azobject_id, info)
+
+    @property
+    def _str0(self):
+        return self.azobject_id
+
+    @property
+    def _str1(self):
+        with suppress(AttributeError):
+            return f'{self._str0} ({self.info().id})'
+        return self._str0
+
+    @property
+    def _str2(self):
+        return str(self.info())
+
+    @property
+    def _str_default(self):
+        return self._str2
+
+    def __str__(self):
+        return getattr(self, f'_str{self.verbose}', self._str_default)
+
     def _info(self, **opts):
         try:
             return self.do_action(actioncfg=self.get_show_action_config(), dry_runnable=True, **opts)
@@ -480,7 +547,7 @@ class AzShowable(AzObject):
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id) from aze
 
     def info(self, **opts):
-        if self.azobject_id not in self.info_cache():
+        if not self.info_cache().get(self.azobject_id):
             self.info_cache()[self.azobject_id] = self._info(**opts)
         return self.info_cache()[self.azobject_id]
 
@@ -491,7 +558,7 @@ class AzShowable(AzObject):
 class AzListable(AzSubObject):
     @classmethod
     def get_list_action_config(cls):
-        return cls.make_action_config('list', az='responselist', is_parent=True)
+        return cls.make_action_config('list', az='responselist')
 
     @classmethod
     def get_list_action_argconfigs(cls):
@@ -514,20 +581,19 @@ class AzListable(AzSubObject):
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(), list=cls.get_list_action_config())
 
-    @classmethod
-    def list(cls, parent, *, filter_prefix=None, filter_suffix=None, filter_regex=None, no_filters=False, **opts):
-        if not getattr(cls, 'info_cache_complete', False):
-            for info in parent.do_action(actioncfg=cls.get_list_action_config(), is_parent=True, dry_runnable=True, **opts):
-                cls.info_cache()[cls.info_id(info)] = info
-            cls.info_cache_complete = True
+    def list(self, *, filter_prefix=None, filter_suffix=None, filter_regex=None, no_filters=False, **opts):
+        if not getattr(self.__class__, '_info_cache_complete', False):
+            for info in self.do_action(actioncfg=self.get_list_action_config(), dry_runnable=True, **opts):
+                self.info_cache()[self.info_id(info)] = info
+            self.__class__._info_cache_complete = True
 
-        return [info for info in cls.info_cache().values()
-                if parent.filter_azobject_id(cls.azobject_name(),
-                                             cls.info_id(info),
-                                             prefix=filter_prefix,
-                                             suffix=filter_suffix,
-                                             regex=filter_regex,
-                                             no_filters=no_filters)]
+        return [info for info in self.info_cache().values()
+                if self.parent.filter_azobject_id(self.azobject_name(),
+                                                  self.info_id(info),
+                                                  prefix=filter_prefix,
+                                                  suffix=filter_suffix,
+                                                  regex=filter_regex,
+                                                  no_filters=no_filters)]
 
 
 class AzRoActionable(AzShowable, AzListable):
@@ -540,7 +606,7 @@ class AzRoActionable(AzShowable, AzListable):
 # where list is slow.
 class AzEmulateShowable(AzShowable, AzListable):
     def _info(self, **opts):
-        self.list(self.parent, **opts)
+        self.list(**opts)
         with suppress(KeyError):
             return self.info_cache()[self.azobject_id]
         raise NoAzObjectExists(self.azobject_text(), self.azobject_id)

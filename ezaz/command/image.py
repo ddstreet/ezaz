@@ -4,6 +4,8 @@ import re
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import AzObjectArgConfig
+from ..argutil import BoolArgConfig
+from ..argutil import X509DERFileArgConfig
 from ..exception import RequiredArgument
 from .command import ActionCommand
 
@@ -34,6 +36,25 @@ class ImageCommand(ActionCommand):
         from ..azobject.storagecontainer import StorageContainer
         return [ArgConfig('f', 'file', required=True, help='VHD file'),
                 ArgConfig('version', help='Image version'),
+                BoolArgConfig('uefi_extend',
+                              noncmd=True,
+                              help='Add, instead of replacing, the UEFI certs'),
+                X509DERFileArgConfig('uefi_pk',
+                                     dest='pk',
+                                     multiple=True,
+                                     help='Replace (or extend) PK with provided x509 cert (default is to use first db cert, or no change if extending)'),
+                X509DERFileArgConfig('uefi_kek',
+                                     dest='kek',
+                                     multiple=True,
+                                     help='Replace (or extend) KEK with provided x509 cert (default is to use first db cert, or no change if extending)'),
+                X509DERFileArgConfig('uefi_db',
+                                     dest='db',
+                                     multiple=True,
+                                     help='Replace (or extend) db with provided x509 cert(s)'),
+                X509DERFileArgConfig('uefi_dbx',
+                                     dest='dbx',
+                                     multiple=True,
+                                     help='Replace (or extend) db with provided x509 cert(s) (default is empty dbx, or no change if extending)'),
                 AzObjectArgConfig('subscription', azclass=Subscription, hidden=True),
                 AzObjectArgConfig('resource_group', azclass=ResourceGroup, hidden=True),
                 AzObjectArgConfig('storage_account', azclass=StorageAccount, hidden=True),
@@ -48,11 +69,11 @@ class ImageCommand(ActionCommand):
             raise RequiredArgument('version', 'create')
 
         from ..azobject.storageblob import StorageBlob
-        blob = StorageBlob.create_from_opts(storage_blob=filename, **opts)
+        blob = StorageBlob.get_instance(storage_blob=filename, **opts)
         blob.create(**opts)
 
         from ..azobject.imageversion import ImageVersion
-        iv = ImageVersion.create_from_opts(image_version=version, **opts)
+        iv = ImageVersion.get_instance(image_version=version, **opts)
         opts['storage_account'] = blob.parent.parent.azobject_id
         iv.create(storage_blob=blob.azobject_id, **opts)
 

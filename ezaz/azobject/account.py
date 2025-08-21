@@ -7,6 +7,8 @@ from functools import cached_property
 
 from ..argutil import ArgMap
 from ..argutil import FlagArgConfig
+from ..cache import Cache
+from ..config import Config
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import AzCommandError
@@ -47,6 +49,9 @@ class Account(AzShowable, AzSubObjectContainer):
     @classmethod
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(), login=cls.get_login_action_config(), logout=cls.get_logout_action_config())
+
+    def __init__(self, *, cachedir, configfile, **kwargs):
+        super().__init__(cache=Cache(cachedir), config=Config(configfile), **kwargs)
 
     @cached_property
     def config(self):

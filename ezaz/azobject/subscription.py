@@ -30,3 +30,7 @@ class Subscription(AzShowable, AzListable, AzDefaultable, AzSubObjectContainer):
     @classmethod
     def get_cmd_base(cls):
         return ['account']
+
+    @property
+    def _str0(self):
+        return self.info().name
