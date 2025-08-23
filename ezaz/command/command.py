@@ -15,6 +15,7 @@ from contextlib import suppress
 from functools import cached_property
 from types import SimpleNamespace
 
+from .. import LOG_V0
 from ..actionutil import ActionConfig
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
@@ -27,7 +28,6 @@ from ..exception import NoDefaultAction
 from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
-from ..response import lookup_response
 
 
 class SimpleCommand(ArgUtil, ABC):
@@ -152,7 +152,7 @@ class ActionCommand(SimpleCommand):
 
     @classmethod
     def make_action_config(cls, action, **kwargs):
-        return ActionConfig(action, cls=cls, **kwargs)
+        return CommandActionConfig(action, cls, **kwargs)
 
     def get_specified_action(self):
         with suppress(AttributeError):
@@ -170,14 +170,14 @@ class ActionCommand(SimpleCommand):
     def run_action_config_method(self):
         config = self.get_action_config(self.action)
         if config:
-            return config.handle(command=self, **self.opts)
+            return config.do_action(**self.opts)
         raise NoActionConfigMethod(f'ActionConfig missing for action {self.action}')
 
     def run(self):
         try:
             result = self.run_action_config_method()
             if result:
-                print(result)
+                LOG_V0(result)
         except NoDefaultAction:
             self._parser.print_help()
 
@@ -262,3 +262,14 @@ class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
         if not self.is_parent and self.action in ['create', 'delete']:
             raise RequiredArgument(self.azobject_name(), self.action)
         return super().azobject_default_id
+
+
+class CommandActionConfig(ActionConfig):
+    def __init__(self, action, command_class, **kwargs):
+        super().__init__(action, **kwargs)
+        self.command_class = command_class
+
+    def do_action(self, **opts):
+        command = self.command_class(options=SimpleNamespace(opts))
+        do_action = getattr(command, self.action)
+        do_action(**opts)

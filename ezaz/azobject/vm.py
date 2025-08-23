@@ -42,7 +42,7 @@ class VM(AzCommonActionable, AzSubObject):
         return ArgMap(super().get_action_configmap(),
                       log=cls.make_action_config('log', az='stdout', description='Show vm serial console log'),
                       console=cls.make_action_config('console', description='Access vm serial console'),
-                      status=cls.make_action_config('status', az='response', description='Get vm status'),
+                      status=cls.make_action_config('status', az='info', description='Get vm status'),
                       start=cls.make_action_config('start', description='Start vm'),
                       restart=cls.make_action_config('restart', description='Restart vm'),
                       stop=cls.make_action_config('stop', description='Stop vm'))
@@ -127,19 +127,19 @@ class VM(AzCommonActionable, AzSubObject):
                 NoWaitFlagArgConfig()]
 
     def log(self, **opts):
-        return self.do_action(actioncfg=self.get_action_config('log'), **opts)
+        return self.get_action_config('log').do_instance_action(self, opts)
 
     def console(self, **opts):
-        self.do_action(actioncfg=self.get_action_config('console'), **opts)
+        self.get_action_config('console').do_instance_action(self, opts)
 
     def status(self, **opts):
-        return self.do_action(actioncfg=self.get_action_config('status'), **opts)
+        return self.get_action_config('status').do_instance_action(self, opts)
 
     def start(self, **opts):
-        self.do_action(actioncfg=self.get_action_config('start'), **opts)
+        self.get_action_config('start').do_instance_action(self, opts)
 
     def stop(self, **opts):
-        self.do_action(actioncfg=self.get_action_config('stop'), **opts)
+        self.get_action_config('stop').do_instance_action(self, opts)
 
     def restart(self, **opts):
-        self.do_action(actioncfg=self.get_action_config('restart'), **opts)
+        self.get_action_config('restart').do_instance_action(self, opts)

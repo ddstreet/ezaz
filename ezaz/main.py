@@ -8,8 +8,6 @@ import traceback
 from contextlib import suppress
 from functools import cached_property
 
-from .argparse import SharedArgumentParser
-
 
 class Main:
     def __init__(self, *, args=sys.argv[1:], cmds=None, venv=None):
@@ -27,20 +25,16 @@ class Main:
                           for c in sorted(self.cmds, key=lambda c: c.command_name_short())])
 
     def parse_args(self, args):
+        from .argparse import SharedArgumentParser
         parser = SharedArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument('--venv-verbose', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--venv-refresh', action='store_true', help=argparse.SUPPRESS)
         parser.add_argument('--cachedir', shared=True, help='Path to cache directory')
         parser.add_argument('--configfile', shared=True, help='Path to config file')
-        parser.add_argument('-v', '--verbose',
-                            shared=True,
-                            action='count',
-                            default=0,
-                            help='Be verbose')
-        parser.add_argument('-n', '--dry-run',
-                            shared=True,
-                            action='store_true',
-                            help='Only print what would be done, do not run commands')
+        parser.add_argument('--trace', shared=True, action='store_true', help='Enable tracing of az commands')
+        parser.add_argument('-v', '--verbose', shared=True, action='count', default=0, help='Increase verbosity')
+        parser.add_argument('-n', '--dry-run', shared=True, action='store_true',
+                            help='Only print what would be done, do not run commands (show/list commands are still run)')
 
         subparsers = parser.add_subparsers(title='Subcommands (and aliases)',
                                            description=self.subcmds_description,
@@ -57,6 +51,8 @@ class Main:
         options = parser.parse_args(args)
         options.full_args = args
 
+        self.setup_logging(verbose=options.verbose, trace=options.trace)
+
         return options
 
     @cached_property
@@ -70,6 +66,19 @@ class Main:
     @cached_property
     def command(self):
         return self.options.command_class(options=self.options)
+
+    def setup_logging(self, verbose, trace):
+        import logging
+        logging.basicConfig(level=logging.NOTSET, format='{message}', style='{')
+
+        from . import LOGGER
+        from . import LOG_LEVEL_V0
+        from . import LOG_LEVEL_V5
+        LOGGER.setLevel(max(LOG_LEVEL_V5, LOG_LEVEL_V0 - verbose))
+
+        from . import AZ_TRACE_LOGGER
+        AZ_TRACE_LOGGER.setLevel(logging.NOTSET)
+        AZ_TRACE_LOGGER.propagate = trace
 
     def run(self):
         try:
@@ -88,6 +97,7 @@ def main():
 
     from .importvenv import ImportVenv
     with ImportVenv(verbose=options.venv_verbose, refresh=options.venv_refresh) as venv:
+        from . import LOGGER
         from .command import COMMAND_CLASSES
         from .exception import DefaultConfigNotFound
         from .exception import EzazException
@@ -96,10 +106,10 @@ def main():
             Main(cmds=COMMAND_CLASSES, venv=venv).run()
             return 0
         except DefaultConfigNotFound as dcnf:
-            print(f'ERROR: {dcnf}')
-            print("You can set up defaults with 'ezaz setup'")
+            LOGGER.error(f'ERROR: {dcnf}')
+            LOGGER.error("You can set up defaults with 'ezaz setup'")
         except EzazException as e:
-            print(f'ERROR ({e.__class__.__name__}): {e}')
+            LOGGER.error(f'ERROR ({e.__class__.__name__}): {e}')
         except KeyboardInterrupt:
-            print('Aborting.')
+            LOGGER.error('Aborting.')
         return -1

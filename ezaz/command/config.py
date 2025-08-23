@@ -1,6 +1,7 @@
 
 from functools import cached_property
 
+from .. import LOG_V0
 from ..argutil import ArgMap
 from ..argutil import YesBoolArgConfig
 from ..config import Config
@@ -28,16 +29,16 @@ class ConfigCommand(ActionCommand):
         return Config(self.options.configfile)
 
     def show(self, **opts):
-        print(self.config)
+        LOG_V0(self.config)
 
     def remove(self, **opts):
         if not self.config:
-            print('There is no config to remove.')
+            LOG_V0('There is no config to remove.')
         elif self.opts.get('yes') or YesNo('About to remove the configuration file, are you sure?'):
             if self.dry_run:
-                print('DRY-RUN: not removing configuration file.')
+                LOG_V0('DRY-RUN: not removing configuration file.')
             else:
                 self.config.remove()
-                print('Configuration file removed.')
+                LOG_V0('Configuration file removed.')
         else:
-            print('Configuration file not removed.')
+            LOG_V0('Configuration file not removed.')

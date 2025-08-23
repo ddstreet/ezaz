@@ -1,58 +1,21 @@
 
-import inspect
-
 from abc import ABC
 from abc import abstractmethod
-from contextlib import suppress
 
 from .argutil import ArgMap
 from .argutil import ArgUtil
-from .response import Response
-from .response import ResponseList
-from .response import response_id
 
 
-# TODO - redo this with ActionConfig being azobject-specific, and add command-specific wrapper and/or alt config
-class ActionConfig(ArgUtil):
-    def __init__(self, action, *, aliases=[], handler=None, cls=None, cmd=None, description='', argconfigs=[], az=None):
+class ActionConfig(ArgUtil, ABC):
+    def __init__(self, action, *, aliases=[], description='', argconfigs=[]):
         self.action = action
         self.aliases = aliases
-        self.handler = handler
-        self.cls = cls
-        self.cmd = cmd
         self.description = description
         self.argconfigs = argconfigs
-        self.az = az
 
-        if not cls and not handler:
-            raise RuntimeError('Invalid ActionConfig, must provide cls or handler')
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(' + (f"{self.action}, " +
-                                                f"aliases={self.aliases}, " +
-                                                f"handler={self.handler}, " +
-                                                f"cls={self.cls}, " +
-                                                f"cmd={self.cmd}, " +
-                                                f"description={self.description}, " +
-                                                f"argconfigs={self.argconfigs}, " +
-                                                f"az={self.az})")
-
-    def _handle(self, *, command, **kwargs):
-        # TODO - need to think of better way to handle this, dispatch maybe
-        if isinstance(command, self.cls):
-            return getattr(command, self.action)(**kwargs)
-        elif inspect.ismethod(getattr(command.azclass(), self.action)):
-            return getattr(command.azclass(), self.action)(command.parent_azobject, **kwargs)
-        elif isinstance(command.azobject, self.cls):
-            return getattr(command.azobject, self.action)(**kwargs)
-        else:
-            raise RuntimeError('Invalid ActionConfig')
-
-    def handle(self, **kwargs):
-        if self.handler:
-            return self.handler(**kwargs)
-        elif self.cls:
-            return self._handle(**kwargs)
+    @abstractmethod
+    def do_action(self, **opts):
+        pass
 
     def is_action(self, action):
         return action in ([self.action] + self.aliases)

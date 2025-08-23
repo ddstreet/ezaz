@@ -74,4 +74,4 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
                 NoWaitFlagArgConfig()]
 
     def deploy(self, *, template_file, **opts):
-        self.do_action(actioncfg=self.get_action_config('deploy'), template_file=template_file, **opts)
+        self.get_action_config('deploy').do_instance_action(self, ArgMap(template_file=template_file, **opts))

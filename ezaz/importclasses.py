@@ -14,13 +14,12 @@ def import_classes(**kwargs):
 # provided superclass OR have a (class) attribute with the provided
 # name that is truthy.
 class SubclassImporter:
-    def __init__(self, *, module_path, module_name, superclass=None, attribute=None, ignore_files=[], debug=False):
+    def __init__(self, *, module_path, module_name, superclass=None, attribute=None, ignore_files=[]):
         self.module_path = Path(module_path)
         self.module_name = module_name
         self.superclass = superclass
         self.attribute = attribute
         self.ignore_files = ignore_files
-        self._debug = debug
         self._indent = 0
 
         assert self.module_path.is_dir()
@@ -38,9 +37,11 @@ class SubclassImporter:
             self._indent -= 2
 
     def debug(self, msg, arrow=False):
-        if self._debug:
+        import logging
+        from . import LOGGER
+        if LOGGER.isEnabledFor(logging.DEBUG):
             indent = ('>' if arrow else ' ') * self._indent
-            print(f'{indent}{msg}')
+            LOGGER.debug(f'{indent}{msg}')
 
     def conditional_debug(self, condition, msg, alt):
         self.debug(msg if condition else alt)

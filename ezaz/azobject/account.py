@@ -64,12 +64,19 @@ class Account(AzShowable, AzSubObjectContainer):
     def azobject_id(self):
         return NotImplemented
 
+    def show_pre(self, opts):
+        return self.info_cache().get('account')
+
+    def show_post(self, result, opts):
+        self.info_cache()['account'] = result
+        return result
+
     @contextmanager
     def _disable_subscription_selection(self):
         v = None
         try:
             with suppress(AzCommandError):
-                v = self.az_response('config', 'get', 'core.login_experience_v2').value
+                v = self.az_info('config', 'get', 'core.login_experience_v2').value
             self.az_stdout('config', 'set', 'core.login_experience_v2=off')
             yield
         finally:
@@ -83,7 +90,7 @@ class Account(AzShowable, AzSubObjectContainer):
             raise AlreadyLoggedIn()
 
         with self._disable_subscription_selection():
-            self.do_action(actioncfg=self.get_login_action_config(), **opts)
+            self.get_login_action_config().do_instance_action(self, opts)
 
         self._logged_in = True
         with suppress(DefaultConfigNotFound):
@@ -95,10 +102,9 @@ class Account(AzShowable, AzSubObjectContainer):
         if not self.is_logged_in:
             raise AlreadyLoggedOut()
 
-        self.do_action(actioncfg=self.get_logout_action_config(), **opts)
+        self.get_logout_action_config().do_instance_action(self, opts)
         self._logged_in = False
-        with suppress(AttributeError):
-            del self._cached_info
+        self.info_cache().clear()
 
     @property
     def is_logged_in(self):
@@ -120,11 +126,10 @@ class Account(AzShowable, AzSubObjectContainer):
     def set_current_subscription_id(self, subscription):
         if self.get_current_subscription_id() != subscription:
             self.az('account', 'set', cmd_args={'-s': subscription}, dry_runnable=False)
-        with suppress(AttributeError):
-            del self._cached_info
+        self.info_cache().clear()
 
     def signed_in_user_info(self):
-        return self.az_response('ad', 'signed-in-user', 'show')
+        return self.az_info('ad', 'signed-in-user', 'show')
 
     def get_default_child_id(self, name):
         from .user import User
