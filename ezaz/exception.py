@@ -50,9 +50,11 @@ class InvalidFilterRegex(InvalidFilter):
 
 
 class AzCommandError(EzazException):
-    def __init__(self, cpe):
-        super().__init__(f'az command failed: {" ".join(cpe.cmd)}\n{cpe.stderr}')
-        self.cpe = cpe
+    def __init__(self, cmd, stdout=None, stderr=None):
+        super().__init__(f'az command failed: {" ".join(cmd)}\n{stderr}')
+        self.cmd = cmd
+        self.stdout = stdout
+        self.stderr = stderr
 
 
 class NoAzObjectExists(EzazException):

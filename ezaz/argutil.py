@@ -1,5 +1,4 @@
 
-import argcomplete
 import argparse
 
 from abc import ABC
@@ -216,8 +215,12 @@ class AzObjectCompleter(AzObjectInfoHelper):
         try:
             return map(self.get_info_attr, self.azclass.get_null_instance(**opts).list(**opts))
         except Exception as e:
-            if opts.get('verbose', 0) > 1:
+            if opts.get('verbose', 0) > 2:
+                import argcomplete
                 argcomplete.warn(f'argcomplete error: {e}')
+                if opts.get('verbose', 0) > 3:
+                    import traceback
+                    argcomplete.warn(traceback.format_exc())
             raise
 
 

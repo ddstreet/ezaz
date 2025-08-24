@@ -362,6 +362,7 @@ INFOS = DictNamespace({
         'get': ConfigVarInfo,
     },
     'group': {
+        'create': GroupInfo,
         'show': GroupInfo,
         'list': IL(GroupInfo),
     },
@@ -371,23 +372,28 @@ INFOS = DictNamespace({
             'list': IL(RoleDefinitionInfo),
         },
         'assignment': {
+            'create': RoleAssignmentInfo,
             'list': IL(RoleAssignmentInfo),
         },
     },
     'sig': {
+        'create': ImageGalleryInfo,
         'show': ImageGalleryInfo,
         'list': IL(ImageGalleryInfo),
         'image-definition': {
+            'create': ImageDefinitionInfo,
             'show': ImageDefinitionInfo,
             'list': IL(ImageDefinitionInfo),
         },
         'image-version': {
+            'create': ImageVersionInfo,
             'show': ImageVersionInfo,
             'list': IL(ImageVersionInfo),
         },
     },
     'storage': {
         'account': {
+            'create': StorageAccountInfo,
             'show': StorageAccountInfo,
             'list': IL(StorageAccountInfo),
             'keys': {
@@ -399,15 +405,18 @@ INFOS = DictNamespace({
             'list': IL(StorageContainerInfo),
         },
         'blob': {
+            'create': StorageBlobInfo,
             'show': StorageBlobInfo,
             'list': IL(StorageBlobInfo),
         },
     },
     'sshkey': {
+        'create': SshKeyInfo,
         'show': SshKeyInfo,
         'list': IL(SshKeyInfo),
     },
     'vm': {
+        'create': VMInfo,
         'show': VMInfo,
         'list': IL(VMInfo),
         'get-instance-view': VMInstanceInfo,

@@ -36,6 +36,10 @@ class StorageContainer(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectC
         return [*filter(lambda a: a.dest != 'resource_group', super().get_parent_common_argconfigs())]
 
     @classmethod
+    def get_create_action_config(cls):
+        return cls.make_action_config('create', az='stdout')
+
+    @classmethod
     def get_common_argconfigs(self, is_parent=False):
         return (super().get_common_argconfigs(is_parent=is_parent) +
                 [ArgConfig('storage_key', dest='account_key', hidden=True),

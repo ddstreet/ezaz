@@ -49,9 +49,10 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
+        from .imageversion import ImageVersion
         from .sshkey import SshKey
         from .storageaccount import StorageAccount
-        return [GroupArgConfig(ArgConfig('image', help='The image id to deploy'),
+        return [GroupArgConfig(AzObjectArgConfig('image', azclass=ImageVersion, help='The image id to deploy'),
                                ChoiceMapArgConfig('distro', choicemap=DISTRO_IMAGES, help='The distro to deploy'),
                                required=True,
                                dest='image'),

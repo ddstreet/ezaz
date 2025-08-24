@@ -6,7 +6,6 @@ import string
 from contextlib import suppress
 from functools import cached_property
 
-from .. import LOG_V0
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import AzObjectArgConfig
@@ -93,19 +92,19 @@ class SetupCommand(AzObjectActionCommand):
     @property
     def account(self):
         if not self.azobject.is_logged_in:
-            LOG_V0("You are not logged in, so let's log you in first.")
+            print("You are not logged in, so let's log you in first.")
             self.azobject.login()
         return self.azobject
 
     def get_default_child(self, container, name):
         objtype = container.get_child_class(name).azobject_text()
-        LOG_V0(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
+        print(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
 
         with suppress(DefaultConfigNotFound):
             default = container.get_child(name, container.get_default_child_id(name))
             if default.exists:
                 return default
-            LOG_V0(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
+            print(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
         return None
 
     def choose_child(self, container, name, *, cmdline_arg_id=None, **kwargs):
@@ -113,34 +112,34 @@ class SetupCommand(AzObjectActionCommand):
         default = self.get_default_child(container, name)
         if self.all or default is None:
             if default is None:
-                LOG_V0('no default, checking available...')
+                print('no default, checking available...')
             else:
-                LOG_V0(default.azobject_id)
+                print(default.azobject_id)
             default = None
             if cmdline_arg_id:
                 default = container.get_child(name, cmdline_arg_id)
                 if not default.exists:
-                    LOG_V0('Provided {objtype} {cmdline_arg_id} does not exist, please choose another...')
+                    print('Provided {objtype} {cmdline_arg_id} does not exist, please choose another...')
                     default = None
             if not default:
                 try:
                     default = AzObjectChoice(container.get_children(name), default, verify_single=self.verify_single, **kwargs)
                 except NoChoices:
-                    LOG_V0(f'No {objtype} found, please create at least one; skipping')
+                    print(f'No {objtype} found, please create at least one; skipping')
                     raise
                 except NoneOfTheAboveChoice:
-                    LOG_V0(f'No {objtype} selected; skipping')
+                    print(f'No {objtype} selected; skipping')
                     raise
             container.set_default_child_id(name, default.azobject_id)
-            LOG_V0(f'Default {objtype} is {default.azobject_id}')
+            print(f'Default {objtype} is {default.azobject_id}')
         else:
-            LOG_V0(default.azobject_id)
+            print(default.azobject_id)
 
         return default
 
     def prompt(self, **opts):
         self.choose_subscription()
-        LOG_V0('All done.')
+        print('All done.')
 
     def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
@@ -167,10 +166,10 @@ class SetupCommand(AzObjectActionCommand):
                     prefix = input('What prefix do you want to use? ')
                     rgfilter.prefix = prefix
                 else:
-                    LOG_V0('Skipping the resource group prefix filter')
+                    print('Skipping the resource group prefix filter')
         else:
             if rgfilter.prefix:
-                LOG_V0(f"Existing resource group prefix filter: '{rgfilter.prefix}'")
+                print(f"Existing resource group prefix filter: '{rgfilter.prefix}'")
         self.prefix = rgfilter.prefix or getpass.getuser()
 
     def choose_resource_group(self, subscription):
@@ -219,24 +218,24 @@ class SetupCommand(AzObjectActionCommand):
         default = self.get_default_child(container, name)
         if self.all or default is None:
             if default is None:
-                LOG_V0('no default, creating one...')
+                print('no default, creating one...')
             else:
-                LOG_V0(default.azobject_id)
+                print(default.azobject_id)
             default_id = f'{self.prefix}{self.randomhex(8)}'
             default = container.get_child(name, default_id)
             kwargs[name] = default_id
             default.create(**kwargs)
-            LOG_V0(f'Created {objtype} {default.azobject_id}')
+            print(f'Created {objtype} {default.azobject_id}')
             default.parent.set_default_child_id(name, default.azobject_id)
-            LOG_V0(f'Default {objtype} is {default.azobject_id}')
+            print(f'Default {objtype} is {default.azobject_id}')
         else:
-            LOG_V0(default.azobject_id)
+            print(default.azobject_id)
 
         return default
 
     def create(self, **opts):
         self.create_subscription()
-        LOG_V0('All done.')
+        print('All done.')
 
     def create_subscription(self):
         with suppress(NoneOfTheAboveChoice):

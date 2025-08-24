@@ -1,17 +1,15 @@
 
-- change 'set' and 'clear', to just 'default' action
-  params are obj id or '--remove' or '--none' or something to remove default
-
-- update Config to be subclassable
-- change Filter/Filters to subclass of Config
-
 - update vm creation --image param to reference image-version (with autocomplete)
 
 - add classes for:
   az vm list-skus (and/or az vm list-sizes)
   az vm image list-* (publisher,offer,sku,etc)
 
-- update 'response' to format json into user-readable table/string
+- change 'set' and 'clear', to just 'default' action
+  params are obj id or '--remove' or '--none' or something to remove default
+
+- update Config to be subclassable
+- change Filter/Filters to subclass of Config
 
 - update cacheing to remove specific cache after object create/delete operation
 

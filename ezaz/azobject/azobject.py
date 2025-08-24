@@ -71,7 +71,7 @@ class AzAction(ArgUtil, ABC):
     def _exec_environ(cls):
         return {k: v for k, v in os.environ.items() if 'ARGCOMPLETE' not in k}
 
-    def _args_to_cmd(self, *args, cmd_args={}, **kwargs):
+    def _args_to_cmd(self, *args, cmd_args={}):
         cmd = list(args)
         for k, v in cmd_args.items():
             cmd.append(k)
@@ -85,36 +85,56 @@ class AzAction(ArgUtil, ABC):
                 cmd.append(v)
         return cmd
 
-    def _exec(self, *args, cmd_args={}, check=True, dry_runnable=True, **kwargs):
-        cmd = self._args_to_cmd(*args, cmd_args=cmd_args, **kwargs)
+    def _read_stdout_line(self, process):
+        if process.stdout:
+            line = process.stdout.readline()
+            AZ_TRACE_LOGGER.info(line.rstrip())
+            return line
+        return ''
+
+    def _check_process(self, process, stdout, stderr):
+        if process.returncode == 0:
+            return
+
+        if any(s in stderr for s in ["Please run 'az login' to setup account",
+                                     "Interactive authentication is needed"]):
+            raise NotLoggedIn()
+        raise AzCommandError(process.args, stdout, stderr)
+
+    def _exec(self, *args, cmd_args={}, dry_runnable=True, text=True, capture_output=False):
+        cmd = self._args_to_cmd(*args, cmd_args=cmd_args)
         for c in cmd:
             if not isinstance(c, str):
                 raise RuntimeError(f'cmd value not str type: {c}')
         if self.dry_run and not dry_runnable:
             LOG_V1(f'DRY-RUN (not running): {" ".join(cmd)}')
-            return None
+            return ('', '')
         AZ_TRACE_LOGGER.info(' '.join(cmd))
-        try:
-            return subprocess.run(cmd, check=check, env=self._exec_environ, **kwargs)
-        except subprocess.CalledProcessError as cpe:
-            if cpe.stderr:
-                if any(s in cpe.stderr for s in ["Please run 'az login' to setup account",
-                                                 "Interactive authentication is needed"]):
-                    raise NotLoggedIn()
-                elif self.verbose > 1:
-                    LOGGER.error(f'az command error: {cpe}')
-            raise AzCommandError(cpe)
 
-    def az(self, *args, capture_output=False, **kwargs):
-        return self._exec('az', *args, capture_output=capture_output, **kwargs)
+        process = subprocess.Popen(cmd,
+                                   env=self._exec_environ,
+                                   text=text,
+                                   stdout=subprocess.PIPE if capture_output else None,
+                                   stderr=subprocess.PIPE if capture_output else None)
+
+        stdout = ''
+        while process.poll() is None:
+            stdout += self._read_stdout_line(process)
+        stdout += process.stdout.read() if process.stdout else ''
+        stderr = process.stderr.read() if process.stderr else ''
+
+        self._check_process(process, stdout, stderr)
+        return (stdout, stderr)
+
+    def az(self, *args, **kwargs):
+        return self._exec('az', *args, **kwargs)
 
     def az_none(self, *args, **kwargs):
         self.az(*args, **kwargs)
-        return None
 
     def az_stdout(self, *args, **kwargs):
-        cp = self.az(*args, capture_output=True, text=True, **kwargs)
-        return cp.stdout if cp else ''
+        (stdout, stderr) = self.az(*args, capture_output=True, **kwargs)
+        return stdout
 
     def az_json(self, *args, **kwargs):
         stdout = self.az_stdout(*args, **kwargs)
@@ -140,15 +160,38 @@ class CachedAzAction(AzAction):
     def cache(self):
         return self._cache
 
-    def az_stdout(self, *args, cmd_args={}, **kwargs):
-        cmd = self._args_to_cmd(*args, cmd_args=cmd_args, **kwargs)
-        if self.cache and self._is_argcomplete:
-            with suppress(CacheExpired, CacheMiss):
-                return self.cache.read(cmd)
-        stdout = super().az_stdout(*args, cmd_args=cmd_args, **kwargs)
-        if self.cache and stdout:
+    def _az_cacheable_action(self, action):
+        return action in ['show', 'list', 'list-locations']
+
+    def _az_get_cache(self, cmd, action):
+        if not all((self.cache, self._is_argcomplete, self._az_cacheable_action(action))):
+            return None
+
+        try:
+            return self.cache.read(cmd)
+        except (CacheExpired, CacheMiss, OSError):
+            return None
+
+    def _az_put_cache(self, cmd, action, stdout):
+        if not all((self.cache, self._is_argcomplete, self._az_cacheable_action(action))):
+            return None
+
+        with suppress(OSError):
             self.cache.write(cmd, stdout)
-        return stdout
+
+    def az(self, *args, cmd_args={}, **kwargs):
+        cmd = self._args_to_cmd(*args, cmd_args=cmd_args)
+        action = args[-1]
+
+        stdout = self._az_get_cache(cmd, action)
+        if stdout:
+            return (stdout, '')
+
+        (stdout, stderr) = super().az(*args, cmd_args=cmd_args, **kwargs)
+
+        self._az_put_cache(cmd, action, stdout)
+
+        return (stdout, stderr)
 
     @property
     def _is_argcomplete(cls):
@@ -616,7 +659,7 @@ class AzEmulateShowable(AzShowable, AzListable):
 class AzCreatable(AzObject):
     @classmethod
     def get_create_action_config(cls):
-        return cls.make_action_config('create', az='none')
+        return cls.make_action_config('create', az='info')
 
     @classmethod
     def get_create_action_description(cls):
@@ -632,7 +675,7 @@ class AzCreatable(AzObject):
         return None
 
     def create(self, **opts):
-        self.get_create_action_config().do_instance_action(self, opts)
+        return self.get_create_action_config().do_instance_action(self, opts)
 
 
 class AzDeletable(AzObject):
