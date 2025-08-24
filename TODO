@@ -1,7 +1,4 @@
 
-- fix actioncfg handler, simplify, since direct methods can/should be called
-  (e.g. 'show' which manually sets actioncfg before calling do_action)
-
 - change 'set' and 'clear', to just 'default' action
   params are obj id or '--remove' or '--none' or something to remove default
 

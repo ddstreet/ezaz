@@ -176,7 +176,10 @@ class ActionCommand(SimpleCommand):
     def run(self):
         try:
             result = self.run_action_config_method()
-            if result:
+            if isinstance(result, list):
+                for r in result:
+                    LOG_V0(r)
+            elif result:
                 LOG_V0(result)
         except NoDefaultAction:
             self._parser.print_help()
