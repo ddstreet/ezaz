@@ -27,7 +27,7 @@ class ImageDefinition(AzCommonActionable, AzFilterer, AzSubObjectContainer):
         return [ImageVersion]
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'gallery_image_definition'
 
     @classmethod

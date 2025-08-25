@@ -26,7 +26,7 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
     def get_create_common_argconfigs(cls, is_parent=False):
         # Don't include our self id param for create action; it's auto-generated
         return [argconfig for argconfig in cls.get_common_argconfigs(is_parent=is_parent)
-                if argconfig.dest != cls.get_self_id_argconfig_dest(is_parent=is_parent)]
+                if argconfig.cmddest != cls.get_self_id_argconfig_cmddest(is_parent=is_parent)]
 
     @classmethod
     def get_scope_group_argconfigs(cls):
@@ -50,7 +50,7 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
         from .user import User
         return [GroupArgConfig(*cls.get_scope_group_argconfigs(),
                                required=True,
-                               dest='scope'),
+                               cmddest='scope'),
                 AzObjectArgConfig('role',
                                   azclass=RoleDefinition,
                                   info_attr='roleName',

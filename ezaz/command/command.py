@@ -244,7 +244,7 @@ class AzSubObjectCommand(AzObjectCommand):
 
     @property
     def azobject_specified_id(self):
-        return getattr(self.options, self.azclass().get_self_id_argconfig_dest(is_parent=self.is_parent), None)
+        return getattr(self.options, self.azclass().azobject_name(), None)
 
     @property
     def azobject_default_id(self):

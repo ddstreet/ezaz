@@ -31,6 +31,6 @@ class User(AzShowable, AzListable, AzSubObject):
         return cls.get_cmd_base() + ['user', 'show']
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'id'
 

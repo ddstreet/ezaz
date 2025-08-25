@@ -29,7 +29,7 @@ class SshKey(AzCommonActionable, AzSubObject):
         return ResourceGroup
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'ssh_public_key_name'
 
     @classmethod
@@ -39,7 +39,7 @@ class SshKey(AzCommonActionable, AzSubObject):
                                FileArgConfig('public_key_file',
                                              default=cls.find_public_key_file,
                                              help='Public key file'),
-                               dest='public_key',
+                               cmddest='public_key',
                                required=True)]
 
     @classmethod

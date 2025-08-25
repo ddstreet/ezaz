@@ -34,7 +34,7 @@ class VM(AzCommonActionable, AzSubObject):
         return ResourceGroup
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'name'
 
     @classmethod
@@ -55,7 +55,7 @@ class VM(AzCommonActionable, AzSubObject):
         return [GroupArgConfig(AzObjectArgConfig('image', azclass=ImageVersion, help='The image id to deploy'),
                                ChoiceMapArgConfig('distro', choicemap=DISTRO_IMAGES, help='The distro to deploy'),
                                required=True,
-                               dest='image'),
+                               cmddest='image'),
                 ArgConfig('instance_type',
                           dest='size',
                           help='TODO'),

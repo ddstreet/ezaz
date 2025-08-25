@@ -48,7 +48,7 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return f'Upload a {cls.azobject_text()}'
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'name'
 
     @classmethod

@@ -88,7 +88,8 @@ class AzAction(ArgUtil, ABC):
     def _read_stdout_line(self, process):
         if process.stdout:
             line = process.stdout.readline()
-            AZ_TRACE_LOGGER.info(line.rstrip())
+            if self.verbose >= 2:
+                AZ_TRACE_LOGGER.info(line.rstrip())
             return line
         return ''
 
@@ -219,12 +220,12 @@ class AzObject(CachedAzAction):
     @classmethod
     def get_self_id_argconfig(cls, is_parent):
         return [AzObjectArgConfig(cls.azobject_name(),
-                                  dest=cls.get_self_id_argconfig_dest(is_parent=is_parent),
+                                  cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent),
                                   azclass=cls,
                                   help=f'Use the specified {cls.azobject_text()}, instead of the default')]
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return cls.azobject_name()
 
     @classmethod
@@ -331,12 +332,6 @@ class AzObject(CachedAzAction):
     def info(self, **opts):
         pass
 
-    def get_argconfig_default_values(self, is_parent=False, **opts):
-        return self.get_self_id(is_parent=is_parent)
-
-    def get_self_id(self, is_parent):
-        return {self.get_self_id_argconfig_dest(is_parent=is_parent): self.azobject_id}
-
     @property
     def exists(self):
         try:
@@ -374,6 +369,10 @@ class AzSubObject(AzObject):
                 super().get_common_argconfigs(is_parent=is_parent))
 
     @classmethod
+    def get_parent_instance(cls, **opts):
+        return cls.get_parent_class().get_instance(**opts)
+
+    @classmethod
     def get_instance(cls, **opts):
         if not hasattr(cls, '_instance_cache'):
             cls._instance_cache = {}
@@ -385,7 +384,7 @@ class AzSubObject(AzObject):
         if azobject:
             return azobject
 
-        parent = cls.get_parent_class().get_instance(**opts)
+        parent = cls.get_parent_instance(**opts)
         if not azobject_id:
             azobject_id = parent.get_default_child_id(name)
 
@@ -429,11 +428,6 @@ class AzSubObject(AzObject):
             raise NullAzObject('azobject_id')
         return self._azobject_id
 
-    def get_self_id(self, is_parent):
-        if self.is_null:
-            return {}
-        return super().get_self_id(is_parent=is_parent)
-
     @property
     def config(self):
         if self.is_null:
@@ -455,10 +449,6 @@ class AzSubObject(AzObject):
     @property
     def dry_run(self):
         return self.parent.dry_run
-
-    def get_argconfig_default_values(self, is_parent=False, **opts):
-        return ArgMap(self.parent.get_argconfig_default_values(is_parent=True, **opts),
-                      super().get_argconfig_default_values(is_parent=is_parent, **opts))
 
 
 class AzSubObjectContainer(AzObject):
@@ -606,7 +596,7 @@ class AzListable(AzSubObject):
     def get_list_common_argconfigs(cls, is_parent=False):
         # Don't include our self id param for list action
         return [argconfig for argconfig in cls.get_common_argconfigs(is_parent=is_parent)
-                if argconfig.dest != cls.get_self_id_argconfig_dest(is_parent=is_parent)]
+                if argconfig.cmddest != cls.get_self_id_argconfig_cmddest(is_parent=is_parent)]
 
     @classmethod
     def get_list_action_description(cls):
@@ -716,7 +706,7 @@ class AzDefaultable(AzObject):
         return [GroupArgConfig(ConstArgConfig('s', 'set', const='default_set', help='Set the default'),
                                ConstArgConfig('u', 'unset', const='default_unset', help='Unset the default'),
                                ConstArgConfig('show', const='default_show', help='Show the default, if any (default)'),
-                               dest='default_action')]
+                               cmddest='default_action')]
 
     @classmethod
     def get_default_action_description(cls):
@@ -766,20 +756,17 @@ class AzFilterer(AzObject):
                                 for azobject_cls in cls.get_descendant_classes()],
                               ConstArgConfig('filter_default', const=FILTER_DEFAULT,
                                              help=f'Configure a default filter (use with caution)'),
-                              dest='filter_type')
+                              cmddest='filter_type')
 
     @classmethod
     def get_filter_action_argconfigs(cls):
         return [cls.get_filter_type_groupargconfig(),
                 GroupArgConfig(ArgConfig('--prefix', help=f'Update filter to select only object names that start with the prefix'),
-                               ConstArgConfig('--no-prefix', const='', help=f'Remove prefix filter'),
-                               dest='prefix'),
+                               ConstArgConfig('--no-prefix', dest='prefix', const='', help=f'Remove prefix filter')),
                 GroupArgConfig(ArgConfig('--suffix', help=f'Update filter to select only object names that end with the suffix'),
-                               ConstArgConfig('--no-suffix', const='', help=f'Remove suffix filter'),
-                               dest='suffix'),
+                               ConstArgConfig('--no-suffix', dest='suffix', const='', help=f'Remove suffix filter')),
                 GroupArgConfig(ArgConfig('--regex', help=f'Update filter to select only object names that match the regular expression'),
-                               ConstArgConfig('--no-regex', const='', help=f'Remove regex filter'),
-                               dest='regex')]
+                               ConstArgConfig('--no-regex', dest='regex', const='', help=f'Remove regex filter'))]
 
     @classmethod
     def get_filter_action_description(cls):
@@ -830,10 +817,6 @@ class AzActionConfig(ActionConfig):
         result = self.pre(azobject, opts)
         if result:
             return result
-
-        for k, v in azobject.get_argconfig_default_values(**opts).items():
-            if opts.get(k) is None:
-                opts[k] = v
 
         az = getattr(azobject, f'az_{self.az}', azobject.az)
 

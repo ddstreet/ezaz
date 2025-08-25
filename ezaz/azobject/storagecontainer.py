@@ -28,7 +28,7 @@ class StorageContainer(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectC
         return [StorageBlob]
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'container_name' if is_parent else 'name'
 
     @classmethod
@@ -40,30 +40,38 @@ class StorageContainer(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectC
         return cls.make_action_config('create', az='stdout')
 
     @classmethod
-    def get_common_argconfigs(self, is_parent=False):
-        return (super().get_common_argconfigs(is_parent=is_parent) +
-                [ArgConfig('storage_key', dest='account_key', hidden=True),
-                 ChoicesArgConfig('auth_mode', choices=['key', 'login'], hidden=True)])
-
-    def get_argconfig_default_values(self, is_parent=False, **opts):
-        return ArgMap(super().get_argconfig_default_values(is_parent=is_parent, **opts),
-                      auth_mode=self.auth_mode,
-                      account_key=self.account_key)
-
-    @property
-    def auth_mode(self):
-        return 'key' if self.parent.allow_shared_key_access else 'login'
-
-    @property
-    def account_key(self):
+    def get_common_argconfigs(cls, is_parent=False):
         from .storagekey import StorageKey
-        if not self.parent.allow_shared_key_access:
+        return (super().get_common_argconfigs(is_parent=is_parent) +
+                [ChoicesArgConfig('auth_mode',
+                                  choices=['key', 'login'],
+                                  default=cls.auth_mode,
+                                  hidden=True),
+                 AzObjectArgConfig('storage_key',
+                                   cmddest='account_key',
+                                   azclass=StorageKey,
+                                   default=cls.storage_key,
+                                   cmd_attr='value',
+                                   hidden=True)])
+
+    @classmethod
+    def auth_mode(cls, **opts):
+        parent = cls.get_parent_instance(**opts)
+        return 'key' if parent.allow_shared_key_access else 'login'
+
+    @classmethod
+    def storage_key(cls, **opts):
+        parent = cls.get_parent_instance(**opts)
+        if not parent.allow_shared_key_access:
             return None
-        try:
-            key = self.parent.get_default_child(StorageKey.azobject_name())
-        except DefaultConfigNotFound as dcnf:
-            try:
-                key = self.parent.get_children(StorageKey.azobject_name())[0]
-            except IndexError:
-                raise dcnf
-        return key.info().value
+
+        from .storagekey import StorageKey
+        name = StorageKey.azobject_name()
+
+        with suppress(DefaultConfigNotFound):
+            return parent.get_default_child(name).info().value
+
+        with suppress(IndexError):
+            return parent.get_children(name)[0].info().value
+
+        raise NoAzObjectExists(name, 'any')

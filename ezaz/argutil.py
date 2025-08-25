@@ -199,10 +199,20 @@ class AzObjectInfoHelper:
         self.azclass = azclass
         self.info_attr = info_attr
 
-    def parent(self, **opts):
+    def parent(self, opts):
         return self.azclass.get_parent_class().get_instance(**opts)
 
+    def get_info_list(self, opts):
+        return self.azclass.get_null_instance(**opts).list(**opts)
+
+    def get_info(self, azobject_id, opts):
+        infos = list(filter(lambda info: self.azclass.info_id(info) == azobject_id, self.get_info_list(opts)))
+        return infos[0] if infos else None
+
     def get_info_attr(self, info):
+        if not info:
+            return None
+
         if self.info_attr:
             return getattr(info, self.info_attr, None)
         else:
@@ -213,7 +223,7 @@ class AzObjectCompleter(AzObjectInfoHelper):
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         opts = vars(parsed_args)
         try:
-            return map(self.get_info_attr, self.azclass.get_null_instance(**opts).list(**opts))
+            return filter(lambda o: o, map(self.get_info_attr, self.get_info_list(opts)))
         except Exception as e:
             if opts.get('verbose', 0) > 2:
                 import argcomplete
@@ -226,20 +236,25 @@ class AzObjectCompleter(AzObjectInfoHelper):
 
 class AzObjectDefaultId(AzObjectInfoHelper):
     def __call__(self, **opts):
-        with suppress(DefaultConfigNotFound):
-            child = self.parent(**opts).get_default_child(self.azclass.azobject_name())
-            # Remove child's self-id dest arg, as we may be called
-            # from a different argconfig that conflicts (e.g. several
-            # use '--name' as their self-id dest arg). Also, we want
-            # the default here, not specified
-            opts.pop(child.get_self_id_argconfig_dest(is_parent=False), None)
-            return self.get_info_attr(child.info(**opts))
-        return None
+        try:
+            # Can't directly get child info, as we can be called from
+            # the show command
+            azobject_id = self.parent(opts).get_default_child_id(self.azclass.azobject_name())
+        except DefaultConfigNotFound:
+            return None
+
+        if not self.info_attr:
+            # Don't need to lookup custom attr
+            return azobject_id
+
+        # Can use list as it doesn't require the object's default id
+        return self.get_info_attr(self.get_info(azobject_id, opts))
 
 
 class BaseArgConfig(ArgUtil, ABC):
-    def __init__(self, *, dest=None, default=None, required=None, multiple=False, noncmd=False):
+    def __init__(self, *, dest=None, cmddest=None, default=None, required=None, multiple=False, noncmd=False):
         self._dest = dest
+        self._cmddest = cmddest
         self._default = default
         self._required = required
         self.multiple = multiple
@@ -250,7 +265,13 @@ class BaseArgConfig(ArgUtil, ABC):
 
     @property
     def dest(self):
+        """This is the name the argparse will set in the parsed options."""
         return self._dest
+
+    @property
+    def cmddest(self):
+        """This is the name we will use for the parameter passed to az."""
+        return self._cmddest or self.dest
 
     @property
     def default(self):
@@ -305,7 +326,7 @@ class BaseArgConfig(ArgUtil, ABC):
             return self._cmd_arg_value(**opts)
 
     def _cmd_args(self, **opts):
-        return self.optional_arg(self.dest, {self.dest: self.cmd_arg_value(**opts)})
+        return self.optional_arg(self.cmddest, {self.cmddest: self.cmd_arg_value(**opts)})
 
     def cmd_args(self, **opts):
         if self.noncmd:
@@ -317,13 +338,14 @@ class ArgConfig(BaseArgConfig):
     def __init__(self, *opts,
                  help=None,
                  dest=None,
+                 cmddest=None,
                  default=None,
                  required=False,
                  multiple=False,
                  hidden=False,
                  noncmd=False,
                  completer=None):
-        super().__init__(dest=dest, default=default, required=required, multiple=multiple, noncmd=noncmd)
+        super().__init__(dest=dest, cmddest=cmddest, default=default, required=required, multiple=multiple, noncmd=noncmd)
 
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
@@ -334,6 +356,7 @@ class ArgConfig(BaseArgConfig):
         return self.__class__.__name__ + '(' + (f"{', '.join(self.opts)}, " +
                                                 f"help={self.help}, " +
                                                 f"dest={self._dest}, " +
+                                                f"cmddest={self._cmddest}, " +
                                                 f"default={self._default}, " +
                                                 f"required={self._required}, " +
                                                 f"multiple={self.multiple}, " +
@@ -350,6 +373,7 @@ class ArgConfig(BaseArgConfig):
 
     @property
     def parser_argname(self):
+        """This is the parameter name provided to the user."""
         return argparse.ArgumentParser().add_argument(*self.parser_args).dest
 
     @property
@@ -421,7 +445,7 @@ class BoolArgConfig(ArgConfig):
 
 class FlagArgConfig(BoolArgConfig):
     def _cmd_args(self, **opts):
-        return self.optional_flag_arg(self.dest, {self.dest: self.cmd_arg_value(**opts)})
+        return self.optional_flag_arg(self.cmddest, {self.cmddest: self.cmd_arg_value(**opts)})
 
 
 class NoWaitBoolArgConfig(BoolArgConfig):
@@ -519,11 +543,11 @@ class DateTimeArgConfig(ArgConfig):
 
 class GroupArgConfig(BaseArgConfig):
     # Note - this is an *exclusive* group, we don't have any use for a non-exclusive group
-    def __init__(self, *argconfigs, dest=None, default=None, required=False):
+    def __init__(self, *argconfigs, cmddest=None, default=None, required=False):
         self.argconfigs = argconfigs
-        super().__init__(dest=dest, default=default, required=required)
-        if dest and list(filter(lambda a: a._dest, argconfigs)):
-            raise ArgumentError(f'Do not set dest for both GroupArgConfig and its arguments')
+        super().__init__(cmddest=cmddest, default=default, required=required)
+        if cmddest and list(filter(lambda a: a._dest or a._cmddest, argconfigs)):
+            raise ArgumentError(f'Do not set dest/cmddest for both GroupArgConfig and its arguments')
         if list(filter(lambda a: a._required, argconfigs)):
             raise ArgumentError(f'Do not set required for GroupArgConfig arguments')
 
@@ -557,7 +581,7 @@ class GroupArgConfig(BaseArgConfig):
         return 
 
     def cmd_arg_value(self, **opts):
-        # This is only called if dest is set for the group.
+        # This is only called if cmddest is set for the group.
         for argconfig in self.argconfigs:
             # First, look for the first argconfig whose value is
             # different from its non-callable default (or None)
@@ -573,8 +597,13 @@ class GroupArgConfig(BaseArgConfig):
         return self.runtime_default_value(**opts)
 
     def _cmd_args(self, **opts):
-        if self.dest:
+        if self.cmddest:
+            # cmddest means we put the changed child arg value into
+            # cmddest, and ignore the rest
             return super()._cmd_args(**opts)
+        # without cmddest, we pass along all our child args; the only
+        # use of group here is exclusivity (argparse enforces that the
+        # user can only provide one of our child args)
         return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
 
 
@@ -588,8 +617,8 @@ class BoolGroupArgConfig(GroupArgConfig):
     #   opt=no_prompt
     #     --prompt -> (no_prompt=False, help=help_yes)
     #     --no-prompt -> (no_prompt=True, help=help_no)
-    def __init__(self, opt, *, dest=None, default=False, **kwargs):
-        super().__init__(*self.create_argconfigs(opt, **kwargs), dest=dest or opt, default=default)
+    def __init__(self, opt, *, cmddest=None, default=False, **kwargs):
+        super().__init__(*self.create_argconfigs(opt, **kwargs), cmddest=cmddest or opt, default=default)
 
     def create_argconfigs(self, opt, help_yes=None, help_no=None, help=None, **kwargs):
         inverse = opt.startswith('no_')

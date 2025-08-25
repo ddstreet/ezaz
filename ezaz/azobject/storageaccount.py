@@ -26,7 +26,7 @@ class StorageAccount(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectCon
         return [StorageContainer, StorageKey]
 
     @classmethod
-    def get_self_id_argconfig_dest(cls, is_parent):
+    def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'account_name' if is_parent else 'name'
 
     @classmethod
