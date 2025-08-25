@@ -23,7 +23,7 @@ class AccountCommand(AzObjectActionCommand):
     def account_response(self, already=False):
         logged = 'Already logged' if already else 'Logged'
         try:
-            info = self.azobject.info(**self.opts)
+            info = self.azobject.info()
             return f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})"
         except NotLoggedIn:
             return f"{logged} out"

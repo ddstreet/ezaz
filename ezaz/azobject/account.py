@@ -57,6 +57,9 @@ class Account(AzShowable, AzSubObjectContainer):
     def config(self):
         return super().config.get_object(self.info().user.name)
 
+    def get_self_id_opts(self):
+        return {}
+
     @property
     def azobject_id(self):
         return NotImplemented

@@ -1,12 +1,10 @@
 
-- update vm creation --image param to reference image-version (with autocomplete)
+- change 'set' and 'clear', to just 'default' action
+  params are obj id or '--remove' or '--none' or something to remove default
 
 - add classes for:
   az vm list-skus (and/or az vm list-sizes)
   az vm image list-* (publisher,offer,sku,etc)
-
-- change 'set' and 'clear', to just 'default' action
-  params are obj id or '--remove' or '--none' or something to remove default
 
 - update Config to be subclassable
 - change Filter/Filters to subclass of Config

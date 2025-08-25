@@ -63,7 +63,7 @@ class ImageVersionCommand(AzSubObjectActionCommand):
 
         from ..azobject.storageaccount import StorageAccount
         sa = StorageAccount.get_instance(**opts)
-        sainfo = sa.info(**opts)
+        sainfo = sa.info()
         location = sainfo.location
         storage_account_id = sainfo.id
 

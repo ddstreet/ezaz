@@ -223,11 +223,12 @@ class AzObject(CachedAzAction):
         return cls.get_self_id_argconfig(is_parent=is_parent)
 
     @classmethod
-    def get_self_id_argconfig(cls, is_parent):
+    def get_self_id_argconfig(cls, is_parent, **kwargs):
         return [AzObjectArgConfig(cls.azobject_name(),
                                   cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent),
                                   azclass=cls,
-                                  help=f'Use the specified {cls.azobject_text()}, instead of the default')]
+                                  help=f'Use the specified {cls.azobject_text()}, instead of the default',
+                                  **kwargs)]
 
     @classmethod
     def get_self_id_argconfig_cmddest(cls, is_parent):
@@ -260,6 +261,7 @@ class AzObject(CachedAzAction):
                            description=None,
                            argconfigs=None,
                            common_argconfigs=None,
+                           az=None,
                            cmd=None,
                            pre=None,
                            post=None,
@@ -276,6 +278,8 @@ class AzObject(CachedAzAction):
             argconfigs = getattr(cls, f'get_{action}_action_argconfigs', lambda: None)()
         if common_argconfigs is None:
             common_argconfigs = getattr(cls, f'get_{action}_common_argconfigs', cls.get_common_argconfigs)()
+        if az is None:
+            az = getattr(cls, f'get_{action}_action_az', lambda: None)()
         if cmd is None:
             cmd = getattr(cls, f'get_{action}_action_cmd', lambda: cls.get_cmd_base() + [action])()
         if pre is None:
@@ -295,6 +299,7 @@ class AzObject(CachedAzAction):
                               description=description,
                               argconfigs=(argconfigs or []) + (common_argconfigs or []),
                               azclass=cls,
+                              az=az,
                               cmd=cmd,
                               pre=pre,
                               post=post,
@@ -355,8 +360,11 @@ class AzObject(CachedAzAction):
     def azobject_id(self):
         pass
 
+    def get_self_id_opts(self):
+        return {self.azobject_name(): self.azobject_id}
+
     @abstractmethod
-    def info(self, **opts):
+    def info(self):
         pass
 
     @property
@@ -448,6 +456,10 @@ class AzSubObject(AzObject):
         if self.is_null:
             return False
         return super().exists
+
+    def get_self_id_opts(self):
+        return ArgMap(**self.parent.get_self_id_opts(),
+                      **super().get_self_id_opts())
 
     @property
     def azobject_id(self):
@@ -570,7 +582,11 @@ class AzSubObjectContainer(AzObject):
 class AzShowable(AzObject):
     @classmethod
     def get_show_action_config(cls):
-        return cls.make_action_config('show', az='info', dry_runnable=True)
+        return cls.make_action_config('show', dry_runnable=True)
+
+    @classmethod
+    def get_show_action_az(cls):
+        return 'info'
 
     @classmethod
     def get_show_action_description(cls):
@@ -592,8 +608,9 @@ class AzShowable(AzObject):
         except AzCommandError as aze:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id) from aze
 
-    def info(self, **opts):
-        return self.show(**opts)
+    def info(self):
+        # Use the chain of our (and ancestors') azobject opts
+        return self.show(**self.get_self_id_opts())
 
     def show_pre(self, opts):
         return self.info_cache().get(self.azobject_id)
@@ -610,7 +627,11 @@ class AzShowable(AzObject):
 class AzListable(AzSubObject):
     @classmethod
     def get_list_action_config(cls):
-        return cls.make_action_config('list', az='infolist', dry_runnable=True, get_instance=cls.get_null_instance)
+        return cls.make_action_config('list', dry_runnable=True, get_instance=cls.get_null_instance)
+
+    @classmethod
+    def get_list_action_az(cls):
+        return 'infolist'
 
     @classmethod
     def get_list_action_argconfigs(cls):
@@ -676,7 +697,11 @@ class AzEmulateShowable(AzShowable, AzListable):
 class AzCreatable(AzObject):
     @classmethod
     def get_create_action_config(cls):
-        return cls.make_action_config('create', az='info')
+        return cls.make_action_config('create')
+
+    @classmethod
+    def get_create_action_az(cls):
+        return 'info'
 
     @classmethod
     def get_create_action_description(cls):
@@ -698,7 +723,7 @@ class AzCreatable(AzObject):
 class AzDeletable(AzObject):
     @classmethod
     def get_delete_action_config(cls):
-        return cls.make_action_config('delete', az='none')
+        return cls.make_action_config('delete')
 
     @classmethod
     def get_delete_action_description(cls):
@@ -836,7 +861,7 @@ class AzActionConfig(ActionConfig):
         self.azclass = azclass
         self.get_instance = get_instance or azclass.get_instance
         self.cmd = cmd or azclass.get_cmd_base() + [action]
-        self.az = az
+        self.az = az or 'none'
         self.dry_runnable = dry_runnable
         self.pre = pre or self._noop_pre
         self.post = post or self._noop_post
@@ -876,7 +901,7 @@ class AzActionConfig(ActionConfig):
         if result:
             return result
 
-        az = getattr(azobject, f'az_{self.az}', azobject.az)
+        az = getattr(azobject, f'az_{self.az}')
 
         with self.exception_handler(azobject):
             return self.post(azobject, az(*self.cmd, cmd_args=self.cmd_args(**opts), dry_runnable=self.dry_runnable), opts)

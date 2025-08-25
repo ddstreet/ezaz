@@ -38,8 +38,8 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                                                  description=f'Get the {cls.azobject_text()} access URL (with SAS)'))
 
     @classmethod
-    def get_create_action_config(cls):
-        return cls.make_action_config('create', az='none')
+    def get_create_action_az(cls):
+        return 'none'
 
     @classmethod
     def get_create_action_aliases(cls):
