@@ -111,12 +111,16 @@ class ImageVersionTemplate(DeploymentTemplate):
     def os_disk_image(self, **parameters):
         return dict(
             osDiskImage=dict(
-                source=dict(
-                    **self.os_disk_image_source_vm_id(**parameters),
-                    **self.os_disk_image_source_storage_uri(**parameters),
-                )
+                **self.os_disk_image_source(**parameters),
             ),
         )
+
+    def os_disk_image_source(self, **parameters):
+        vm_id = self.os_disk_image_source_vm_id(**parameters)
+        storage_uri = self.os_disk_image_source_storage_uri(**parameters)
+        if not any((vm_id, storage_uri)):
+            raise RuntimeError(f'Cannot create template without either os_disk_image_vm_id or (os_disk_image_storage_account_id and os_disk_image_uri)')
+        return dict(source=dict(**vm_id, **storage_uri))
 
     def os_disk_image_source_vm_id(self, *, os_disk_image_vm_id=None, **parameters):
         if os_disk_image_vm_id:

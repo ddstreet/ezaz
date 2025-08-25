@@ -19,15 +19,21 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return StorageContainer
 
     @classmethod
+    def get_self_id_argconfig_cmddest(cls, is_parent):
+        return 'name'
+
+    @classmethod
     def get_action_configmap(cls):
         return ArgMap(super().get_action_configmap(),
                       download=cls.make_action_config('download',
                                                       description=f'Download a {cls.azobject_text()}'),
                       url=cls.make_action_config('url',
                                                  az='stdout',
+                                                 dry_runnable=True,
                                                  description=f'Get the {cls.azobject_text()} access URL (without SAS)'),
                       sas=cls.make_action_config('sas',
                                                  az='stdout',
+                                                 dry_runnable=True,
                                                  cmd=cls.get_cmd_base() + ['generate-sas'],
                                                  description=f'Get the {cls.azobject_text()} access URL (with SAS)'))
 
@@ -48,10 +54,6 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return f'Upload a {cls.azobject_text()}'
 
     @classmethod
-    def get_self_id_argconfig_cmddest(cls, is_parent):
-        return 'name'
-
-    @classmethod
     def get_create_action_argconfigs(cls):
         return [ArgConfig('f', 'file', required=True, help='File to upload'),
                 ChoicesArgConfig('type', choices=['append', 'block', 'page'], help='Type of blob to create'),
@@ -59,9 +61,21 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                 FlagArgConfig('overwrite', help='Overwrite an existing blob')]
 
     @classmethod
+    def custom_create_action(cls, actioncfg, opts):
+        if not opts.get(cls.azobject_name()):
+            opts[cls.azobject_name()] = opts.get('file')
+        return actioncfg._do_action(**opts)
+
+    @classmethod
     def get_download_action_argconfigs(cls):
         return [ArgConfig('f', 'file', required=True, help='File to download to'),
                 FlagArgConfig('no_progress', help='Do not show download progress bar')]
+
+    @classmethod
+    def custom_download_action(cls, actioncfg, opts):
+        if not opts.get(cls.azobject_name()):
+            opts[cls.azobject_name()] = opts.get('file')
+        return actioncfg._do_action(**opts)
 
     @classmethod
     def get_sas_action_argconfigs(cls):

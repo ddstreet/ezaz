@@ -195,9 +195,9 @@ class ArgUtil:
 
 
 class AzObjectInfoHelper:
-    def __init__(self, azclass, info_attr=None):
+    def __init__(self, azclass, infoattr=None):
         self.azclass = azclass
-        self.info_attr = info_attr
+        self.infoattr = infoattr
 
     def parent(self, opts):
         return self.azclass.get_parent_class().get_instance(**opts)
@@ -209,12 +209,12 @@ class AzObjectInfoHelper:
         infos = list(filter(lambda info: self.azclass.info_id(info) == azobject_id, self.get_info_list(opts)))
         return infos[0] if infos else None
 
-    def get_info_attr(self, info):
+    def get_infoattr(self, info):
         if not info:
             return None
 
-        if self.info_attr:
-            return getattr(info, self.info_attr, None)
+        if self.infoattr:
+            return getattr(info, self.infoattr, None)
         else:
             return self.azclass.info_id(info)
 
@@ -223,7 +223,7 @@ class AzObjectCompleter(AzObjectInfoHelper):
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         opts = vars(parsed_args)
         try:
-            return filter(lambda o: o, map(self.get_info_attr, self.get_info_list(opts)))
+            return filter(lambda o: o, map(self.get_infoattr, self.get_info_list(opts)))
         except Exception as e:
             if opts.get('verbose', 0) > 2:
                 import argcomplete
@@ -243,18 +243,26 @@ class AzObjectDefaultId(AzObjectInfoHelper):
         except DefaultConfigNotFound:
             return None
 
-        if not self.info_attr:
+        if not self.infoattr:
             # Don't need to lookup custom attr
             return azobject_id
 
         # Can use list as it doesn't require the object's default id
-        return self.get_info_attr(self.get_info(azobject_id, opts))
+        return self.get_infoattr(self.get_info(azobject_id, opts))
 
 
 class BaseArgConfig(ArgUtil, ABC):
-    def __init__(self, *, dest=None, cmddest=None, default=None, required=None, multiple=False, noncmd=False):
+    def __init__(self, *,
+                 dest=None,
+                 cmddest=None,
+                 cmdvalue=None,
+                 default=None,
+                 required=False,
+                 multiple=False,
+                 noncmd=False):
         self._dest = dest
         self._cmddest = cmddest
+        self._cmdvalue = cmdvalue
         self._default = default
         self._required = required
         self.multiple = multiple
@@ -272,6 +280,9 @@ class BaseArgConfig(ArgUtil, ABC):
     def cmddest(self):
         """This is the name we will use for the parameter passed to az."""
         return self._cmddest or self.dest
+
+    def cmdvalue(self, value, opts):
+        return self._cmdvalue(value, opts) if self._cmdvalue else value
 
     @property
     def default(self):
@@ -295,19 +306,22 @@ class BaseArgConfig(ArgUtil, ABC):
     def add_to_parser(self, parser):
         pass
 
-    def _process_value(self, value, **opts):
+    def get_opts_arg(self, key, opts):
+        return self.optional_arg(key, opts)
+
+    def _process_value(self, value, opts):
         return value
 
-    def process_value(self, value, **opts):
+    def process_value(self, value, opts):
         if value is None:
             return None
-        return self._process_value(value, **opts)
+        return self._process_value(value, opts)
 
     def _cmd_arg_value(self, **opts):
         value = self._opt_value(self.dest, opts)
         if value is None:
             value = self.runtime_default_value(**opts)
-        return self.process_value(value, **opts)
+        return self.process_value(value, opts)
 
     def _cmd_arg_values(self, **opts):
         values = self._opt_value(self.dest, opts)
@@ -317,7 +331,7 @@ class BaseArgConfig(ArgUtil, ABC):
             return None
         if not isinstance(values, list):
             raise InvalidArgumentValue(self.parser_argname, values)
-        return [self.process_value(v) for v in values]
+        return [self.process_value(v, opts) for v in values]
 
     def cmd_arg_value(self, **opts):
         if self.multiple:
@@ -326,7 +340,7 @@ class BaseArgConfig(ArgUtil, ABC):
             return self._cmd_arg_value(**opts)
 
     def _cmd_args(self, **opts):
-        return self.optional_arg(self.cmddest, {self.cmddest: self.cmd_arg_value(**opts)})
+        return self.get_opts_arg(self.cmddest, {self.cmddest: self.cmdvalue(self.cmd_arg_value(**opts), opts)})
 
     def cmd_args(self, **opts):
         if self.noncmd:
@@ -335,45 +349,25 @@ class BaseArgConfig(ArgUtil, ABC):
 
 
 class ArgConfig(BaseArgConfig):
-    def __init__(self, *opts,
-                 help=None,
-                 dest=None,
-                 cmddest=None,
-                 default=None,
-                 required=False,
-                 multiple=False,
-                 hidden=False,
-                 noncmd=False,
-                 completer=None):
-        super().__init__(dest=dest, cmddest=cmddest, default=default, required=required, multiple=multiple, noncmd=noncmd)
+    def __init__(self, *opts, help=None, hidden=False, completer=None, **kwargs):
+        super().__init__(**kwargs)
 
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
         self.help = argparse.SUPPRESS if hidden else help
         self.completer = completer
 
-    def __repr__(self):
-        return self.__class__.__name__ + '(' + (f"{', '.join(self.opts)}, " +
-                                                f"help={self.help}, " +
-                                                f"dest={self._dest}, " +
-                                                f"cmddest={self._cmddest}, " +
-                                                f"default={self._default}, " +
-                                                f"required={self._required}, " +
-                                                f"multiple={self.multiple}, " +
-                                                f"hidden={self.help == argparse.SUPPRESS}, " +
-                                                f"noncmd={self.noncmd}, " +
-                                                f"completer={self.completer})")
-
     def raise_required(self):
         raise RequiredArgument(self.parser_argname)
 
     @property
     def dest(self):
+        """This is the name the argparse will set in the parsed options."""
         return argparse.ArgumentParser().add_argument(*self.parser_args, dest=self._dest).dest
 
     @property
     def parser_argname(self):
-        """This is the parameter name provided to the user."""
+        """This is the argument name provided to the user."""
         return argparse.ArgumentParser().add_argument(*self.parser_args).dest
 
     @property
@@ -398,17 +392,17 @@ class ArgConfig(BaseArgConfig):
 
 
 class AzObjectArgConfig(ArgConfig):
-    def __init__(self, *args, azclass, info_attr=None, cmd_attr=None, completer=None, nocompleter=False, default=None, nodefault=False, **kwargs):
+    def __init__(self, *args, azclass, infoattr=None, cmdattr=None, completer=None, nocompleter=False, default=None, nodefault=False, **kwargs):
         super().__init__(*args,
-                         completer=None if nocompleter else completer or AzObjectCompleter(azclass, info_attr=info_attr),
-                         default=None if nodefault else default or AzObjectDefaultId(azclass, info_attr=info_attr),
+                         completer=None if nocompleter else completer or AzObjectCompleter(azclass, infoattr=infoattr),
+                         default=None if nodefault else default or AzObjectDefaultId(azclass, infoattr=infoattr),
                          **kwargs)
         self.azclass = azclass
-        self.info_attr = info_attr
-        self.cmd_attr = cmd_attr
+        self.infoattr = infoattr
+        self.cmdattr = cmdattr
 
-    def _process_value(self, value, **opts):
-        if self.info_attr == self.cmd_attr:
+    def _process_value(self, value, opts):
+        if self.infoattr == self.cmdattr:
             return value
 
         # This is problematic, as the azobject ancestors might not be
@@ -416,15 +410,15 @@ class AzObjectArgConfig(ArgConfig):
         # lead to an instance of the azobject here
         null_instance = self.azclass.get_null_instance(**opts)
 
-        info_id = (lambda info: getattr(info, self.info_attr, None)) if self.info_attr else self.azclass.info_id
+        info_id = (lambda info: getattr(info, self.infoattr, None)) if self.infoattr else self.azclass.info_id
         infos = [info for info in null_instance.list(**opts) if info_id(info) == value]
 
         if not infos:
             return None
         if len(infos) > 1:
-            raise ArgumentError(f'Multiple results found with attribute {self.info_attr} == {value}')
+            raise ArgumentError(f'Multiple results found with attribute {self.infoattr} == {value}')
 
-        return getattr(infos[0], self.cmd_attr, None)
+        return getattr(infos[0], self.cmdattr, None)
 
 
 class NumberArgConfig(ArgConfig):
@@ -444,8 +438,8 @@ class BoolArgConfig(ArgConfig):
 
 
 class FlagArgConfig(BoolArgConfig):
-    def _cmd_args(self, **opts):
-        return self.optional_flag_arg(self.cmddest, {self.cmddest: self.cmd_arg_value(**opts)})
+    def get_opts_arg(self, key, opts):
+        return self.optional_flag_arg(key, opts)
 
 
 class NoWaitBoolArgConfig(BoolArgConfig):
@@ -497,12 +491,12 @@ class ChoiceMapArgConfig(ArgConfig):
     def _parser_kwargs(self):
         return ArgMap(choices=self.choicemap.keys())
 
-    def _process_value(self, value, **opts):
+    def _process_value(self, value, opts):
         return self.choicemap.get(value)
 
 
 class FileArgConfig(ArgConfig):
-    def _process_value(self, value, **opts):
+    def _process_value(self, value, opts):
         try:
             return self.read_file(Path(value).expanduser().resolve())
         except FileNotFoundError as fnfe:
@@ -518,8 +512,8 @@ class BinaryFileArgConfig(FileArgConfig):
 
 
 class X509DERFileArgConfig(BinaryFileArgConfig):
-    def _process_value(self, value, **opts):
-        cert = super()._process_value(value, **opts)
+    def _process_value(self, value, opts):
+        cert = super()._process_value(value, opts)
 
         from cryptography import x509
 
@@ -532,7 +526,7 @@ class X509DERFileArgConfig(BinaryFileArgConfig):
 
 
 class DateTimeArgConfig(ArgConfig):
-    def _process_value(self, value, **opts):
+    def _process_value(self, value, opts):
         import dateparser
         settings=dict(TO_TIMEZONE='UTC', RETURN_AS_TIMEZONE_AWARE=True, PREFER_DATES_FROM='future')
         datetime_value = dateparser.parse(value, settings=settings)
@@ -543,9 +537,9 @@ class DateTimeArgConfig(ArgConfig):
 
 class GroupArgConfig(BaseArgConfig):
     # Note - this is an *exclusive* group, we don't have any use for a non-exclusive group
-    def __init__(self, *argconfigs, cmddest=None, default=None, required=False):
+    def __init__(self, *argconfigs, cmddest=None, cmdvalue=None, default=None, required=False):
         self.argconfigs = argconfigs
-        super().__init__(cmddest=cmddest, default=default, required=required)
+        super().__init__(cmddest=cmddest, cmdvalue=cmdvalue, default=default, required=required)
         if cmddest and list(filter(lambda a: a._dest or a._cmddest, argconfigs)):
             raise ArgumentError(f'Do not set dest/cmddest for both GroupArgConfig and its arguments')
         if list(filter(lambda a: a._required, argconfigs)):
@@ -591,8 +585,10 @@ class GroupArgConfig(BaseArgConfig):
         for argconfig in self.argconfigs:
             # Now, look for the first argconfig whose callable default
             # is not None
+            if not callable(argconfig._default):
+                continue
             value = argconfig.runtime_default_value(**opts)
-            if callable(argconfig._default) and value is not None:
+            if value is not None:
                 return value
         return self.runtime_default_value(**opts)
 

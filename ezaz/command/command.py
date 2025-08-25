@@ -154,6 +154,10 @@ class ActionCommand(SimpleCommand):
     def make_action_config(cls, action, **kwargs):
         return CommandActionConfig(action, cls, **kwargs)
 
+    @classmethod
+    def make_azaction_config(cls, azactioncfg, **kwargs):
+        return AzObjectCommandActionConfig(azactioncfg.action, cls, azactioncfg, **kwargs)
+
     def get_specified_action(self):
         with suppress(AttributeError):
             return self.get_action_config(self.options.action).action
@@ -260,11 +264,7 @@ class AzSubObjectCommand(AzObjectCommand):
 
 
 class AzSubObjectActionCommand(AzSubObjectCommand, AzObjectActionCommand):
-    @property
-    def azobject_default_id(self):
-        if not self.is_parent and self.action in ['create', 'delete']:
-            raise RequiredArgument(self.azobject_name(), self.action)
-        return super().azobject_default_id
+    pass
 
 
 class CommandActionConfig(ActionConfig):
@@ -273,6 +273,21 @@ class CommandActionConfig(ActionConfig):
         self.command_class = command_class
 
     def do_action(self, **opts):
-        command = self.command_class(options=SimpleNamespace(opts))
+        command = self.command_class(options=SimpleNamespace(**opts))
         do_action = getattr(command, self.action)
-        do_action(**opts)
+        return do_action(**opts)
+
+    def cmd_opts(self, **opts):
+        return self._args_to_opts(**self.cmd_args(**opts))
+
+
+class AzObjectCommandActionConfig(CommandActionConfig):
+    def __init__(self, action, command_class, azactioncfg, **kwargs):
+        kwargs.setdefault('aliases', azactioncfg.aliases)
+        kwargs.setdefault('description', azactioncfg.description)
+        super().__init__(action, command_class, **kwargs)
+        self.azactioncfg = azactioncfg
+        self.argconfigs += azactioncfg.argconfigs
+
+    def do_azaction(self, **opts):
+        return self.azactioncfg.do_action(**opts)

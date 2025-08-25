@@ -35,7 +35,3 @@ class ActionConfig(ArgUtil, ABC):
 
     def cmd_args(self, **opts):
         return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
-
-    def get_arg_value(self, arg, **opts):
-        opt = self._arg_to_opt(arg)
-        return self.cmd_args(**{opt: opts.get(opt)}).get(self._opt_to_arg(opt))

@@ -41,7 +41,7 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
         for azclass in [ResourceGroup, StorageAccount, StorageContainer, StorageBlob, ImageGallery, ImageDefinition, ImageVersion, VM]:
             yield AzObjectArgConfig(azclass.azobject_name(),
                                     azclass=azclass,
-                                    cmd_attr='id',
+                                    cmdattr='id',
                                     help='Restrict assignment to specified {azclass.azobject_text()}')
 
     @classmethod
@@ -53,8 +53,8 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
                                cmddest='scope'),
                 AzObjectArgConfig('role',
                                   azclass=RoleDefinition,
-                                  info_attr='roleName',
-                                  cmd_attr='name',
+                                  infoattr='roleName',
+                                  cmdattr='name',
                                   nodefault=True,
                                   required=True,
                                   help='Role to assign'),

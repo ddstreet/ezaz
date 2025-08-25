@@ -40,6 +40,7 @@ from ..exception import NotDownloadable
 from ..exception import NotListable
 from ..exception import NotLoggedIn
 from ..exception import NullAzObject
+from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
 from ..exception import UnsupportedAction
 from ..filter import FILTER_ALL
@@ -83,6 +84,11 @@ class AzAction(ArgUtil, ABC):
                 cmd.append(str(v))
             elif v is not None:
                 cmd.append(v)
+
+        for c in cmd:
+            if not isinstance(c, str):
+                raise RuntimeError(f'cmd value not str type: {c}')
+
         return cmd
 
     def _read_stdout_line(self, process):
@@ -104,13 +110,12 @@ class AzAction(ArgUtil, ABC):
 
     def _exec(self, *args, cmd_args={}, dry_runnable=True, text=True, capture_output=False):
         cmd = self._args_to_cmd(*args, cmd_args=cmd_args)
-        for c in cmd:
-            if not isinstance(c, str):
-                raise RuntimeError(f'cmd value not str type: {c}')
+
+        AZ_TRACE_LOGGER.info(' '.join(cmd))
+
         if self.dry_run and not dry_runnable:
             LOG_V1(f'DRY-RUN (not running): {" ".join(cmd)}')
             return ('', '')
-        AZ_TRACE_LOGGER.info(' '.join(cmd))
 
         process = subprocess.Popen(cmd,
                                    env=self._exec_environ,
@@ -248,7 +253,21 @@ class AzObject(CachedAzAction):
         return None
 
     @classmethod
-    def make_action_config(cls, action, *, aliases=None, description=None, argconfigs=None, common_argconfigs=None, cmd=None, pre=None, post=None, exception_handler=None, **kwargs):
+    def make_action_config(cls,
+                           action,
+                           *,
+                           aliases=None,
+                           description=None,
+                           argconfigs=None,
+                           common_argconfigs=None,
+                           cmd=None,
+                           pre=None,
+                           post=None,
+                           exception_handler=None,
+                           custom_action=None,
+                           custom_instance_action=None,
+                           azaction_class=None,
+                           **kwargs):
         if aliases is None:
             aliases = getattr(cls, f'get_{action}_action_aliases', lambda: [])()
         if description is None:
@@ -265,7 +284,13 @@ class AzObject(CachedAzAction):
             post = getattr(cls, f'{action}_post', None)
         if exception_handler is None:
             exception_handler = getattr(cls, f'{action}_exception_handler', None)
-        return AzActionConfig(action,
+        if custom_action is None:
+            custom_action = getattr(cls, f'custom_{action}_action', None)
+        if custom_instance_action is None:
+            custom_instance_action = getattr(cls, f'custom_{action}_instance_action', None)
+        if not azaction_class:
+            azaction_class = AzActionConfig
+        return azaction_class(action,
                               aliases=aliases,
                               description=description,
                               argconfigs=(argconfigs or []) + (common_argconfigs or []),
@@ -274,6 +299,8 @@ class AzObject(CachedAzAction):
                               pre=pre,
                               post=post,
                               exception_handler=exception_handler,
+                              custom_action=custom_action,
+                              custom_instance_action=custom_instance_action,
                               **kwargs)
 
     @classmethod
@@ -789,7 +816,22 @@ class AzFilterer(AzObject):
 
 
 class AzActionConfig(ActionConfig):
-    def __init__(self, action, *, azclass=None, get_instance=None, cmd=None, az=None, dry_runnable=False, parse_opts=None, pre=None, post=None, exception_handler=None, **kwargs):
+    def __init__(self,
+                 action,
+                 *,
+                 azclass=None,
+                 get_instance=None,
+                 cmd=None,
+                 az=None,
+                 dry_runnable=False,
+                 parse_opts=None,
+                 pre=None,
+                 instance_opts=None,
+                 post=None,
+                 exception_handler=None,
+                 custom_action=None,
+                 custom_instance_action=None,
+                 **kwargs):
         super().__init__(action, **kwargs)
         self.azclass = azclass
         self.get_instance = get_instance or azclass.get_instance
@@ -799,6 +841,8 @@ class AzActionConfig(ActionConfig):
         self.pre = pre or self._noop_pre
         self.post = post or self._noop_post
         self.exception_handler = exception_handler or self._noop_exception_handler
+        self.custom_action = custom_action
+        self.custom_instance_action = custom_instance_action
 
     def _noop_pre(self, azobject, opts):
         return None
@@ -811,9 +855,23 @@ class AzActionConfig(ActionConfig):
         yield
 
     def do_action(self, **opts):
+        if self.custom_action:
+            return self.custom_action(self, opts)
+        return self._do_action(**opts)
+
+    def _do_action(self, **opts):
+        if self.is_action('create') or self.is_action('delete'):
+            if not opts.get(self.azclass.azobject_name()):
+                raise RequiredArgument(self.azclass.azobject_name(), self.action)
+
         return self.do_instance_action(self.get_instance(**opts), opts)
 
     def do_instance_action(self, azobject, opts):
+        if self.custom_instance_action:
+            return self.custom_instance_action(self, azobject, opts)
+        return self._do_instance_action(azobject, opts)
+
+    def _do_instance_action(self, azobject, opts):
         result = self.pre(azobject, opts)
         if result:
             return result

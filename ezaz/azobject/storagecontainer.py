@@ -51,7 +51,7 @@ class StorageContainer(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectC
                                    cmddest='account_key',
                                    azclass=StorageKey,
                                    default=cls.storage_key,
-                                   cmd_attr='value',
+                                   cmdattr='value',
                                    hidden=True)])
 
     @classmethod
