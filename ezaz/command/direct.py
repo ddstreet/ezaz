@@ -3,6 +3,8 @@ import argparse
 
 from functools import cached_property
 
+from ..argutil import ArgConfig
+from ..argutil import PositionalArgConfig
 from .command import SimpleCommand
 
 
@@ -12,15 +14,15 @@ class DirectCommand(SimpleCommand):
         return ['az']
 
     @classmethod
-    def parser_add_arguments(cls, parser):
-        super().parser_add_arguments(parser)
-        parser.add_argument('command', help='Command to run (i.e. "az COMMAND ...")')
-        parser.add_argument('args', nargs=argparse.REMAINDER, help='Additional arguments and parameters')
+    def get_simple_command_argconfigs(cls):
+        return [*super().get_simple_command_argconfigs(),
+                PositionalArgConfig('command', help='Command to run (i.e. az COMMAND ...)'),
+                PositionalArgConfig('args', remainder=True, help='Additional arguments and parameters')]
 
     @cached_property
     def direct(self):
         from ..azobject.direct import DirectAction
         return DirectAction(verbose=self.verbose, dry_run=self.dry_run)
 
-    def run(self):
-        self.direct.az(self._options.command, *self._options.args)
+    def az(self):
+        self.direct.az(self.options.command, *self.options.args)

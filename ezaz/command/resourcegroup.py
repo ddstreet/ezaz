@@ -1,8 +1,9 @@
 
+from .command import AzFilterer
 from .command import AzSubObjectActionCommand
 
 
-class ResourceGroupCommand(AzSubObjectActionCommand):
+class ResourceGroupCommand(AzFilterer, AzSubObjectActionCommand):
     @classmethod
     def parent_command_cls(cls):
         from .subscription import SubscriptionCommand

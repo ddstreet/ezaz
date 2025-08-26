@@ -2,11 +2,10 @@
 from ..argutil import NoWaitBoolArgConfig
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
-from .azobject import AzFilterer
 from .azobject import AzSubObjectContainer
 
 
-class ImageGallery(AzCommonActionable, AzFilterer, AzSubObject, AzSubObjectContainer):
+class ImageGallery(AzCommonActionable, AzSubObject, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['image', 'gallery']

@@ -16,15 +16,18 @@ class ImageCommand(ActionCommand):
         return ['image']
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      create=cls.get_create_action_config())
+    def get_action_configs(cls):
+        return [*super().get_action_configs(), cls.get_create_action_config()]
 
     @classmethod
     def get_create_action_config(cls):
         return cls.make_action_config('create',
                                       description='Create a new image version using a VHD file',
                                       argconfigs=cls.get_create_action_argconfigs())
+
+    @classmethod
+    def get_default_action(cls):
+        return 'create'
 
     @classmethod
     def get_create_action_argconfigs(cls):

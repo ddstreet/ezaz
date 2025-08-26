@@ -39,19 +39,12 @@ class SubscriptionCommand(AzSubObjectActionCommand):
         return f'Clear default subscription (future logins will use the az-provided default subscription)'
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      show_current=cls.parser_get_show_current_action_config(),
-                      set_current=cls.parser_get_set_current_action_config())
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.parser_get_show_current_action_config(),
+                cls.parser_get_set_current_action_config()]
 
     @classmethod
-    def _parser_add_argument_azobject_id(cls, parser, parent):
-        group = parser.add_mutually_exclusive_group()
-        group.add_argument('--subscription-name',
-                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_names
-        group.add_argument(f'--subscription',
-                           help=f'Use the specified subscription, instead of the default').completer = cls.completer_azobject_ids
-
     def _subscription_name_to_id(self, name):
         for s in self.parent_azobject.get_azsubobject_infos(self.azobject_name()):
             if s.name == name:

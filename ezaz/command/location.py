@@ -12,8 +12,3 @@ class LocationCommand(AzSubObjectActionCommand):
     def azclass(cls):
         from ..azobject.location import Location
         return Location
-
-    @classmethod
-    def parser_add_argument_azobject_id(cls, parser, parent=False):
-        # We don't want the --subscription argument
-        cls._parser_add_argument_azobject_id(parser, parent)

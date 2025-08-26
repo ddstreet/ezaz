@@ -3,11 +3,10 @@ from ..argutil import ArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import NoWaitBoolArgConfig
 from .azobject import AzCommonActionable
-from .azobject import AzFilterer
 from .azobject import AzSubObjectContainer
 
 
-class ImageDefinition(AzCommonActionable, AzFilterer, AzSubObjectContainer):
+class ImageDefinition(AzCommonActionable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['image', 'definition']

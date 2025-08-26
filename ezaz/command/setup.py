@@ -30,10 +30,10 @@ class SetupCommand(AzObjectActionCommand):
         return Account
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      prompt=cls.get_prompt_action_config(),
-                      create=cls.get_create_action_config())
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.get_prompt_action_config(),
+                cls.get_create_action_config()]
 
     @classmethod
     def get_prompt_action_config(cls):

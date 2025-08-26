@@ -2,7 +2,12 @@
 from contextlib import contextmanager
 from contextlib import suppress
 
+from itertools import chain
+
 from ..argutil import AzObjectArgConfig
+from ..argutil import BoolArgConfig
+from ..argutil import ChoicesArgConfig
+from ..argutil import GroupArgConfig
 from ..exception import DefaultConfigNotFound
 from .command import AzObjectCommand
 
@@ -18,29 +23,26 @@ class TopologyCommand(AzObjectCommand):
         return Subscription
 
     @classmethod
-    def parser_add_arguments(cls, parser):
-        from ..azobject.subscription import Subscription
-        AzObjectArgConfig(Subscription.azobject_name(), azclass=Subscription).add_to_parser(parser)
-
-        classes = Subscription.get_descendant_classes()
-        for subcls in classes:
-            AzObjectArgConfig(subcls.azobject_name(), azclass=subcls).add_to_parser(parser)
-
-        parser.add_argument('--defaults-only', action='store_true', help='Only show the default objects')
-
+    def get_simple_command_argconfigs(cls):
+        classes = cls.azclass().get_descendant_classes()
         ignore_choices = sorted([c.azobject_name() for c in classes])
         ignore_default = ['location', 'role_definition', 'role_assignment', 'storage_key']
-        ignore_group = parser.add_mutually_exclusive_group()
-        ignore_group.add_argument('--ignore',
-                                  action='append',
-                                  choices=ignore_choices,
-                                  help=f'Do not show these types of objects, or their children (default: {", ".join(ignore_default)})')
-        ignore_group.add_argument('--ignore-also',
-                                  action='append',
-                                  default=ignore_default,
-                                  choices=sorted(set(ignore_choices) - set(ignore_default)),
-                                  help=f'Same as --ignore, but include the defaults as well')
-        ignore_group.add_argument('--ignore-none', action='store_true', help='Do not ignore any types of objects')
+
+        return [*super().get_simple_command_argconfigs(),
+                *chain(*[c.get_self_id_argconfig(help=f'Show only specified {c.azobject_text()}') for c in classes]),
+                BoolArgConfig('defaults_only', help='Only show the default objects'),
+                GroupArgConfig(ChoicesArgConfig('ignore',
+                                                multiple=True,
+                                                choices=ignore_choices,
+                                                default=ignore_default,
+                                                help=f'Do not show these types of objects, or their children (default: {", ".join(ignore_default)})'),
+                               ChoicesArgConfig('ignore_also',
+                                                multiple=True,
+                                                choices=sorted(set(ignore_choices) - set(ignore_default)),
+                                                default=[],
+                                                help=f'Same as --ignore, but include the defaults as well'),
+                               BoolArgConfig('ignore_none',
+                                             help='Do not ignore any types of objects'))]
 
     @contextmanager
     def indent(self):
@@ -65,13 +67,13 @@ class TopologyCommand(AzObjectCommand):
         indent = ' ' * self._indent
         print(f'{indent}{msg}')
 
-    def run(self):
+    def topology(self):
         self._indent = 0
         self.show_azobject(self.azobject)
 
     def show_azobject(self, azobject):
         self.show(f'{azobject.__class__.__name__}: {azobject}')
-        if not azobject.is_child_container():
+        if not azobject.has_child_classes():
             return
         for subcls in azobject.get_child_classes():
             name = subcls.azobject_name()

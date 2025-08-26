@@ -15,14 +15,10 @@ class ConfigCommand(ActionCommand):
         return ['config']
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      show=cls.make_action_config('show', description='Show configuration (default)'),
-                      remove=cls.make_action_config('remove', description='Remove configuration file', argconfigs=[YesBoolArgConfig()]))
-
-    @classmethod
-    def get_default_action(cls):
-        return 'show'
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.make_action_config('show', description='Show configuration'),
+                cls.make_action_config('remove', description='Remove configuration file', argconfigs=[YesBoolArgConfig()])]
 
     @cached_property
     def config(self):

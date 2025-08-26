@@ -1,11 +1,12 @@
 
+from ..argutil import AzObjectArgConfig
+from ..argutil import GroupArgConfig
 from .azobject import AzSubObjectContainer
-from .azobject import AzDefaultable
 from .azobject import AzListable
 from .azobject import AzShowable
 
 
-class Subscription(AzShowable, AzListable, AzDefaultable, AzSubObjectContainer):
+class Subscription(AzShowable, AzListable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['subscription']
@@ -31,6 +32,15 @@ class Subscription(AzShowable, AzListable, AzDefaultable, AzSubObjectContainer):
     def get_cmd_base(cls):
         return ['account']
 
-    @property
-    def _str0(self):
-        return self.info().name
+    @classmethod
+    def get_self_id_argconfig(cls, is_parent, **kwargs):
+        return [GroupArgConfig(AzObjectArgConfig('subscription',
+                                                 azclass=cls,
+                                                 help=f'Use the specified {cls.azobject_text()}, instead of the default',
+                                                 **kwargs),
+                               AzObjectArgConfig('subscription_name',
+                                                 azclass=cls,
+                                                 infoattr='name',
+                                                 help=f'Use the specified (by name) {cls.azobject_text()}, instead of the default',
+                                                 **kwargs),
+                               cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent))]

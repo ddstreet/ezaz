@@ -650,3 +650,34 @@ class EnableDisableGroupArgConfig(BoolGroupArgConfig):
                                        help_true=(help_disable if inverse else help_enable) or help,
                                        help_false=(help_enable if inverse else help_disable) or help,
                                        **kwargs)
+
+
+class PositionalArgConfig(ArgConfig):
+    def __init__(self, opt, *, help=None, default=None, required=True, multiple=False, remainder=False):
+        super().__init__(opt, help=help, default=default, required=required, multiple=multiple, noncmd=True)
+        self.remainder = remainder
+
+    @property
+    def parser_args(self):
+        return self.opts
+
+    @property
+    def _nargs(self):
+        if self.remainder:
+            return dict(nargs=argparse.REMAINDER)
+
+        if self.multiple:
+            return dict(nargs='+' if self.required else '*')
+        else:
+            return {} if self.required else dict(nargs='?')
+
+    @property
+    def dest(self):
+        return self.parser_argname
+
+    @property
+    def parser_kwargs(self):
+        return ArgMap(help=self.help,
+                      default=self.default,
+                      **self._nargs,
+                      **self._parser_kwargs)

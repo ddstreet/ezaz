@@ -15,6 +15,7 @@ from functools import cached_property
 from itertools import chain
 
 from .. import AZ_TRACE_LOGGER
+from .. import LOG_V0
 from .. import LOG_V1
 from .. import LOGGER
 from ..actionutil import ActionConfig
@@ -223,11 +224,11 @@ class AzObject(CachedAzAction):
         return cls.get_self_id_argconfig(is_parent=is_parent)
 
     @classmethod
-    def get_self_id_argconfig(cls, is_parent, **kwargs):
+    def get_self_id_argconfig(cls, is_parent=False, help=None, **kwargs):
         return [AzObjectArgConfig(cls.azobject_name(),
                                   cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent),
                                   azclass=cls,
-                                  help=f'Use the specified {cls.azobject_text()}, instead of the default',
+                                  help=help or f'Use the specified {cls.azobject_text()}, instead of the default',
                                   **kwargs)]
 
     @classmethod
@@ -237,10 +238,6 @@ class AzObject(CachedAzAction):
     @classmethod
     def get_action_configmap(cls):
         return {}
-
-    @classmethod
-    def get_action_names(cls):
-        return list(cls.get_action_configmap().keys())
 
     @classmethod
     def get_action_configs(cls):
@@ -313,7 +310,7 @@ class AzObject(CachedAzAction):
         return cls.azobject_name_list()
 
     @classmethod
-    def is_child_container(cls):
+    def has_child_classes(cls):
         return False
 
     @classmethod
@@ -440,7 +437,7 @@ class AzSubObject(AzObject):
         self._parent = parent
         self._azobject_id = azobject_id
         self._is_null = is_null
-        assert self._parent.is_child_container()
+        assert self._parent.has_child_classes()
 
     @property
     def is_null(self):
@@ -492,7 +489,7 @@ class AzSubObject(AzObject):
 
 class AzSubObjectContainer(AzObject):
     @classmethod
-    def is_child_container(cls):
+    def has_child_classes(cls):
         return True
 
     @classmethod
@@ -519,7 +516,7 @@ class AzSubObjectContainer(AzObject):
         return (cls.get_child_classes() +
                 sum([c.get_descendant_classes()
                      for c in cls.get_child_classes()
-                     if c.is_child_container()], start=[]))
+                     if c.has_child_classes()], start=[]))
 
     def has_default_child_id(self, name):
         try:
@@ -678,22 +675,6 @@ class AzListable(AzSubObject):
         return self.get_list_action_config().do_instance_action(self, opts)
 
 
-class AzRoActionable(AzShowable, AzListable):
-    pass
-
-
-# Do not ever actually call the show command, always use the list
-# command.  This is appropriate for classes that don't support show,
-# or have a quick list response.  This should not be used for classes
-# where list is slow.
-class AzEmulateShowable(AzShowable, AzListable):
-    def show_pre(self, opts):
-        self.list(**opts)
-        with suppress(KeyError):
-            return self.info_cache()[self.azobject_id]
-        raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
-
-
 class AzCreatable(AzObject):
     @classmethod
     def get_create_action_config(cls):
@@ -742,102 +723,28 @@ class AzDeletable(AzObject):
         self.get_delete_action_config().do_instance_action(self, opts)
 
 
+# Do not ever actually call the show command, always use the list
+# command.  This is appropriate for classes that don't support show,
+# or have a quick list response.  This should not be used for classes
+# where list is slow.
+class AzEmulateShowable(AzShowable, AzListable):
+    def show_pre(self, opts):
+        self.list(**opts)
+        with suppress(KeyError):
+            return self.info_cache()[self.azobject_id]
+        raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
+
+
+class AzRoActionable(AzShowable, AzListable):
+    pass
+
+
 class AzRwActionable(AzCreatable, AzDeletable):
     pass
 
 
-class AzDefaultable(AzObject):
-    # TODO - redo this. either sub-actions or split actions.
-
-    @classmethod
-    def get_default_action_config(cls):
-        return cls.make_action_config('default')
-
-    @classmethod
-    def get_default_action_argconfigs(cls):
-        return [GroupArgConfig(ConstArgConfig('s', 'set', const='default_set', help='Set the default'),
-                               ConstArgConfig('u', 'unset', const='default_unset', help='Unset the default'),
-                               ConstArgConfig('show', const='default_show', help='Show the default, if any (default)'),
-                               cmddest='default_action')]
-
-    @classmethod
-    def get_default_action_description(cls):
-        return f'Configure the default {cls.azobject_text()}'
- 
-    @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(), default=cls.get_default_action_config())
-
-    @classmethod
-    def default(cls, parent, **opts):
-        default_action = cls.get_default_action_config().cmd_args(**opts).get('default_action')
-        if default_action:
-            return getattr(cls, default_action)(parent, **opts)
-
-    @classmethod
-    def default_set(cls, parent, **opts):
-        default_id = cls.required_arg_value(cls.azobject_name(), opts, '--set')
-        parent.set_default_child_id(cls.azobject_name(), default_id)
-        return f'Set default {cls.azobject_text()}: {default_id}'
-
-    @classmethod
-    def default_unset(cls, parent, **opts):
-        parent.del_default_child_id(cls.azobject_name())
-        return f'Unset default {cls.azobject_text()}'
-
-    @classmethod
-    def default_show(cls, parent, **opts):
-        return f'Default {cls.azobject_text()}: {parent.get_default_child_id(cls.azobject_name())}'
-
-
-class AzCommonActionable(AzRoActionable, AzRwActionable, AzDefaultable):
+class AzCommonActionable(AzRoActionable, AzRwActionable):
     pass
-
-
-class AzFilterer(AzObject):
-    @classmethod
-    def get_filter_action_config(cls):
-        return cls.make_action_config('filter')
-
-    @classmethod
-    def get_filter_type_groupargconfig(cls):
-        return GroupArgConfig(ConstArgConfig('filter_all', const=FILTER_ALL,
-                                             help=f'Configure a filter for all object types (use with caution)'),
-                              *[ConstArgConfig(f'filter_{azobject_cls.azobject_name()}', const=azobject_cls.azobject_name(),
-                                               help=f'Configure a filter for only {azobject_cls.azobject_text()}s')
-                                for azobject_cls in cls.get_descendant_classes()],
-                              ConstArgConfig('filter_default', const=FILTER_DEFAULT,
-                                             help=f'Configure a default filter (use with caution)'),
-                              cmddest='filter_type')
-
-    @classmethod
-    def get_filter_action_argconfigs(cls):
-        return [cls.get_filter_type_groupargconfig(),
-                GroupArgConfig(ArgConfig('--prefix', help=f'Update filter to select only object names that start with the prefix'),
-                               ConstArgConfig('--no-prefix', dest='prefix', const='', help=f'Remove prefix filter')),
-                GroupArgConfig(ArgConfig('--suffix', help=f'Update filter to select only object names that end with the suffix'),
-                               ConstArgConfig('--no-suffix', dest='suffix', const='', help=f'Remove suffix filter')),
-                GroupArgConfig(ArgConfig('--regex', help=f'Update filter to select only object names that match the regular expression'),
-                               ConstArgConfig('--no-regex', dest='regex', const='', help=f'Remove regex filter'))]
-
-    @classmethod
-    def get_filter_action_description(cls):
-        return f"Configure the filters for this {cls.azobject_text()}'s descendant objects"
-
-    @classmethod
-    def get_action_configmap(cls):
-        configmap = super().get_action_configmap()
-        if cls.is_child_container():
-            return ArgMap(configmap, filter=cls.get_filter_action_config())
-        return configmap
-
-    def filter(self, filter_type=None, **opts):
-        for ftype in ['prefix', 'suffix', 'regex']:
-            if opts.get(ftype) is not None:
-                if not filter_type:
-                    raise RequiredArgumentGroup(self.get_filter_type_groupargconfig().opts, self._opt_to_arg(ftype), exclusive=True)
-                setattr(self.filters.get_filter(filter_type), ftype, opts.get(ftype))
-        return str(self.filters)
 
 
 class AzActionConfig(ActionConfig):
@@ -881,8 +788,14 @@ class AzActionConfig(ActionConfig):
 
     def do_action(self, **opts):
         if self.custom_action:
-            return self.custom_action(self, opts)
-        return self._do_action(**opts)
+            result = self.custom_action(self, opts)
+        else:
+            result = self._do_action(**opts)
+        if isinstance(result, list):
+            for r in result:
+                LOG_V0(r)
+        elif result:
+            LOG_V0(result)
 
     def _do_action(self, **opts):
         if self.is_action('create') or self.is_action('delete'):

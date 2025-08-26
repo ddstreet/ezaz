@@ -2,6 +2,8 @@
 - change 'set' and 'clear', to just 'default' action
   params are obj id or '--remove' or '--none' or something to remove default
 
+- rework subscription set-current/get-current
+
 - add classes for:
   az vm list-skus (and/or az vm list-sizes)
   az vm image list-* (publisher,offer,sku,etc)

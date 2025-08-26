@@ -23,11 +23,9 @@ class ImageVersionCommand(AzSubObjectActionCommand):
         return ImageVersion
 
     @classmethod
-    def get_action_configmap(cls):
-        configmap = super().get_action_configmap()
-        azactioncfg = configmap.pop('create')
-        configmap['create'] = cls.get_create_actioncfg(azactioncfg)
-        return configmap
+    def get_action_configs(cls):
+        return [*filter(lambda c: c.action != 'create', super().get_action_configs()),
+                cls.get_create_actioncfg(cls.azclass().get_action_config('create'))]
 
     @classmethod
     def get_create_actioncfg(cls, azactioncfg):

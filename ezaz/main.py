@@ -8,21 +8,14 @@ import traceback
 from contextlib import suppress
 from functools import cached_property
 
+from .actionutil import ActionConfigGroup
+
 
 class Main:
     def __init__(self, *, args=sys.argv[1:], cmds=None, venv=None):
         self.args = args
         self.cmds = cmds
         self.venv = venv
-
-    def _subcmd_description(self, subcmd):
-        return (subcmd.command_name_short() +
-                (f' ({",".join(subcmd.aliases())})' if subcmd.aliases() else ''))
-
-    @property
-    def subcmds_description(self):
-        return '\n'.join([self._subcmd_description(c)
-                          for c in sorted(self.cmds, key=lambda c: c.command_name_short())])
 
     def parse_args(self, args):
         from .argparse import SharedArgumentParser
@@ -36,13 +29,11 @@ class Main:
         parser.add_argument('-n', '--dry-run', shared=True, action='store_true',
                             help='Only print what would be done, do not run commands (show/list commands are still run)')
 
-        subparsers = parser.add_subparsers(title='Subcommands (and aliases)',
-                                           description=self.subcmds_description,
-                                           required=True,
-                                           metavar='')
-
-        for c in self.cmds:
-            c.parser_register_as_command_subparser(subparsers)
+        commands = ActionConfigGroup(action='command',
+                                     description='Commands',
+                                     required=True,
+                                     actionconfigs=[c.get_command_action_config() for c in self.cmds])
+        commands.add_to_parser(parser)
 
         with suppress(ImportError):
             import argcomplete
@@ -63,10 +54,6 @@ class Main:
             traceback.print_exc()
             raise
 
-    @cached_property
-    def command(self):
-        return self.options.command_class(options=self.options)
-
     def setup_logging(self, verbose, trace):
         import logging
         logging.basicConfig(level=logging.NOTSET, format='{message}', style='{')
@@ -82,7 +69,7 @@ class Main:
 
     def run(self):
         try:
-            self.command.run()
+            self.options.action_function(**vars(self.options))
         except Exception as e:
             if self.options.verbose > 1:
                 traceback.print_exc()
