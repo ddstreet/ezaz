@@ -236,12 +236,8 @@ class AzObject(CachedAzAction):
         return cls.azobject_name()
 
     @classmethod
-    def get_action_configmap(cls):
-        return {}
-
-    @classmethod
     def get_action_configs(cls):
-        return list(cls.get_action_configmap().values())
+        return []
 
     @classmethod
     def get_action_config(cls, action):
@@ -578,6 +574,10 @@ class AzSubObjectContainer(AzObject):
 
 class AzShowable(AzObject):
     @classmethod
+    def get_action_configs(cls):
+        return [*super().get_action_configs(), cls.get_show_action_config()]
+
+    @classmethod
     def get_show_action_config(cls):
         return cls.make_action_config('show', dry_runnable=True)
 
@@ -588,10 +588,6 @@ class AzShowable(AzObject):
     @classmethod
     def get_show_action_description(cls):
         return f'Show a {cls.azobject_text()}'
- 
-    @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(), show=cls.get_show_action_config())
 
     def __init__(self, *, info=None, **kwargs):
         super().__init__(**kwargs)
@@ -623,6 +619,10 @@ class AzShowable(AzObject):
 
 class AzListable(AzSubObject):
     @classmethod
+    def get_action_configs(cls):
+        return [*super().get_action_configs(), cls.get_list_action_config()]
+
+    @classmethod
     def get_list_action_config(cls):
         return cls.make_action_config('list', dry_runnable=True, get_instance=cls.get_null_instance)
 
@@ -646,10 +646,6 @@ class AzListable(AzSubObject):
     @classmethod
     def get_list_action_description(cls):
         return f'List {cls.azobject_text()}s'
- 
-    @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(), list=cls.get_list_action_config())
 
     def list_pre(self, opts):
         if getattr(self.__class__, '_info_cache_complete', False):
@@ -677,6 +673,10 @@ class AzListable(AzSubObject):
 
 class AzCreatable(AzObject):
     @classmethod
+    def get_action_configs(cls):
+        return [*super().get_action_configs(), cls.get_create_action_config()]
+
+    @classmethod
     def get_create_action_config(cls):
         return cls.make_action_config('create')
 
@@ -687,10 +687,6 @@ class AzCreatable(AzObject):
     @classmethod
     def get_create_action_description(cls):
         return f'Create a {cls.azobject_text()}'
-
-    @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(), create=cls.get_create_action_config())
 
     def create_pre(self, opts):
         if self.exists:
@@ -703,16 +699,16 @@ class AzCreatable(AzObject):
 
 class AzDeletable(AzObject):
     @classmethod
+    def get_action_configs(cls):
+        return [*super().get_action_configs(), cls.get_delete_action_config()]
+
+    @classmethod
     def get_delete_action_config(cls):
         return cls.make_action_config('delete')
 
     @classmethod
     def get_delete_action_description(cls):
         return f'Delete a {cls.azobject_text()}'
- 
-    @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(), delete=cls.get_delete_action_config())
 
     def delete_pre(self, opts):
         if not self.exists:

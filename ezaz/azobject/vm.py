@@ -38,14 +38,14 @@ class VM(AzCommonActionable, AzSubObject):
         return 'name'
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      log=cls.make_action_config('log', description='Show vm serial console log'),
-                      console=cls.make_action_config('console', description='Access vm serial console'),
-                      status=cls.make_action_config('status', az='info', description='Get vm status'),
-                      start=cls.make_action_config('start', description='Start vm'),
-                      restart=cls.make_action_config('restart', description='Restart vm'),
-                      stop=cls.make_action_config('stop', description='Stop vm'))
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.make_action_config('log', description='Show vm serial console log'),
+                cls.make_action_config('console', description='Access vm serial console'),
+                cls.make_action_config('status', az='info', description='Get vm status'),
+                cls.make_action_config('start', description='Start vm'),
+                cls.make_action_config('restart', description='Restart vm'),
+                cls.make_action_config('stop', description='Stop vm')]
 
     @classmethod
     def get_create_action_az(cls):

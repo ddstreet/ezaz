@@ -23,19 +23,19 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return 'name'
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      download=cls.make_action_config('download',
-                                                      description=f'Download a {cls.azobject_text()}'),
-                      url=cls.make_action_config('url',
-                                                 az='stdout',
-                                                 dry_runnable=True,
-                                                 description=f'Get the {cls.azobject_text()} access URL (without SAS)'),
-                      sas=cls.make_action_config('sas',
-                                                 az='stdout',
-                                                 dry_runnable=True,
-                                                 cmd=cls.get_cmd_base() + ['generate-sas'],
-                                                 description=f'Get the {cls.azobject_text()} access URL (with SAS)'))
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.make_action_config('download',
+                                       description=f'Download a {cls.azobject_text()}'),
+                cls.make_action_config('url',
+                                       az='stdout',
+                                       dry_runnable=True,
+                                       description=f'Get the {cls.azobject_text()} access URL (without SAS)'),
+                cls.make_action_config('sas',
+                                       az='stdout',
+                                       dry_runnable=True,
+                                       cmd=cls.get_cmd_base() + ['generate-sas'],
+                                       description=f'Get the {cls.azobject_text()} access URL (with SAS)')]
 
     @classmethod
     def get_create_action_az(cls):

@@ -47,8 +47,10 @@ class Account(AzShowable, AzSubObjectContainer):
         return cls.make_action_config('logout', cmd=['logout'], description='Logout')
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(), login=cls.get_login_action_config(), logout=cls.get_logout_action_config())
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.get_login_action_config(),
+                cls.get_logout_action_config()]
 
     def __init__(self, *, cachedir, configfile, **kwargs):
         super().__init__(cache=Cache(cachedir), config=Config(configfile), **kwargs)

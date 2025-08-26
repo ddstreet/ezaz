@@ -34,9 +34,9 @@ class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
         return ['group']
 
     @classmethod
-    def get_action_configmap(cls):
-        return ArgMap(super().get_action_configmap(),
-                      deploy=cls.make_action_config('deploy', description='Deploy a template'))
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.make_action_config('deploy', description='Deploy a template')]
 
     @classmethod
     def get_create_action_argconfigs(cls):
