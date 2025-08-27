@@ -11,6 +11,7 @@ from ..cache import Cache
 from ..config import Config
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
+from ..exception import ArgumentError
 from ..exception import AzCommandError
 from ..exception import ConfigNotFound
 from ..exception import DefaultConfigNotFound
@@ -81,7 +82,7 @@ class Account(AzShowable, AzSubObjectContainer):
 
     def login_pre(self, opts):
         if self.is_logged_in:
-            raise AlreadyLoggedIn()
+            raise AlreadyLoggedIn(self.info())
 
     def login(self, **opts):
         self.get_action_config('login').do_instance_action(self, opts)
@@ -139,3 +140,9 @@ class Account(AzShowable, AzSubObjectContainer):
         if name == User.azobject_name():
             raise ArgumentError('Cannot change default user id')
         return super().set_default_child_id(name, value)
+
+    def del_default_child_id(self, name):
+        from .user import User
+        if name == User.azobject_name():
+            raise ArgumentError('Cannot change default user id')
+        return super().del_default_child_id(name)
