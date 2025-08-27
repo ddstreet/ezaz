@@ -91,11 +91,13 @@ class DefaultConfigNotFound(ConfigNotFound):
 
 
 class AlreadyLoggedIn(EzazException):
-    pass
+    def __init__(self, info):
+        super().__init__(f'You are already logged in as {info}')
 
 
 class AlreadyLoggedOut(EzazException):
-    pass
+    def __init__(self):
+        super().__init__('You are already logged out')
 
 
 class NotLoggedIn(EzazException):
