@@ -22,12 +22,12 @@ class Info(DictNamespace):
         jsonschema.validate(info, self._schema)
 
     # Default to using 'name' as unique id
-    _azobject_id_attr = 'name'
+    _id_attr = 'name'
 
     @property
-    def _azobject_id(self):
-        assert self._azobject_id_attr
-        return operator.attrgetter(self._azobject_id_attr)(self)
+    def _id(self):
+        assert self._id_attr
+        return operator.attrgetter(self._id_attr)(self)
 
     def __str__(self):
         verbose = self._verbose[id(self)]
@@ -35,14 +35,14 @@ class Info(DictNamespace):
             return getattr(self, f'_str{verbose}')
         return self._str3
 
-    _str0_attr = '_azobject_id'
+    _str0_attr = '_id'
 
     @property
     def _str0(self):
         assert self._str0_attr
         return operator.attrgetter(self._str0_attr)(self)
 
-    _str1_attr = '_azobject_id'
+    _str1_attr = '_id'
 
     @property
     def _str1(self):
@@ -74,7 +74,7 @@ class AccountInfo(Info):
         ),
     )
 
-    _azobject_id_attr = 'id'
+    _id_attr = 'id'
     _str0_attr = 'user.name'
 
 
@@ -84,6 +84,10 @@ class ConfigVarInfo(Info):
         source=STR,
         value=STR,
     )
+
+    _id_attr = 'id'
+    _str1_attr = 'source'
+    _str2_attr = 'value'
 
 
 class GroupInfo(Info):
@@ -128,7 +132,12 @@ class ImageGalleryInfo(Info):
         resourceGroup=STR,
         provisioningState=STR,
         type=STR,
+        identifier=OBJ(
+            uniqueName=STR,
+        ),
     )
+
+    _str1_attr = 'identifier.uniqueName'
 
 
 class ImageVersionInfo(Info):
@@ -277,7 +286,7 @@ class StorageKeyInfo(Info):
         creationTime=STR,
     )
 
-    _azobject_id_attr = 'keyName'
+    _id_attr = 'keyName'
 
 
 class UserInfo(Info):
@@ -287,7 +296,7 @@ class UserInfo(Info):
         userPrincipalName=STR,
     )
 
-    _azobject_id_attr = 'id'
+    _id_attr = 'id'
     _str0_attr = 'displayName'
     _str2_attr = 'userPrincipalName'
 

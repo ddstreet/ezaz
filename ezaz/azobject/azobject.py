@@ -311,11 +311,6 @@ class AzObject(CachedAzAction):
         return False
 
     @classmethod
-    def info_id(cls, info):
-        # Most use their 'name' as their obj_id
-        return info.name
-
-    @classmethod
     def info_cache(cls):
         if not hasattr(cls, '_info_cache'):
             cls._info_cache = {}
@@ -564,7 +559,7 @@ class AzSubObjectContainer(AzObject):
     def get_children(self, name, opts={}):
         null_instance = self.get_null_child(name)
         assert isinstance(null_instance, AzListable)
-        return [self.get_child(name, null_instance.info_id(info), info=info)
+        return [self.get_child(name, info._id, info=info)
                 for info in null_instance.list(**opts)]
 
     def filter_azobject_id(self, name, azobject_id, *, prefix=None, suffix=None, regex=None, no_filters=False):
@@ -661,12 +656,12 @@ class AzListable(AzSubObject):
         if not getattr(self.__class__, '_info_cache_complete', False):
             for info in result:
                 assert isinstance(info, Info)
-                self.info_cache()[self.info_id(info)] = info
+                self.info_cache()[info._id] = info
             self.__class__._info_cache_complete = True
 
         return [info for info in result
                 if self.parent.filter_azobject_id(self.azobject_name(),
-                                                  self.info_id(info),
+                                                  info._id,
                                                   prefix=opts.get('filter_prefix'),
                                                   suffix=opts.get('filter_suffix'),
                                                   regex=opts.get('filter_regex'),

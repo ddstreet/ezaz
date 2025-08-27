@@ -206,24 +206,18 @@ class AzObjectInfoHelper:
         return self.azclass.get_null_instance(**opts).list(**opts)
 
     def get_info(self, azobject_id, opts):
-        infos = list(filter(lambda info: self.azclass.info_id(info) == azobject_id, self.get_info_list(opts)))
+        infos = list(filter(lambda info: info._id == azobject_id, self.get_info_list(opts)))
         return infos[0] if infos else None
 
     def get_infoattr(self, info):
-        if not info:
-            return None
-
-        if self.infoattr:
-            return getattr(info, self.infoattr, None)
-        else:
-            return self.azclass.info_id(info)
+        return getattr(info, self.infoattr or '_id', None)
 
 
 class AzObjectCompleter(AzObjectInfoHelper):
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         opts = vars(parsed_args)
         try:
-            return filter(lambda o: o, map(self.get_infoattr, self.get_info_list(opts)))
+            return filter(None, map(self.get_infoattr, self.get_info_list(opts)))
         except Exception as e:
             if opts.get('verbose', 0) > 2:
                 import argcomplete
@@ -398,8 +392,8 @@ class AzObjectArgConfig(ArgConfig):
                          default=None if nodefault else default or AzObjectDefaultId(azclass, infoattr=infoattr),
                          **kwargs)
         self.azclass = azclass
-        self.infoattr = infoattr
-        self.cmdattr = cmdattr
+        self.infoattr = infoattr or '_id'
+        self.cmdattr = cmdattr or '_id'
 
     def _process_value(self, value, opts):
         if self.infoattr == self.cmdattr:
@@ -410,8 +404,8 @@ class AzObjectArgConfig(ArgConfig):
         # lead to an instance of the azobject here
         null_instance = self.azclass.get_null_instance(**opts)
 
-        info_id = (lambda info: getattr(info, self.infoattr, None)) if self.infoattr else self.azclass.info_id
-        infos = [info for info in null_instance.list(**opts) if info_id(info) == value]
+        infos = [info for info in null_instance.list(**opts)
+                 if getattr(info, self.infoattr, None) == value]
 
         if not infos:
             return None

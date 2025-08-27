@@ -10,10 +10,6 @@ class User(AzShowable, AzListable, AzSubObject):
         return ['user']
 
     @classmethod
-    def info_id(cls, info):
-        return info.id
-
-    @classmethod
     def get_parent_class(cls):
         from .account import Account
         return Account

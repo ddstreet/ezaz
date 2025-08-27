@@ -17,7 +17,3 @@ class StorageKey(AzEmulateShowable, AzListable, AzSubObject):
     def get_parent_class(cls):
         from .storageaccount import StorageAccount
         return StorageAccount
-
-    @classmethod
-    def info_id(cls, info):
-        return info.keyName
