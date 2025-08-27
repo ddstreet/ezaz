@@ -5,6 +5,8 @@ from abc import ABC
 from abc import abstractmethod
 from collections import UserDict
 from contextlib import suppress
+from functools import cached_property
+from functools import partial
 from itertools import combinations
 from pathlib import Path
 
@@ -675,3 +677,55 @@ class PositionalArgConfig(ArgConfig):
                       default=self.default,
                       **self._nargs,
                       **self._parser_kwargs)
+
+
+# This allows use of arguments anywhere on the command line; the
+# regular argparse requires arguments (even when using ArgumentParser
+# 'parents') to strictly correspond to each subparser which results in
+# unexpected and unwanted behavior when using nested subparsers.
+class SharedArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, all_shared=False, shared_args=None, **kwargs):
+        self.all_shared = all_shared
+        self.shared_args = shared_args or []
+        super().__init__(*args, **kwargs)
+
+    def add_argument(self, *args, shared=False, **kwargs):
+        if shared or self.all_shared:
+            self.shared_args.append(SharedArgument(*args, **kwargs))
+        return super().add_argument(*args, **kwargs)
+
+    def add_subparsers(self, *args, **kwargs):
+        subparsers = super().add_subparsers(*args, **kwargs)
+        subparsers.add_parser = partial(self._subparsers_add_parser, subparsers.add_parser)
+        return subparsers
+
+    def _subparsers_add_parser(self, add_parser, *args, **kwargs):
+        parser = add_parser(*args, **kwargs)
+        for p in self.shared_args:
+            parser.add_argument(*p.args, **p.kwargs)
+        parser.shared_args.extend(self.shared_args)
+        return parser
+
+    def parse_args(self, args):
+        opts = super().parse_args(args)
+        for p in self.shared_args:
+            p.parse_shared_arg(args, opts)
+        return opts
+
+
+class SharedArgument:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+    def parse_shared_arg(self, args, namespace):
+        import string
+        parser = argparse.ArgumentParser(add_help=False)
+        parser.add_argument(*self.args, **self.kwargs)
+        parser.add_argument(*[a for a in [f'-{l}' for l in string.ascii_letters] if a not in self.args],
+                            action='store_true',
+                            dest='__ignore')
+        ns = parser.parse_known_args(args)[0]
+        for k, v in vars(ns).items():
+            if k != '__ignore':
+                setattr(namespace, k, v)

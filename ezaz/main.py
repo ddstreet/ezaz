@@ -8,14 +8,15 @@ import traceback
 from contextlib import suppress
 
 from .actionutil import ActionConfigGroup
+from .argutil import SharedArgumentParser
 
 
 class Main:
-    def __init__(self, *, args=sys.argv[1:], cmds=None, venv=None, parent_parser=None):
+    def __init__(self, *, args=sys.argv[1:], cmds=None, venv=None, shared_args=None):
         self.args = args
         self.cmds = cmds
         self.venv = venv
-        self.parent_parser = parent_parser
+        self.shared_args = shared_args or []
         self._options = None
 
     def setup_logging(self, options):
@@ -34,26 +35,24 @@ class Main:
         LOGGER.setLevel({0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}.get(options.verbose, logging.NOTSET))
 
     def parse_args(self, args):
-        common_parser = argparse.ArgumentParser(add_help=False)
-        common_parser.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
-        common_parser.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
-        common_parser.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
-        common_parser.add_argument('--configfile', metavar='PATH', help='Path to config file')
-        common_parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
-        common_parser.add_argument('-n', '--dry-run', action='store_true',
-                                   help='For commands other than show/list, only print what would be done, do not run commands')
+        partial_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
+        partial_parser.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
+        partial_parser.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
+        partial_parser.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
+        partial_parser.add_argument('--configfile', metavar='PATH', help='Path to config file')
+        partial_parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
+        partial_parser.add_argument('-n', '--dry-run', action='store_true',
+                                    help='For commands other than show/list, only print what would be done, do not run commands')
 
-        common_options = common_parser.parse_known_args(self.args)[0]
-        self.setup_logging(common_options)
+        self.setup_logging(partial_parser.parse_known_args(self.args)[0])
 
-        parser = argparse.ArgumentParser(prog='ezaz',
-                                         formatter_class=argparse.RawTextHelpFormatter,
-                                         parents=[self.parent_parser, common_parser])
+        parser = SharedArgumentParser(prog='ezaz',
+                                      formatter_class=argparse.RawTextHelpFormatter,
+                                      shared_args=partial_parser.shared_args)
 
         commands = ActionConfigGroup(action='command',
                                      description='Commands',
                                      required=True,
-                                     common_parsers=[self.parent_parser, common_parser],
                                      actionconfigs=[c.get_command_action_config() for c in self.cmds])
         commands.add_to_parser(parser)
 
@@ -82,7 +81,7 @@ class Main:
 
 
 def main():
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = SharedArgumentParser(all_shared=True, add_help=False)
     parser.add_argument('--debug-venv', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--refresh-venv', action='store_true', help=argparse.SUPPRESS)
     options = parser.parse_known_args(sys.argv[1:])[0]
@@ -95,7 +94,7 @@ def main():
         from .exception import EzazException
 
         try:
-            Main(cmds=COMMAND_CLASSES, venv=venv, parent_parser=parser).run()
+            Main(cmds=COMMAND_CLASSES, venv=venv, shared_args=parser.shared_args).run()
             return 0
         except DefaultConfigNotFound as dcnf:
             LOGGER.error(f'ERROR: {dcnf}')
