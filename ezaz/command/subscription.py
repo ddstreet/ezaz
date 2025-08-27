@@ -9,11 +9,6 @@ from .command import AzCommonActionCommand
 
 class SubscriptionCommand(AzCommonActionCommand):
     @classmethod
-    def parent_command_cls(cls):
-        from .account import AccountCommand
-        return AccountCommand
-
-    @classmethod
     def azclass(cls):
         from ..azobject.subscription import Subscription
         return Subscription

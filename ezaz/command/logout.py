@@ -1,7 +1,4 @@
 
-from functools import cached_property
-from types import SimpleNamespace
-
 from .command import SimpleCommand
 
 
@@ -10,10 +7,6 @@ class LogoutCommand(SimpleCommand):
     def command_name_list(cls):
         return ['logout']
 
-    @cached_property
-    def account_command(self):
-        from .account import AccountCommand
-        return AccountCommand(options=SimpleNamespace(**self.opts, action='logout'))
-
-    def run(self):
-        self.account_command.run()
+    def logout(self, **opts):
+        from ..azobject.account import Account
+        return Account.get_instance(**opts).logout(**opts)

@@ -1,10 +1,4 @@
 
-from contextlib import suppress
-
-from ..argutil import ArgMap
-from ..exception import AlreadyLoggedIn
-from ..exception import AlreadyLoggedOut
-from ..exception import NotLoggedIn
 from .command import AzObjectActionCommand
 
 
@@ -13,17 +7,3 @@ class AccountCommand(AzObjectActionCommand):
     def azclass(cls):
         from ..azobject.account import Account
         return Account
-
-    def run_action_config_method(self):
-        with suppress(AlreadyLoggedIn, AlreadyLoggedOut):
-            super().run_action_config_method()
-            return self.account_response()
-        return self.account_response(already=True)
-
-    def account_response(self, already=False):
-        logged = 'Already logged' if already else 'Logged'
-        try:
-            info = self.azobject.info()
-            return f"{logged} in as '{info.user.name}' using subscription '{info.name}' (id {info.id})"
-        except NotLoggedIn:
-            return f"{logged} out"

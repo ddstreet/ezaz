@@ -23,6 +23,19 @@ class User(AzShowable, AzListable, AzSubObject):
         return ['ad']
 
     @classmethod
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.make_action_config('signed_in_user', az='info', description='Show signed-in user')]
+
+    @classmethod
+    def get_signed_in_user_action_cmd(cls):
+        return cls.get_cmd_base() + ['signed-in-user', 'show']
+
+    @classmethod
+    def get_signed_in_user_common_argconfigs(cls, is_parent=False):
+        return []
+
+    @classmethod
     def get_list_action_cmd(cls):
         return cls.get_cmd_base() + ['user', 'list']
 
@@ -34,3 +47,5 @@ class User(AzShowable, AzListable, AzSubObject):
     def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'id'
 
+    def signed_in_user(self, **opts):
+        return self.get_action_config('signed_in_user').do_instance_action(self, opts)

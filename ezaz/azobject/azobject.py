@@ -258,7 +258,7 @@ class AzObject(CachedAzAction):
                            cmd=None,
                            pre=None,
                            post=None,
-                           exception_handler=None,
+                           context_manager=None,
                            custom_action=None,
                            custom_instance_action=None,
                            azaction_class=None,
@@ -279,8 +279,8 @@ class AzObject(CachedAzAction):
             pre = getattr(cls, f'{action}_pre', None)
         if post is None:
             post = getattr(cls, f'{action}_post', None)
-        if exception_handler is None:
-            exception_handler = getattr(cls, f'{action}_exception_handler', None)
+        if context_manager is None:
+            context_manager = getattr(cls, f'{action}_context_manager', None)
         if custom_action is None:
             custom_action = getattr(cls, f'custom_{action}_action', None)
         if custom_instance_action is None:
@@ -296,7 +296,7 @@ class AzObject(CachedAzAction):
                               cmd=cmd,
                               pre=pre,
                               post=post,
-                              exception_handler=exception_handler,
+                              context_manager=context_manager,
                               custom_action=custom_action,
                               custom_instance_action=custom_instance_action,
                               **kwargs)
@@ -603,7 +603,7 @@ class AzShowable(AzObject):
             self.info_cache().setdefault(self.azobject_id, info)
 
     @contextmanager
-    def show_exception_handler(self):
+    def show_context_manager(self):
         try:
             yield
         except AzCommandError as aze:
@@ -764,7 +764,7 @@ class AzActionConfig(ActionConfig):
                  pre=None,
                  instance_opts=None,
                  post=None,
-                 exception_handler=None,
+                 context_manager=None,
                  custom_action=None,
                  custom_instance_action=None,
                  **kwargs):
@@ -776,7 +776,7 @@ class AzActionConfig(ActionConfig):
         self.dry_runnable = dry_runnable
         self.pre = pre or self._noop_pre
         self.post = post or self._noop_post
-        self.exception_handler = exception_handler or self._noop_exception_handler
+        self.context_manager = context_manager or self._noop_context_manager
         self.custom_action = custom_action
         self.custom_instance_action = custom_instance_action
 
@@ -787,7 +787,7 @@ class AzActionConfig(ActionConfig):
         return result
 
     @contextmanager
-    def _noop_exception_handler(self, *args):
+    def _noop_context_manager(self, *args):
         yield
 
     def do_action(self, **opts):
@@ -820,5 +820,5 @@ class AzActionConfig(ActionConfig):
 
         az = getattr(azobject, f'az_{self.az}')
 
-        with self.exception_handler(azobject):
+        with self.context_manager(azobject):
             return self.post(azobject, az(*self.cmd, cmd_args=self.cmd_args(**opts), dry_runnable=self.dry_runnable), opts)

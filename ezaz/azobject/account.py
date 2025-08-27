@@ -31,26 +31,18 @@ class Account(AzShowable, AzSubObjectContainer):
         return [Subscription, User]
 
     @classmethod
-    def get_self_id_argconfig(cls, **kwargs):
-        return []
-
-    @classmethod
-    def get_login_action_config(cls):
-        return cls.make_action_config('login', cmd=['login'], description='Login')
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.make_action_config('login', cmd=['login'], description='Login'),
+                cls.make_action_config('logout', cmd=['logout'], description='Logout')]
 
     @classmethod
     def get_login_action_argconfigs(cls):
         return [FlagArgConfig('use_device_code', help='Instead of opening a browser window, show the URL and code')]
 
     @classmethod
-    def get_logout_action_config(cls):
-        return cls.make_action_config('logout', cmd=['logout'], description='Logout')
-
-    @classmethod
-    def get_action_configs(cls):
-        return [*super().get_action_configs(),
-                cls.get_login_action_config(),
-                cls.get_logout_action_config()]
+    def get_self_id_argconfig(cls, **kwargs):
+        return []
 
     def __init__(self, *, cachedir, configfile, **kwargs):
         super().__init__(cache=Cache(cachedir), config=Config(configfile), **kwargs)
@@ -74,11 +66,11 @@ class Account(AzShowable, AzSubObjectContainer):
         return result
 
     @contextmanager
-    def _disable_subscription_selection(self):
+    def login_context_manager(self):
         v = None
         try:
             with suppress(AzCommandError):
-                v = self.az_info('config', 'get', 'core.login_experience_v2').value
+                v = self.az_info('config', 'get', cmd_args={'core.login_experience_v2': None}).value
             self.az_stdout('config', 'set', 'core.login_experience_v2=off')
             yield
         finally:
@@ -87,26 +79,32 @@ class Account(AzShowable, AzSubObjectContainer):
             elif v:
                 self.az_stdout('config', 'set', f'core.login_experience_v2={v}')
 
-    def login(self, **opts):
+    def login_pre(self, opts):
         if self.is_logged_in:
             raise AlreadyLoggedIn()
 
-        with self._disable_subscription_selection():
-            self.get_login_action_config().do_instance_action(self, opts)
+    def login(self, **opts):
+        self.get_action_config('login').do_instance_action(self, opts)
 
+    def login_post(self, result, opts):
         self._logged_in = True
         with suppress(DefaultConfigNotFound):
             # Switch subscriptions, if needed
             from .subscription import Subscription
             self.set_current_subscription_id(self.get_default_child_id(Subscription.azobject_name()))
+        return result
 
-    def logout(self, **opts):
+    def logout_pre(self, opts):
         if not self.is_logged_in:
             raise AlreadyLoggedOut()
 
-        self.get_logout_action_config().do_instance_action(self, opts)
+    def logout(self, **opts):
+        self.get_action_config('logout').do_instance_action(self, opts)
+
+    def logout_post(self, result, opts):
         self._logged_in = False
         self.info_cache().clear()
+        return result
 
     @property
     def is_logged_in(self):
@@ -130,13 +128,10 @@ class Account(AzShowable, AzSubObjectContainer):
             self.az('account', 'set', cmd_args={'-s': subscription}, dry_runnable=False)
         self.info_cache().clear()
 
-    def signed_in_user_info(self):
-        return self.az_info('ad', 'signed-in-user', 'show')
-
     def get_default_child_id(self, name):
         from .user import User
         if name == User.azobject_name():
-            return User.info_id(self.signed_in_user_info())
+            return User.get_null_instance().signed_in_user()._azobject_id
         return super().get_default_child_id(name)
 
     def set_default_child_id(self, name, value):

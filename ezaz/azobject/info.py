@@ -230,9 +230,7 @@ class StorageKeyInfo(Info):
         creationTime=STR,
     )
 
-    @property
-    def _azobject_id(self):
-        return self.keyName
+    _azobject_id_attr = 'keyName'
 
 
 class StorageContainerInfo(Info):
