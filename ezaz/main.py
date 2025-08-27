@@ -35,25 +35,25 @@ class Main:
 
     def parse_args(self, args):
         common_parser = argparse.ArgumentParser(add_help=False)
-        common_parser.add_argument('--cachedir', help='Path to cache directory')
-        common_parser.add_argument('--configfile', help='Path to config file')
-        common_parser.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
         common_parser.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
+        common_parser.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
+        common_parser.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
+        common_parser.add_argument('--configfile', metavar='PATH', help='Path to config file')
         common_parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
         common_parser.add_argument('-n', '--dry-run', action='store_true',
-                                   help='Only print what would be done, do not run commands (show/list commands are still run)')
+                                   help='For commands other than show/list, only print what would be done, do not run commands')
 
         common_options = common_parser.parse_known_args(self.args)[0]
         self.setup_logging(common_options)
 
-        from .argparse import SharedArgumentParser
-        parser = SharedArgumentParser(prog='ezaz',
-                                      formatter_class=argparse.RawTextHelpFormatter,
-                                      parents=[self.parent_parser, common_parser])
+        parser = argparse.ArgumentParser(prog='ezaz',
+                                         formatter_class=argparse.RawTextHelpFormatter,
+                                         parents=[self.parent_parser, common_parser])
 
         commands = ActionConfigGroup(action='command',
                                      description='Commands',
                                      required=True,
+                                     common_parsers=[self.parent_parser, common_parser],
                                      actionconfigs=[c.get_command_action_config() for c in self.cmds])
         commands.add_to_parser(parser)
 
@@ -64,7 +64,6 @@ class Main:
         options = parser.parse_args(args)
         options.full_args = args
 
-        self.finished_parsing_options = True
         return options
 
     @property

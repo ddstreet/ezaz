@@ -17,6 +17,7 @@ class ActionConfig(ArgUtil, ABC):
         self._argconfigs = argconfigs
         self.parser = None
         self.group_default = False
+        self.common_parsers = []
 
     def __str__(self):
         return (self.action +
@@ -37,7 +38,7 @@ class ActionConfig(ArgUtil, ABC):
 
     def add_to_group(self, group):
         assert self.parser is None
-        self.parser = group.add_parser(self.action, aliases=self.aliases)
+        self.parser = group.add_parser(self.action, aliases=self.aliases, parents=self.common_parsers)
         self.parser.formatter_class = argparse.RawTextHelpFormatter
         self.parser.set_defaults(action_function=self.do_action)
         for argconfig in self.argconfigs:
@@ -49,10 +50,11 @@ class ActionConfig(ArgUtil, ABC):
 
 
 class ActionConfigGroup(ActionConfig):
-    def __init__(self, action, description, *, aliases=None, default=None, required=False, actionconfigs=None):
+    def __init__(self, action, description, *, aliases=None, default=None, required=False, actionconfigs=None, common_parsers=None):
         super().__init__(action, description, aliases=aliases)
         self.required = required
         self.actionconfigs = actionconfigs or []
+        self.common_parsers = common_parsers or []
         self.group = None
         self.default_actionconfig = None
 
@@ -83,6 +85,11 @@ class ActionConfigGroup(ActionConfig):
                                            required=self.required,
                                            metavar='')
         for actionconfig in self.actionconfigs:
+            # The actionconfig is created before passing it to us, so
+            # we have to update it here instead of in the actionconfig
+            # constructor. This works for normal ActionConfigs as well
+            # as sub-ActionConfigGroups.
+            actionconfig.common_parsers += self.common_parsers
             actionconfig.add_to_group(self.group)
 
     def do_action(self, **opts):

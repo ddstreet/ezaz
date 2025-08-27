@@ -14,8 +14,6 @@
 - add full ancestor path of object anme params for commands missing
   them (where currently uses just one object name param)
 
-- change custom argparse to just use 'parent' argparsers instead
-
 - rework (or remove) subscription set-current/get-current
 
 - update Config to be subclassable
