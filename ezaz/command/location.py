@@ -1,8 +1,8 @@
 
-from .command import AzSubObjectActionCommand
+from .command import AzCommonActionCommand
 
 
-class LocationCommand(AzSubObjectActionCommand):
+class LocationCommand(AzCommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         from .subscription import SubscriptionCommand

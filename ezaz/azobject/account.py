@@ -31,7 +31,7 @@ class Account(AzShowable, AzSubObjectContainer):
         return [Subscription, User]
 
     @classmethod
-    def get_self_id_argconfig(cls, is_parent):
+    def get_self_id_argconfig(cls, **kwargs):
         return []
 
     @classmethod

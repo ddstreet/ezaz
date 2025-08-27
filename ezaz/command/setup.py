@@ -16,18 +16,13 @@ from ..exception import ChoiceError
 from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
-from .command import AzObjectActionCommand
+from .command import ActionCommand
 
 
-class SetupCommand(AzObjectActionCommand):
+class SetupCommand(ActionCommand):
     @classmethod
     def command_name_list(cls):
         return ['setup']
-
-    @classmethod
-    def azclass(cls):
-        from ..azobject.account import Account
-        return Account
 
     @classmethod
     def get_action_configs(cls):
@@ -38,7 +33,7 @@ class SetupCommand(AzObjectActionCommand):
     @classmethod
     def get_prompt_action_config(cls):
         return cls.make_action_config('prompt',
-                                      description='Prompt to select the default object, if needed (default)',
+                                      description='Prompt to select the default object, if needed',
                                       argconfigs=cls.get_prompt_action_argconfigs())
 
     @classmethod
@@ -64,7 +59,7 @@ class SetupCommand(AzObjectActionCommand):
 
     @classmethod
     def get_default_action(cls):
-        return 'prompt'
+        return None
 
     @property
     def yes(self):
@@ -90,11 +85,16 @@ class SetupCommand(AzObjectActionCommand):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
 
     @property
+    def _account(self):
+        from ..azobject.account import Account
+        return Account.get_instance(**self.opts)
+
+    @property
     def account(self):
-        if not self.azobject.is_logged_in:
+        if not self._account.is_logged_in:
             print("You are not logged in, so let's log you in first.")
-            self.azobject.login()
-        return self.azobject
+            self._account.login()
+        return self._account
 
     def get_default_child(self, container, name):
         objtype = container.get_child_class(name).azobject_text()

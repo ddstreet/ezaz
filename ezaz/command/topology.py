@@ -67,7 +67,7 @@ class TopologyCommand(AzObjectCommand):
         indent = ' ' * self._indent
         print(f'{indent}{msg}')
 
-    def topology(self):
+    def topology(self, **opts):
         self._indent = 0
         self.show_azobject(self.azobject)
 

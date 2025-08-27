@@ -402,23 +402,31 @@ class AzSubObject(AzObject):
 
     @classmethod
     def get_instance(cls, **opts):
+        with suppress(RequiredArgument):
+            return cls.get_specified_instance(**opts)
+
+        name = cls.azobject_name()
+        parent = cls.get_parent_instance(**opts)
+        opts[name] = parent.get_default_child_id(name)
+        return cls.get_specified_instance(**opts)
+
+    @classmethod
+    def get_specified_instance(cls, **opts):
         if not hasattr(cls, '_instance_cache'):
             cls._instance_cache = {}
 
         name = cls.azobject_name()
         azobject_id = opts.get(name)
+        if not azobject_id:
+            raise RequiredArgument(name)
 
         azobject = cls._instance_cache.get(azobject_id)
         if azobject:
             return azobject
 
         parent = cls.get_parent_instance(**opts)
-        if not azobject_id:
-            azobject_id = parent.get_default_child_id(name)
-
         config = parent.config.get_object(cls.object_key(azobject_id))
         cls._instance_cache[azobject_id] = cls(parent=parent, azobject_id=azobject_id, config=config)
-
         return cls._instance_cache[azobject_id]
 
     @classmethod

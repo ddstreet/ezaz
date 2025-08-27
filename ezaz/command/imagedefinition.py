@@ -1,8 +1,8 @@
 
-from .command import AzSubObjectActionCommand
+from .command import AzCommonActionCommand
 
 
-class ImageDefinitionCommand(AzSubObjectActionCommand):
+class ImageDefinitionCommand(AzCommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         from .imagegallery import ImageGalleryCommand

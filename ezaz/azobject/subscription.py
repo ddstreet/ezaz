@@ -33,14 +33,14 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
         return ['account']
 
     @classmethod
-    def get_self_id_argconfig(cls, is_parent, **kwargs):
+    def get_self_id_argconfig(cls, is_parent=False, help=None, **kwargs):
         return [GroupArgConfig(AzObjectArgConfig('subscription',
                                                  azclass=cls,
-                                                 help=f'Use the specified {cls.azobject_text()}, instead of the default',
+                                                 help=help or f'Use the specified {cls.azobject_text()}, instead of the default',
                                                  **kwargs),
                                AzObjectArgConfig('subscription_name',
                                                  azclass=cls,
                                                  infoattr='name',
-                                                 help=f'Use the specified (by name) {cls.azobject_text()}, instead of the default',
+                                                 help=help or f'Use the specified {cls.azobject_text()}, instead of the default',
                                                  **kwargs),
                                cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent))]

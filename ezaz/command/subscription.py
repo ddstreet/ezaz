@@ -4,10 +4,10 @@ from contextlib import suppress
 from ..argutil import ArgMap
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgumentGroup
-from .command import AzSubObjectActionCommand
+from .command import AzCommonActionCommand
 
 
-class SubscriptionCommand(AzSubObjectActionCommand):
+class SubscriptionCommand(AzCommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         from .account import AccountCommand

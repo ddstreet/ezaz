@@ -1,8 +1,8 @@
 
-from .command import AzSubObjectActionCommand
+from .command import AzCommonActionCommand
 
 
-class VMCommand(AzSubObjectActionCommand):
+class VMCommand(AzCommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         from .resourcegroup import ResourceGroupCommand

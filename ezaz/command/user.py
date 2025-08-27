@@ -1,9 +1,9 @@
 
 from ..argutil import ArgMap
-from .command import AzSubObjectActionCommand
+from .command import AzCommonActionCommand
 
 
-class UserCommand(AzSubObjectActionCommand):
+class UserCommand(AzCommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         from .account import AccountCommand

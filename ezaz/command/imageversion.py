@@ -8,10 +8,10 @@ from ..argutil import X509DERFileArgConfig
 from ..deployment.imageversion import ImageVersionTemplate
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgument
-from .command import AzSubObjectActionCommand
+from .command import AzCommonActionCommand
 
 
-class ImageVersionCommand(AzSubObjectActionCommand):
+class ImageVersionCommand(AzCommonActionCommand):
     @classmethod
     def parent_command_cls(cls):
         from .imagedefinition import ImageDefinitionCommand
