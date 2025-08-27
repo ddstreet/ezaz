@@ -8,21 +8,8 @@ from .requiredpackage import RequiredPackage
 
 
 LOGGER = logging.getLogger(__name__)
-AZ_TRACE_LOGGER = logging.getLogger(f'{__name__}.AZ')
-LOG_VERBOSE_MIN = logging.INFO
-LOG_VERBOSE_MAX = logging.DEBUG
-LOG_LEVEL_V0 = LOG_VERBOSE_MIN
-LOG_LEVEL_V1 = LOG_VERBOSE_MIN - 1
-LOG_LEVEL_V2 = LOG_VERBOSE_MIN - 2
-LOG_LEVEL_V3 = LOG_VERBOSE_MIN - 3
-LOG_LEVEL_V4 = LOG_VERBOSE_MIN - 4
-LOG_LEVEL_V5 = LOG_VERBOSE_MAX
-LOG_V0 = lambda *args, **kwargs: LOGGER.log(LOG_LEVEL_V0, *args, **kwargs)
-LOG_V1 = lambda *args, **kwargs: LOGGER.log(LOG_LEVEL_V1, *args, **kwargs)
-LOG_V2 = lambda *args, **kwargs: LOGGER.log(LOG_LEVEL_V2, *args, **kwargs)
-LOG_V3 = lambda *args, **kwargs: LOGGER.log(LOG_LEVEL_V3, *args, **kwargs)
-LOG_V4 = lambda *args, **kwargs: LOGGER.log(LOG_LEVEL_V4, *args, **kwargs)
-LOG_V5 = lambda *args, **kwargs: LOGGER.log(LOG_LEVEL_V5, *args, **kwargs)
+AZ_LOGGER = logging.getLogger(f'{__name__}.AZ')
+IMPORTCLASSES_LOGGER = logging.getLogger(f'{__name__}.IMPORTCLASSES')
 
 DEFAULT_CONFIGPATH = Path(os.environ.get('XDG_CONFIG_HOME', '~/.config')) / 'ezaz'
 DEFAULT_CACHEPATH = Path(os.environ.get('XDG_CACHE_HOME', '~/.cache')) / 'ezaz'

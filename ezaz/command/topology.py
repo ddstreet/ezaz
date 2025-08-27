@@ -29,7 +29,7 @@ class TopologyCommand(AzObjectCommand):
         ignore_default = ['location', 'role_definition', 'role_assignment', 'storage_key']
 
         return [*super().get_simple_command_argconfigs(),
-                *chain(*[c.get_self_id_argconfig(help=f'Show only specified {c.azobject_text()}') for c in classes]),
+                *chain(*[c.get_self_id_argconfigs(help=f'Show only specified {c.azobject_text()}') for c in classes]),
                 BoolArgConfig('defaults_only', help='Only show the default objects'),
                 GroupArgConfig(ChoicesArgConfig('ignore',
                                                 multiple=True,

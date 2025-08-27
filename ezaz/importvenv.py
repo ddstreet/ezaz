@@ -16,17 +16,17 @@ DEFAULT_VENVDIR = DEFAULT_CONFIGPATH / 'venv'
 
 
 class ImportVenv:
-    def __init__(self, *, venvdir=DEFAULT_VENVDIR, required_packages=REQUIRED_PACKAGES, verbose=False, refresh=False):
+    def __init__(self, *, venvdir=DEFAULT_VENVDIR, required_packages=REQUIRED_PACKAGES, debug=False, refresh=False):
         self.venvdir = Path(venvdir).expanduser().resolve()
-        self.verbose = verbose
+        self.debug = debug
 
         if self.need_refresh(refresh) and not self.is_argcomplete:
             # We want to be verbose during initial creation (usually first run of ezaz), or during a refresh
-            self.verbose = True
+            self.debug = True
             recreated = 'recreated' if self.venvdir.is_dir() else 'created'
-            print(f'Virtual environment needs to be {recreated}, please wait...', end='', flush=True)
+            self.log(f'Virtual environment needs to be {recreated}, please wait...', end='', flush=True)
             venv.create(str(self.venvdir), clear=refresh, with_pip=True)
-            print('done.')
+            self.log('done.')
 
         self.system_packages = []
         self.venv_packages = []
@@ -47,9 +47,10 @@ class ImportVenv:
                 not self.venvdir.joinpath('bin').joinpath('pip').exists() or
                 not self.venvdir.joinpath('bin').joinpath('python').exists())
 
-    def log(self, msg):
-        if self.verbose:
-            print(msg)
+    def log(self, *args, **kwargs):
+        if self.debug:
+            # We use print because we haven't set up logging yet
+            print(*args, **kwargs)
 
     @property
     def bindir(self):
@@ -69,7 +70,7 @@ class ImportVenv:
         if len(paths) == 1:
             return Path(paths[0])
         if len(paths) > 2:
-            raise RuntimeError('multiple venv python site-packages dirs found, try refreshing the venv')
+            raise RuntimeError('multiple venv python site-packages dirs found, try refreshing the venv with --refresh-venv')
 
     def pythonpackagedir(self, package):
         return self.sitepackagesdir / package.replace('-', '/')

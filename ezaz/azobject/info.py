@@ -78,59 +78,12 @@ class AccountInfo(Info):
     _str0_attr = 'user.name'
 
 
-class UserInfo(Info):
-    _schema = OBJ(
-        id=STR,
-        displayName=STR,
-        userPrincipalName=STR,
-    )
-
-    _azobject_id_attr = 'id'
-    _str0_attr = 'displayName'
-    _str2_attr = 'userPrincipalName'
-
-
-class RoleDefinitionInfo(Info):
-    _schema = OBJ(
-        id=STR,
-        name=STR,
-        roleName=STR,
-        roleType=STR,
-    )
-
-    _str0_attr = 'roleName'
-    _str1_attr = 'name'
-
-
-class RoleAssignmentInfo(Info):
-    _schema = OBJ(
-        id=STR,
-        name=STR,
-    )
-
-    _str0_attr = 'roleDefinitionName'
-    _str1_attr = 'name'
-
-
 class ConfigVarInfo(Info):
     _schema = OBJ(
         name=STR,
         source=STR,
         value=STR,
     )
-
-
-class LocationInfo(Info):
-    _schema = OBJ(
-        id=STR,
-        name=STR,
-        displayName=STR,
-        regionalDisplayName=STR,
-        type=STR,
-    )
-
-    _str0_attr = 'displayName'
-    _str1_attr = 'name'
 
 
 class GroupInfo(Info):
@@ -142,17 +95,6 @@ class GroupInfo(Info):
             OBJ(),
             NULL,
         ),
-    )
-
-
-class ImageGalleryInfo(Info):
-    _schema = OBJ(
-        id=STR,
-        name=STR,
-        location=STR,
-        resourceGroup=STR,
-        provisioningState=STR,
-        type=STR,
     )
 
 
@@ -175,6 +117,17 @@ class ImageDefinitionInfo(Info):
             OBJ(),
             NULL,
         ),
+    )
+
+
+class ImageGalleryInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        location=STR,
+        resourceGroup=STR,
+        provisioningState=STR,
+        type=STR,
     )
 
 
@@ -204,6 +157,76 @@ class ImageVersionInfo(Info):
     )
 
 
+class LocationInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        displayName=STR,
+        regionalDisplayName=STR,
+        type=STR,
+    )
+
+    _str0_attr = 'displayName'
+    _str1_attr = 'name'
+
+
+class RoleAssignmentInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+    )
+
+    _str0_attr = 'roleDefinitionName'
+    _str1_attr = 'name'
+
+
+class RoleDefinitionInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        roleName=STR,
+        roleType=STR,
+    )
+
+    _str0_attr = 'roleName'
+    _str1_attr = 'name'
+
+
+class SkuInfo(Info):
+    _schema = OBJ(['name', 'resourceType', 'locations'],
+        name=STR,
+        resourceType=STR,
+        locations=ARRY(
+            STR,
+        ),
+        locationInfo=ARRY(
+            OBJ(
+                location=STR,
+            ),
+        ),
+        capabilities=ARRY(
+            OBJ(
+                name=STR,
+                value=STR,
+            ),
+        ),
+    )
+
+
+class SshKeyInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        location=STR,
+        publicKey=STR,
+        resourceGroup=STR,
+        tags=ANY(
+            OBJ(),
+            NULL,
+        ),
+    )
+
+
 class StorageAccountInfo(Info):
     _schema = OBJ(
         id=STR,
@@ -219,23 +242,6 @@ class StorageAccountInfo(Info):
             OBJ(),
             NULL,
         ),
-    )
-
-
-class StorageKeyInfo(Info):
-    _schema = OBJ(
-        keyName=STR,
-        value=STR,
-        permissions=STR,
-        creationTime=STR,
-    )
-
-    _azobject_id_attr = 'keyName'
-
-
-class StorageContainerInfo(Info):
-    _schema = OBJ(
-        name=STR,
     )
 
 
@@ -257,18 +263,33 @@ class StorageBlobInfo(Info):
     )
 
 
-class SshKeyInfo(Info):
+class StorageContainerInfo(Info):
+    _schema = OBJ(
+        name=STR,
+    )
+
+
+class StorageKeyInfo(Info):
+    _schema = OBJ(
+        keyName=STR,
+        value=STR,
+        permissions=STR,
+        creationTime=STR,
+    )
+
+    _azobject_id_attr = 'keyName'
+
+
+class UserInfo(Info):
     _schema = OBJ(
         id=STR,
-        name=STR,
-        location=STR,
-        publicKey=STR,
-        resourceGroup=STR,
-        tags=ANY(
-            OBJ(),
-            NULL,
-        ),
+        displayName=STR,
+        userPrincipalName=STR,
     )
+
+    _azobject_id_attr = 'id'
+    _str0_attr = 'displayName'
+    _str2_attr = 'userPrincipalName'
 
 
 class VMInfo(Info):
@@ -417,6 +438,7 @@ INFOS = DictNamespace({
         'create': VMInfo,
         'show': VMInfo,
         'list': IL(VMInfo),
+        'list-skus': IL(SkuInfo),
         'get-instance-view': VMInstanceInfo,
     },
 })

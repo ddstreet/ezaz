@@ -1,10 +1,20 @@
 
-- add classes for:
-  az vm list-skus (and/or az vm list-sizes)
-  az vm image list-* (publisher,offer,sku,etc)
+- finish updating info.py list
+
+- remove 'info_id' and directly use info.azobject_id instead
+
+- add per-action configuration of caching
+
+- add class for: az vm list-skus (and/or az vm list-sizes)
+
+- add classes for: az vm image list-* (publisher,offer,sku,etc)
+
+- change 'user' to 'account', since current 'account' is actually just 'subscription'
 
 - add full ancestor path of object anme params for commands missing
   them (where currently uses just one object name param)
+
+- change custom argparse to just use 'parent' argparsers instead
 
 - rework (or remove) subscription set-current/get-current
 

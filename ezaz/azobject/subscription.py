@@ -26,14 +26,15 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
         from .resourcegroup import ResourceGroup
         from .roleassignment import RoleAssignment
         from .roledefinition import RoleDefinition
-        return [ResourceGroup, RoleAssignment, RoleDefinition, Location]
+        from .sku import Sku
+        return [Location, ResourceGroup, RoleAssignment, RoleDefinition, Sku]
 
     @classmethod
     def get_cmd_base(cls):
         return ['account']
 
     @classmethod
-    def get_self_id_argconfig(cls, is_parent=False, help=None, **kwargs):
+    def get_self_id_argconfigs(cls, is_parent=False, help=None, **kwargs):
         return [GroupArgConfig(AzObjectArgConfig('subscription',
                                                  azclass=cls,
                                                  help=help or f'Use the specified {cls.azobject_text()}, instead of the default',

@@ -37,11 +37,9 @@ class SubclassImporter:
             self._indent -= 2
 
     def debug(self, msg, arrow=False):
-        import logging
-        from . import LOGGER
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            indent = ('>' if arrow else ' ') * self._indent
-            LOGGER.debug(f'{indent}{msg}')
+        from . import IMPORTCLASSES_LOGGER
+        indent = ('>' if arrow else ' ') * self._indent
+        IMPORTCLASSES_LOGGER.debug(f'{indent}{msg}')
 
     def conditional_debug(self, condition, msg, alt):
         self.debug(msg if condition else alt)

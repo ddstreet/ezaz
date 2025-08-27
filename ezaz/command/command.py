@@ -15,7 +15,6 @@ from contextlib import suppress
 from functools import cached_property
 from types import SimpleNamespace
 
-from .. import LOG_V0
 from ..actionutil import ActionConfig
 from ..actionutil import ActionConfigGroup
 from ..argutil import ArgConfig
@@ -176,7 +175,7 @@ class AzDefaultable(AzObjectActionCommand):
         return cls.make_action_config('set',
                                       func='set_default',
                                       description='Set default',
-                                      argconfigs=[*cls.azclass().get_self_id_argconfig(help='Default {cls.azclass().azobject_text()} id to set'),
+                                      argconfigs=[*cls.azclass().get_self_id_argconfigs(help='Default {cls.azclass().azobject_text()} id to set'),
                                                   BoolArgConfig('force', help='Set the default even if the object does not exist')])
 
     @classmethod
@@ -326,9 +325,9 @@ class CommandActionConfig(ActionConfig):
         result = self._do_action(**opts)
         if isinstance(result, list):
             for r in result:
-                LOG_V0(r)
+                print(r)
         elif result:
-            LOG_V0(result)
+            print(result)
 
     def cmd_opts(self, **opts):
         return self._args_to_opts(**self.cmd_args(**opts))

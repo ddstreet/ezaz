@@ -42,7 +42,7 @@ class Account(AzShowable, AzSubObjectContainer):
         return [FlagArgConfig('use_device_code', help='Instead of opening a browser window, show the URL and code')]
 
     @classmethod
-    def get_self_id_argconfig(cls, **kwargs):
+    def get_self_id_argconfigs(cls, **kwargs):
         return []
 
     def __init__(self, *, cachedir, configfile, **kwargs):

@@ -14,9 +14,7 @@ from functools import cache
 from functools import cached_property
 from itertools import chain
 
-from .. import AZ_TRACE_LOGGER
-from .. import LOG_V0
-from .. import LOG_V1
+from .. import AZ_LOGGER
 from .. import LOGGER
 from ..actionutil import ActionConfig
 from ..argutil import ArgConfig
@@ -95,8 +93,7 @@ class AzAction(ArgUtil, ABC):
     def _read_stdout_line(self, process):
         if process.stdout:
             line = process.stdout.readline()
-            if self.verbose >= 2:
-                AZ_TRACE_LOGGER.info(line.rstrip())
+            AZ_LOGGER.debug(line.rstrip())
             return line
         return ''
 
@@ -112,10 +109,10 @@ class AzAction(ArgUtil, ABC):
     def _exec(self, *args, cmd_args={}, dry_runnable=True, text=True, capture_output=False):
         cmd = self._args_to_cmd(*args, cmd_args=cmd_args)
 
-        AZ_TRACE_LOGGER.info(' '.join(cmd))
+        AZ_LOGGER.info(' '.join(cmd))
 
         if self.dry_run and not dry_runnable:
-            LOG_V1(f'DRY-RUN (not running): {" ".join(cmd)}')
+            LOGGER.warning(f'DRY-RUN (not running): {" ".join(cmd)}')
             return ('', '')
 
         process = subprocess.Popen(cmd,
@@ -221,10 +218,10 @@ class AzObject(CachedAzAction):
 
     @classmethod
     def get_common_argconfigs(cls, is_parent=False):
-        return cls.get_self_id_argconfig(is_parent=is_parent)
+        return cls.get_self_id_argconfigs(is_parent=is_parent)
 
     @classmethod
-    def get_self_id_argconfig(cls, is_parent=False, help=None, **kwargs):
+    def get_self_id_argconfigs(cls, is_parent=False, help=None, **kwargs):
         return [AzObjectArgConfig(cls.azobject_name(),
                                   cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent),
                                   azclass=cls,
@@ -797,9 +794,9 @@ class AzActionConfig(ActionConfig):
             result = self._do_action(**opts)
         if isinstance(result, list):
             for r in result:
-                LOG_V0(r)
+                print(r)
         elif result:
-            LOG_V0(result)
+            print(result)
 
     def _do_action(self, **opts):
         if self.is_action('create') or self.is_action('delete'):

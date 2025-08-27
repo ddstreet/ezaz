@@ -21,5 +21,5 @@ class DirectCommand(SimpleCommand):
         from ..azobject.direct import DirectAction
         return DirectAction(verbose=self.verbose, dry_run=self.dry_run)
 
-    def az(self):
-        self.direct.az(self.options.command, *self.options.args)
+    def az(self, command, args=[], **opts):
+        self.direct.az(command, *args)

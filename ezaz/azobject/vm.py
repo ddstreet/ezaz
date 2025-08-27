@@ -56,10 +56,11 @@ class VM(AzCommonActionable, AzSubObject):
         from .imagegallery import ImageGallery
         from .imagedefinition import ImageDefinition
         from .imageversion import ImageVersion
+        from .sku import Sku
         from .sshkey import SshKey
         from .storageaccount import StorageAccount
-        return [*ImageGallery.get_self_id_argconfig(is_parent=True, noncmd=True),
-                *ImageDefinition.get_self_id_argconfig(is_parent=True, noncmd=True),
+        return [*ImageGallery.get_self_id_argconfigs(is_parent=True, noncmd=True),
+                *ImageDefinition.get_self_id_argconfigs(is_parent=True, noncmd=True),
                 GroupArgConfig(ArgConfig('image',
                                          help='Deploy the provided full image id'),
                                AzObjectArgConfig('latest_image_version',
@@ -77,9 +78,10 @@ class VM(AzCommonActionable, AzSubObject):
                                                   help='Deploy the specified distro'),
                                required=True,
                                cmddest='image'),
-                ArgConfig('instance_type',
-                          dest='size',
-                          help='TODO'),
+                AzObjectArgConfig('instance_type',
+                                  azclass=Sku,
+                                  dest='size',
+                                  help=''),
                 ArgConfig('username',
                           dest='admin_username',
                           default=getpass.getuser(),
