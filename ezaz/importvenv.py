@@ -20,7 +20,7 @@ class ImportVenv:
         self.venvdir = Path(venvdir).expanduser().resolve()
         self.verbose = verbose
 
-        if not all((not refresh, self.venvdir.is_dir(), self.venvdir.joinpath('bin').joinpath('pip').exists(), self.venvdir.joinpath('bin').joinpath('python').exists())):
+        if self.need_refresh(refresh) and not self.is_argcomplete:
             # We want to be verbose during initial creation (usually first run of ezaz), or during a refresh
             self.verbose = True
             recreated = 'recreated' if self.venvdir.is_dir() else 'created'
@@ -36,6 +36,16 @@ class ImportVenv:
                 self.system_packages.append(p)
             else:
                 self.venv_packages.append(p)
+
+    @property
+    def is_argcomplete(self):
+        return '_ARGCOMPLETE' in os.environ.keys()
+
+    def need_refresh(self, refresh):
+        return (refresh or
+                not self.venvdir.is_dir() or
+                not self.venvdir.joinpath('bin').joinpath('pip').exists() or
+                not self.venvdir.joinpath('bin').joinpath('python').exists())
 
     def log(self, msg):
         if self.verbose:
@@ -65,6 +75,9 @@ class ImportVenv:
         return self.sitepackagesdir / package.replace('-', '/')
 
     def run_pip(self, package):
+        if self.is_argcomplete:
+            return
+
         # We explicitly print everything here, as it might take a while
         print(f'Installing package in virtual environment: {package}')
         process = subprocess.Popen(['pip', 'install', '-v', package], stdout=subprocess.PIPE, bufsize=1, text=True)
