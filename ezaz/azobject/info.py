@@ -185,9 +185,6 @@ class RoleAssignmentInfo(Info):
         name=STR,
     )
 
-    _str0_attr = 'roleDefinitionName'
-    _str1_attr = 'name'
-
 
 class RoleDefinitionInfo(Info):
     _schema = OBJ(
@@ -277,6 +274,8 @@ class StorageContainerInfo(Info):
         name=STR,
     )
 
+    _str2_attr = 'name'
+
 
 class StorageKeyInfo(Info):
     _schema = OBJ(
@@ -287,6 +286,7 @@ class StorageKeyInfo(Info):
     )
 
     _id_attr = 'keyName'
+    _str2_attr = '_id'
 
 
 class UserInfo(Info):
@@ -321,6 +321,8 @@ class VMInfo(Info):
             NULL,
         ),
     )
+
+    _str1_attr = 'vmId'
 
 
 class VMInstanceInfo(Info):
@@ -366,6 +368,8 @@ class VMInstanceInfo(Info):
         timeCreated=STR,
         vmId=STR,
     )
+
+    _str1_attr = 'vmId'
 
 
 def IL(info):

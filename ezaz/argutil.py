@@ -686,8 +686,13 @@ class PositionalArgConfig(ArgConfig):
 class SharedArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, all_shared=False, shared_args=None, **kwargs):
         self.all_shared = all_shared
-        self.shared_args = shared_args or []
         super().__init__(*args, **kwargs)
+        for a in shared_args or []:
+            self.add_argument(*a.args, shared=True, **a.kwargs)
+
+    @cached_property
+    def shared_args(self):
+        return []
 
     def add_argument(self, *args, shared=False, **kwargs):
         if shared or self.all_shared:
@@ -717,6 +722,11 @@ class SharedArgument:
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
+
+    def __repr__(self):
+        args_str = ', '.join(self.args)
+        kwargs_str = ', '.join([f'{k}={v}' for k, v in self.kwargs.items()])
+        return f'{self.__class__.__name__}({", ".join([args_str, kwargs_str])})'
 
     def parse_shared_arg(self, args, namespace):
         import string

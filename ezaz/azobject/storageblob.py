@@ -4,6 +4,7 @@ from ..argutil import ChoicesArgConfig
 from ..argutil import DateTimeArgConfig
 from ..argutil import FlagArgConfig
 from ..argutil import ArgMap
+from ..exception import AzObjectExists
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 
@@ -65,6 +66,14 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         if not opts.get(cls.azobject_name()):
             opts[cls.azobject_name()] = opts.get('file')
         return actioncfg._do_action(**opts)
+
+    def create_pre(self, opts):
+        try:
+            return super().create_pre(opts)
+        except AzObjectExists:
+            if opts.get('overwrite'):
+                return None
+            raise
 
     @classmethod
     def get_download_action_argconfigs(cls):

@@ -689,6 +689,9 @@ class AzCreatable(AzObject):
         return f'Create a {cls.azobject_text()}'
 
     def create_pre(self, opts):
+        if not opts.get(self.azobject_name()):
+            # Need to explicitly specify id
+            raise RequiredArgument(self.azobject_name(), 'create')
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
         return None
@@ -711,6 +714,9 @@ class AzDeletable(AzObject):
         return f'Delete a {cls.azobject_text()}'
 
     def delete_pre(self, opts):
+        if not opts.get(self.azobject_name()):
+            # Need to explicitly specify id
+            raise RequiredArgument(self.azobject_name(), 'delete')
         if not self.exists:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
         return None
@@ -794,10 +800,6 @@ class AzActionConfig(ActionConfig):
             print(result)
 
     def _do_action(self, **opts):
-        if self.is_action('create') or self.is_action('delete'):
-            if not opts.get(self.azclass.azobject_name()):
-                raise RequiredArgument(self.azclass.azobject_name(), self.action)
-
         return self.do_instance_action(self.get_instance(**opts), opts)
 
     def do_instance_action(self, azobject, opts):

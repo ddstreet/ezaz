@@ -36,6 +36,7 @@ class Main:
 
     def parse_args(self, args):
         partial_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
+        partial_parser.add_argument('--debug-parser', action='store_true', help=argparse.SUPPRESS)
         partial_parser.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
         partial_parser.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
         partial_parser.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
@@ -62,6 +63,11 @@ class Main:
 
         options = parser.parse_args(args)
         options.full_args = args
+
+        if options.debug_parser:
+            for k, v in vars(options).items():
+                print(f'{k}: {v}')
+            sys.exit(1)
 
         return options
 

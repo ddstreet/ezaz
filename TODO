@@ -1,8 +1,4 @@
 
-- finish updating info.py list
-
-- remove 'info_id' and directly use info.azobject_id instead
-
 - add per-action configuration of caching
 
 - add class for: az vm list-skus (and/or az vm list-sizes)

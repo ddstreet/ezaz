@@ -67,7 +67,14 @@ class ActionConfigGroup(ActionConfig):
 
     @property
     def argconfigs(self):
-        return self.default_actionconfig.argconfigs if self.default_actionconfig else []
+        if not self.default_actionconfig:
+            return []
+
+        for argconfig in self.default_actionconfig.argconfigs:
+            if argconfig.required:
+                raise ArgumentError(f'Default ActionConfig {self.default_actionconfig.action} has required argument {argconfig.parser_argname}')
+
+        return self.default_actionconfig.argconfigs
 
     @property
     def group_description(self):

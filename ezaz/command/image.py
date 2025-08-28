@@ -27,7 +27,7 @@ class ImageCommand(ActionCommand):
 
     @classmethod
     def get_default_action(cls):
-        return 'create'
+        return None
 
     @classmethod
     def get_create_action_argconfigs(cls):
@@ -39,8 +39,9 @@ class ImageCommand(ActionCommand):
         from ..azobject.storagecontainer import StorageContainer
         return [ArgConfig('f', 'file', required=True, help='VHD file'),
                 ArgConfig('version', help='Image version'),
+                BoolArgConfig('overwrite',
+                              help='Overwrite existing storage blob (will not overwrite image version)'),
                 BoolArgConfig('uefi_extend',
-                              noncmd=True,
                               help='Add, instead of replacing, the UEFI certs'),
                 X509DERFileArgConfig('uefi_pk',
                                      dest='pk',
@@ -72,16 +73,18 @@ class ImageCommand(ActionCommand):
             raise RequiredArgument('version', 'create')
 
         from ..azobject.storageblob import StorageBlob
-        blob = StorageBlob.get_instance(storage_blob=filename, **opts)
+        opts['storage_blob'] = filename
+        blob = StorageBlob.get_instance(**opts)
         blob.create(**opts)
 
         from ..azobject.imageversion import ImageVersion
-        iv = ImageVersion.get_instance(image_version=version, **opts)
         opts['storage_account'] = blob.parent.parent.azobject_id
-        iv.create(storage_blob=blob.azobject_id, **opts)
+        opts['image_version'] = version
+        iv = ImageVersion.get_instance(**opts)
+        iv.create(**opts)
 
     def parse_file_version(self, filename):
-        match = re.search(r'\d+\.\d+\.\d+', filename)
+        match = re.search(r'(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<release>\d+))?', filename)
         if match:
-            return match.group(0)
+            return f"{match['major']}.{match['minor']}.{match['release'] or '0'}"
         return None
