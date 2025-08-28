@@ -12,6 +12,10 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
         return ['subscription']
 
     @classmethod
+    def get_cmd_base(cls):
+        return ['account']
+
+    @classmethod
     def get_parent_class(cls):
         from .account import Account
         return Account
@@ -24,10 +28,6 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
         from .roledefinition import RoleDefinition
         from .sku import Sku
         return [Location, ResourceGroup, RoleAssignment, RoleDefinition, Sku]
-
-    @classmethod
-    def get_cmd_base(cls):
-        return ['account']
 
     @classmethod
     def get_self_id_argconfigs(cls, is_parent=False, help=None, **kwargs):

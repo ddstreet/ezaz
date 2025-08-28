@@ -176,7 +176,51 @@ class LocationInfo(Info):
     )
 
     _str0_attr = 'displayName'
-    _str1_attr = 'name'
+
+
+class MarketplaceImageVersionInfo(Info):
+    _schema = OBJ(
+        publisher=STR,
+        offer=STR,
+        sku=STR,
+        version=STR,
+        urn=STR,
+        architecture=STR,
+    )
+
+    _id_attr = 'version'
+    _str1_attr = 'architecture'
+    _str2_attr = 'urn'
+
+
+class MarketplaceOfferInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        location=STR,
+    )
+
+    _str1_attr = 'location'
+
+
+class MarketplacePublisherInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        location=STR,
+    )
+
+    _str1_attr = 'location'
+
+
+class MarketplaceSkuInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        location=STR,
+    )
+
+    _str1_attr = 'location'
 
 
 class RoleAssignmentInfo(Info):
@@ -196,27 +240,6 @@ class RoleDefinitionInfo(Info):
 
     _str0_attr = 'roleName'
     _str1_attr = 'name'
-
-
-class SkuInfo(Info):
-    _schema = OBJ(['name', 'resourceType', 'locations'],
-        name=STR,
-        resourceType=STR,
-        locations=ARRY(
-            STR,
-        ),
-        locationInfo=ARRY(
-            OBJ(
-                location=STR,
-            ),
-        ),
-        capabilities=ARRY(
-            OBJ(
-                name=STR,
-                value=STR,
-            ),
-        ),
-    )
 
 
 class SshKeyInfo(Info):
@@ -372,6 +395,27 @@ class VMInstanceInfo(Info):
     _str1_attr = 'vmId'
 
 
+class VMSkuInfo(Info):
+    _schema = OBJ(['name', 'resourceType', 'locations'],
+        name=STR,
+        resourceType=STR,
+        locations=ARRY(
+            STR,
+        ),
+        locationInfo=ARRY(
+            OBJ(
+                location=STR,
+            ),
+        ),
+        capabilities=ARRY(
+            OBJ(
+                name=STR,
+                value=STR,
+            ),
+        ),
+    )
+
+
 def IL(info):
     return lambda infos, verbose=0: [info(i, verbose=verbose) for i in infos]
 
@@ -449,9 +493,15 @@ INFOS = DictNamespace({
     },
     'vm': {
         'create': VMInfo,
+        'image': {
+            'list': IL(MarketplaceImageVersionInfo),
+            'list-offers': IL(MarketplaceOfferInfo),
+            'list-publishers': IL(MarketplacePublisherInfo),
+            'list-skus': IL(MarketplaceSkuInfo),
+        },
         'show': VMInfo,
         'list': IL(VMInfo),
-        'list-skus': IL(SkuInfo),
+        'list-skus': IL(VMSkuInfo),
         'get-instance-view': VMInstanceInfo,
     },
 })
