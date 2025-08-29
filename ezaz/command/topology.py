@@ -53,21 +53,21 @@ class TopologyCommand(AzObjectCommand):
             self._indent -= 2
 
     @property
+    def tab(self):
+        return ' ' * self._indent
+
+    @property
     def ignore(self):
         if self.options.ignore_none:
             return []
         return self.options.ignore or self.options.ignore_also
-
-    def show(self, msg):
-        indent = ' ' * self._indent
-        print(f'{indent}{msg}')
 
     def topology(self, **opts):
         self._indent = 0
         self.show_azobject(self.azobject)
 
     def show_azobject(self, azobject):
-        self.show(f'{azobject.__class__.__name__}: {azobject}')
+        print(f'{self.tab}{azobject.__class__.__name__}: {azobject}')
         if not azobject.has_child_classes():
             return
         for subcls in azobject.get_child_classes():

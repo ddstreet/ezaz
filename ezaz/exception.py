@@ -4,10 +4,6 @@ class EzazException(Exception):
     pass
 
 
-class NoActionConfigMethod(EzazException):
-    pass
-
-
 class NoDefaultAction(EzazException):
     pass
 

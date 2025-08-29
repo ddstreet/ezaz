@@ -23,10 +23,6 @@ from ..argutil import ArgUtil
 from ..argutil import BoolArgConfig
 from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
-from ..exception import DefaultConfigNotFound
-from ..exception import NoActionConfigMethod
-from ..exception import NoDefaultAction
-from ..exception import NotLoggedIn
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
 
@@ -156,86 +152,6 @@ class AzObjectActionCommand(AzObjectCommand, ActionCommand):
         return AzObjectCommandActionConfig(azactioncfg.action, cls, azactioncfg, **kwargs)
 
 
-class AzDefaultable(AzObjectActionCommand):
-    @classmethod
-    def get_action_configs(cls):
-        return [*super().get_action_configs(),
-                cls.get_default_action_config()]
-
-    @classmethod
-    def get_default_action_config(cls):
-        return ActionConfigGroup('default',
-                                 description=f'Configure the default {cls.azclass().azobject_text()}',
-                                 actionconfigs=[cls.get_default_set_action_config(),
-                                                cls.get_default_unset_action_config(),
-                                                cls.get_default_get_action_config()])
-
-    @classmethod
-    def get_default_set_action_config(cls):
-        return cls.make_action_config('set',
-                                      func='set_default',
-                                      description='Set default',
-                                      argconfigs=[*cls.azclass().get_self_id_argconfigs(help='Default {cls.azclass().azobject_text()} id to set'),
-                                                  BoolArgConfig('force', help='Set the default even if the object does not exist')])
-
-    @classmethod
-    def get_default_unset_action_config(cls):
-        return cls.make_action_config('unset',
-                                      func='unset_default',
-                                      description='Unset default',
-                                      argconfigs=[])
-
-    @classmethod
-    def get_default_get_action_config(cls):
-        return cls.make_action_config('get',
-                                      func='get_default',
-                                      description='Get/show default',
-                                      argconfigs=[])
-
-    def set_default(self, force=False, **opts):
-        name = self.azclass().azobject_name()
-        text = self.azclass().azobject_text()
-        azobject = self.azclass().get_specified_instance(**opts)
-
-        try:
-            old_default_id = azobject.parent.get_default_child_id(name)
-        except DefaultConfigNotFound:
-            old_default_id = None
-
-        if old_default_id == azobject.azobject_id:
-            return f'Default {text} is already: {old_default_id}'
-
-        new_obj_text = f'{text}: {azobject.azobject_id}'
-
-        if not azobject.exists:
-            new_obj_text = f'nonexistent {new_obj_text}'
-            if not force:
-                return f'Refusing to set {new_obj_text}'
-
-        azobject.parent.set_default_child_id(name, azobject.azobject_id)
-
-        if old_default_id:
-            return f'Replaced default {text}: {old_default_id} with {new_obj_text}'
-
-        return f'Set default {new_obj_text}'
-
-    def unset_default(self, **opts):
-        name = self.azclass().azobject_name()
-        text = self.azclass().azobject_text()
-
-        with suppress(DefaultConfigNotFound):
-            parent = self.azobject.parent
-            default_id = parent.get_default_child_id(name)
-            parent.del_default_child_id(name)
-            return f'Removed default {text}: {default_id}'
-        return 'No default'
-
-    def get_default(self, **opts):
-        with suppress(DefaultConfigNotFound):
-            return self.azobject.parent.get_default_child_id(self.azobject.azobject_name())
-        return 'No default'
-
-
 class AzFilterer(AzObjectActionCommand):
     @classmethod
     def get_action_configs(cls):
@@ -306,7 +222,7 @@ class AzFilterer(AzObjectActionCommand):
         return str(self.azobject.filters)
 
 
-class AzCommonActionCommand(AzFilterer, AzDefaultable, AzObjectActionCommand):
+class AzCommonActionCommand(AzFilterer, AzObjectActionCommand):
     pass
 
 

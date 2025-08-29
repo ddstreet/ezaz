@@ -226,10 +226,14 @@ class AzObject(CachedAzAction):
 
     @classmethod
     def get_self_id_argconfigs(cls, is_parent=False, help=None, **kwargs):
+        if help is None:
+            help = 'Use the specified {azobject_text}, instead of the default'
+        help = help.format(azobject_name=cls.azobject_name(),
+                           azobject_text=cls.azobject_text())
         return [AzObjectArgConfig(cls.azobject_name(),
                                   cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent),
                                   azclass=cls,
-                                  help=help or f'Use the specified {cls.azobject_text()}, instead of the default',
+                                  help=help,
                                   **kwargs)]
 
     @classmethod
@@ -337,23 +341,39 @@ class AzObject(CachedAzAction):
         return azobject_id
 
     @classmethod
+    def set_azobject_id_in_opts(cls, azobject_id, opts, replace=True):
+        if replace or cls.get_azobject_id_from_opts(opts) is None:
+            opts[cls.azobject_name()] = azobject_id
+        return opts
+
+    @classmethod
     @abstractmethod
     def get_default_azobject_id(cls, **opts):
         pass
 
     @classmethod
+    @abstractmethod
+    def set_default_azobject_id(cls, azobject_id):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def del_default_azobject_id(cls):
+        pass
+
+    @classmethod
     def get_instance(cls, **opts):
         with suppress(RequiredArgument):
-            return cls.get_specified_instance(**opts)
-        return cls._get_instance(**opts)
+            return cls.get_specific_instance(**opts)
+        return cls.get_default_instance(**opts)
 
     @classmethod
-    def _get_instance(cls, **opts):
-        opts[cls.azobject_name()] = cls.get_default_azobject_id(**opts)
-        return cls.get_specified_instance(**opts)
+    def get_default_instance(cls, **opts):
+        default_id = cls.get_default_azobject_id(**opts)
+        return cls.get_specific_instance(**cls.set_azobject_id_in_opts(default_id, opts))
 
     @classmethod
-    def get_specified_instance(cls, **opts):
+    def get_specific_instance(cls, **opts):
         if not hasattr(cls, '_instance_cache'):
             cls._instance_cache = {}
 
@@ -362,12 +382,12 @@ class AzObject(CachedAzAction):
         if azobject:
             return azobject
 
-        cls._instance_cache[azobject_id] = cls._get_specified_instance(azobject_id, opts)
+        cls._instance_cache[azobject_id] = cls._get_specific_instance(azobject_id, opts)
         return cls._instance_cache[azobject_id]
 
     @classmethod
     @abstractmethod
-    def _get_specified_instance(cls, azobject_id, opts):
+    def _get_specific_instance(cls, azobject_id, opts):
         pass
 
     @classmethod
@@ -417,7 +437,7 @@ class AzObject(CachedAzAction):
 
     def get_self_id_opts(self, **opts):
         if not self.is_null:
-            opts[self.azobject_name()] = opts.get(self.azobject_name()) or self.azobject_id
+            return self.set_azobject_id_in_opts(self.azobject_id, opts, replace=False)
         return opts
 
     def do_action_config_instance_action(self, action, opts, include_self=True):
@@ -454,6 +474,20 @@ class AzSubObject(AzObject):
         pass
 
     @classmethod
+    def get_parent_ancestor_classes(cls):
+        return (cls.get_parent_class().get_ancestor_classes()
+                if cls.get_parent_class().has_parent_class()
+                else [])
+
+    @classmethod
+    def get_ancestor_classes(cls):
+        return [*cls.get_parent_ancestor_classes(), cls.get_parent_class()]
+
+    @classmethod
+    def get_ancestor_self_id_argconfigs(cls, **kwargs):
+        return sum([c.get_self_id_argconfigs(**kwargs) for c in cls.get_ancestor_classes()], start=[])
+
+    @classmethod
     def get_parent_common_argconfigs(cls):
         return cls.get_parent_class().get_common_argconfigs(is_parent=True)
 
@@ -471,7 +505,15 @@ class AzSubObject(AzObject):
         return cls.get_parent_instance(**opts).get_default_child_id(cls.azobject_name())
 
     @classmethod
-    def _get_specified_instance(cls, azobject_id, opts):
+    def set_default_azobject_id(cls, azobject_id):
+        cls.get_parent_instance().set_default_child_id(cls.azobject_name(), azobject_id)
+
+    @classmethod
+    def del_default_azobject_id(cls):
+        cls.get_parent_instance().del_default_child_id(cls.azobject_name())
+
+    @classmethod
+    def _get_specific_instance(cls, azobject_id, opts):
         return cls(parent=cls.get_parent_instance(**opts), azobject_id=azobject_id, **opts)
 
     @classmethod
@@ -537,10 +579,12 @@ class AzObjectContainer(AzObject):
 
     @classmethod
     def get_descendant_classes(cls):
-        return (cls.get_child_classes() +
-                sum([c.get_descendant_classes()
-                     for c in cls.get_child_classes()
-                     if c.has_child_classes()], start=[]))
+        return sum([c.get_descendant_classes() for c in cls.get_child_classes() if c.has_child_classes()],
+                   start=cls.get_child_classes())
+
+    @classmethod
+    def get_descendant_self_id_argconfigs(cls, **kwargs):
+        return sum([c.get_self_id_argconfigs(**kwargs) for c in cls.get_descendant_classes()], start=[])
 
     def has_default_child_id(self, name):
         try:
@@ -564,22 +608,17 @@ class AzObjectContainer(AzObject):
         with suppress(KeyError):
             del self.config[self.get_child_class(name).default_key()]
 
-    def get_specified_child(self, name, opts={}):
+    def get_specific_child(self, name, opts={}):
         obj_id = opts.get(name)
         if not obj_id:
             return None
         return self.get_child(name, obj_id)
 
     def get_child(self, name, obj_id, info=None):
-        opts = {
-            self.azobject_name(): self.azobject_id,
-            name: obj_id,
-            'info': info,
-        }
-        return self.get_child_class(name).get_instance(**opts)
+        return self.get_child_class(name).get_instance(**self.get_self_id_opts(**{name: obj_id, 'info': info}))
 
     def get_null_child(self, name):
-        return self.get_child_class(name).get_null_instance(**{self.azobject_name(): self.azobject_id})
+        return self.get_child_class(name).get_null_instance(**self.get_self_id_opts())
 
     def get_default_child(self, name):
         return self.get_child(name, self.get_default_child_id(name))

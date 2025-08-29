@@ -36,12 +36,20 @@ class User(AzShowable, AzListable, AzObjectContainer):
         return cls.get_instance(**opts)
 
     @classmethod
-    def _get_specified_instance(cls, azobject_id, opts):
+    def _get_specific_instance(cls, azobject_id, opts):
         return cls(azobject_id=azobject_id, **opts)
 
     @classmethod
     def get_default_azobject_id(cls, **opts):
         return cls.get_null_instance(**opts).signed_in_user(**opts)._id
+
+    @classmethod
+    def set_default_azobject_id(cls, azobject_id):
+        raise ArgumentError('Cannot modify the default value of the signed in user')
+
+    @classmethod
+    def del_default_azobject_id(cls):
+        raise ArgumentError('Cannot modify the default value of the signed in user')
 
     @classmethod
     def get_self_id_argconfigs(cls, is_parent=False, **kwargs):
