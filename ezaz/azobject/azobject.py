@@ -42,10 +42,7 @@ from ..exception import NullAzObject
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
 from ..exception import UnsupportedAction
-from ..filter import FILTER_ALL
-from ..filter import FILTER_DEFAULT
-from ..filter import Filters
-from ..filter import QuickFilter
+from ..filter import Filter
 from .info import Info
 from .info import info_class
 
@@ -400,6 +397,10 @@ class AzObject(CachedAzAction):
     def _get_null_instance(cls, **opts):
         return cls(azobject_id=None, is_null=True, **opts)
 
+    @classmethod
+    def has_filter(cls):
+        return False
+
     def __init__(self, *, azobject_id, configfile=None, is_null=False, **kwargs):
         super().__init__(**kwargs)
         self._configfile = configfile
@@ -422,12 +423,6 @@ class AzObject(CachedAzAction):
         if self.is_null:
             raise NullAzObject('config')
         return Config(self._configfile).get_object(self.azobject_key(self.azobject_id))
-
-    @cached_property
-    def filters(self):
-        if self.is_null:
-            raise NullAzObject('filters')
-        return Filters(self.config.get_object('filters'))
 
     @property
     def azobject_id(self):
@@ -501,18 +496,6 @@ class AzSubObject(AzObject):
         return cls.get_parent_class().get_instance(**opts)
 
     @classmethod
-    def get_default_azobject_id(cls, **opts):
-        return cls.get_parent_instance(**opts).get_default_child_id(cls.azobject_name())
-
-    @classmethod
-    def set_default_azobject_id(cls, azobject_id):
-        cls.get_parent_instance().set_default_child_id(cls.azobject_name(), azobject_id)
-
-    @classmethod
-    def del_default_azobject_id(cls):
-        cls.get_parent_instance().del_default_child_id(cls.azobject_name())
-
-    @classmethod
     def _get_specific_instance(cls, azobject_id, opts):
         return cls(parent=cls.get_parent_instance(**opts), azobject_id=azobject_id, **opts)
 
@@ -523,6 +506,45 @@ class AzSubObject(AzObject):
     @classmethod
     def default_key(cls):
         return f'default_{cls.azobject_name()}'
+
+    @classmethod
+    def get_default_azobject_id(cls, **opts):
+        return cls.get_parent_instance(**opts).get_default_child_id(cls.azobject_name())
+
+    @classmethod
+    def set_default_azobject_id(cls, azobject_id, opts):
+        cls.get_parent_instance(**opts).set_default_child_id(cls.azobject_name(), azobject_id)
+
+    @classmethod
+    def del_default_azobject_id(cls, **opts):
+        cls.get_parent_instance(**opts).del_default_child_id(cls.azobject_name())
+
+    @classmethod
+    def filter_key(cls):
+        return f'filter_{cls.azobject_name()}'
+
+    @classmethod
+    def has_filter(cls):
+        return True
+
+    @classmethod
+    def get_filter(cls, **opts):
+        return cls.get_parent_instance(**opts).get_child_filter(cls.azobject_name())
+
+    @classmethod
+    def set_filter(cls, new_filter, opts):
+        cls.get_parent_instance(**opts).set_child_filter(cls.azobject_name(), new_filter)
+
+    @classmethod
+    def del_filter(cls, **opts):
+        cls.get_parent_instance(**opts).del_child_filter(cls.azobject_name())
+
+    @classmethod
+    def filter_infos(cls, infos, opts):
+        f = cls.get_filter(**opts)
+        for info in infos:
+            if f.check(info._id):
+                yield info
 
     def __init__(self, *, parent, **kwargs):
         super().__init__(**kwargs)
@@ -564,17 +586,10 @@ class AzObjectContainer(AzObject):
         pass
 
     @classmethod
-    def get_child_classmap(cls):
-        return {c.azobject_name(): c for c in cls.get_child_classes()}
-
-    @classmethod
-    def get_child_names(cls):
-        return list(cls.get_child_classmap().keys())
-
-    @classmethod
     def get_child_class(cls, name):
-        with suppress(KeyError):
-            return cls.get_child_classmap()[name]
+        for c in cls.get_child_classes():
+            if c.azobject_name() == name:
+                return c
         raise InvalidAzObjectName(f'AzObject {cls.__name__} does not contain AzObjects with name {name}')
 
     @classmethod
@@ -601,8 +616,7 @@ class AzObjectContainer(AzObject):
             raise DefaultConfigNotFound(cls)
 
     def set_default_child_id(self, name, value):
-        if self.config.get(self.get_child_class(name).default_key()) != value:
-            self.config[self.get_child_class(name).default_key()] = value
+        self.config[self.get_child_class(name).default_key()] = value
 
     def del_default_child_id(self, name):
         with suppress(KeyError):
@@ -627,16 +641,17 @@ class AzObjectContainer(AzObject):
         null_instance = self.get_null_child(name)
         assert isinstance(null_instance, AzListable)
         return [self.get_child(name, info._id, info=info)
-                for info in null_instance.list(**opts)]
+                for info in null_instance.list(no_filters=True, **opts)]
 
-    def filter_azobject_id(self, name, azobject_id, *, prefix=None, suffix=None, regex=None, no_filters=False):
-        if not QuickFilter(prefix, suffix, regex).check(azobject_id):
-            return False
-        if no_filters:
-            return True
-        return (self.filters.check(name, azobject_id) and
-                (not self.has_parent_class() or
-                 self.parent.filter_azobject_id(name, azobject_id, prefix=prefix, suffix=suffix, regex=regex)))
+    def get_child_filter(self, name):
+        return Filter(self.config.get_object(self.get_child_class(name).filter_key()))
+
+    def set_child_filter(self, name, value):
+        self.config[self.get_child_class(name).filter_key()] = Filter(value).config
+
+    def del_child_filter(self, name):
+        with suppress(KeyError):
+            del self.config[self.get_child_class(name).filter_key()]
 
 
 class AzSubObjectContainer(AzObjectContainer, AzSubObject):
@@ -729,10 +744,20 @@ class AzListable(AzObject):
     def get_list_action_description(cls):
         return f'List {cls.azobject_text()}s'
 
+    def _list_filter(self, infos, opts):
+        infos = [info for info in infos if Filter(opts).check(info)]
+        if opts.get('no_filters') or not self.has_filter():
+            return infos
+        else:
+            return self.filter_infos(infos, opts)
+
     def list_pre(self, opts):
         if getattr(self.__class__, '_info_cache_complete', False):
-            return self._list_filter(self.info_cache().values(), opts)
+            return list(self._list_filter(self.info_cache().values(), opts))
         return None
+
+    def list(self, **opts):
+        return self.do_action_config_instance_action('list', opts)
 
     def list_post(self, result, opts):
         if not getattr(self.__class__, '_info_cache_complete', False):
@@ -740,24 +765,7 @@ class AzListable(AzObject):
                 assert isinstance(info, Info)
                 self.info_cache()[info._id] = info
             self.__class__._info_cache_complete = True
-        return self._list_filter(result, opts)
-
-    def _list_filter(self, infos, opts):
-        # TODO - move filter_azobject_id to classmethod of actual class being filtered
-        # TODO - also move filtering out of list(), into get_children()
-        if self.parent:
-            return [info for info in infos
-                    if self.parent.filter_azobject_id(self.azobject_name(),
-                                                      info._id,
-                                                      prefix=opts.get('filter_prefix'),
-                                                      suffix=opts.get('filter_suffix'),
-                                                      regex=opts.get('filter_regex'),
-                                                      no_filters=opts.get('no_filters'))]
-        else:
-            return list(infos)
-
-    def list(self, **opts):
-        return self.do_action_config_instance_action('list', opts)
+        return list(self._list_filter(result, opts))
 
 
 class AzCreatable(AzObject):

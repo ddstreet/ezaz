@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class StorageKeyCommand(AzCommonActionCommand):
+class StorageKeyCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.storagekey import StorageKey

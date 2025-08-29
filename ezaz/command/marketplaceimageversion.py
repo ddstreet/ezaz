@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class MarketplaceImageVersionCommand(AzCommonActionCommand):
+class MarketplaceImageVersionCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.marketplaceimageversion import MarketplaceImageVersion

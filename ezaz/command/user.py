@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class UserCommand(AzCommonActionCommand):
+class UserCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.user import User

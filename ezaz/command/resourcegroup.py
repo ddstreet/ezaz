@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class ResourceGroupCommand(AzCommonActionCommand):
+class ResourceGroupCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.resourcegroup import ResourceGroup

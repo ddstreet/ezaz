@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class MarketplaceOfferCommand(AzCommonActionCommand):
+class MarketplaceOfferCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.marketplaceoffer import MarketplaceOffer

@@ -153,8 +153,8 @@ class SetupCommand(ActionCommand):
         return self.choose_child(subscription, 'location', cmdline_arg_id=self.location)
 
     def add_resource_group_filter(self, subscription):
-        rgfilter = subscription.filters.get_filter('resource_group')
-        if subscription.filters.is_empty:
+        rgfilter = subscription.get_child_filter('resource_group')
+        if not rgfilter:
             if self.yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
                 username = getpass.getuser()
                 accountname = self.user.info().userPrincipalName.split('@')[0]

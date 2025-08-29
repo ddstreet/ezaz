@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class VMCommand(AzCommonActionCommand):
+class VMCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.vm import VM

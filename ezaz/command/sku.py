@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class SkuCommand(AzCommonActionCommand):
+class SkuCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.sku import Sku

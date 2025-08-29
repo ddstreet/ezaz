@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class SshKeyCommand(AzCommonActionCommand):
+class SshKeyCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.sshkey import SshKey

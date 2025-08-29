@@ -10,10 +10,10 @@ from ..exception import DefaultConfigNotFound
 from .command import AzObjectActionCommand
 
 
-class DefaultCommand(AzObjectActionCommand):
+class DefaultsCommand(AzObjectActionCommand):
     @classmethod
     def command_name_list(cls):
-        return ['default']
+        return ['defaults']
 
     @classmethod
     def azclass(cls):

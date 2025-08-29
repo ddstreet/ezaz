@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class RoleAssignmentCommand(AzCommonActionCommand):
+class RoleAssignmentCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.roleassignment import RoleAssignment

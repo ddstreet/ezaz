@@ -1,8 +1,8 @@
 
-from .command import AzCommonActionCommand
+from .command import AzObjectActionCommand
 
 
-class StorageBlobCommand(AzCommonActionCommand):
+class StorageBlobCommand(AzObjectActionCommand):
     @classmethod
     def azclass(cls):
         from ..azobject.storageblob import StorageBlob

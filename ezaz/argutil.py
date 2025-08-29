@@ -480,6 +480,21 @@ class ChoicesArgConfig(ArgConfig):
         return ArgMap(choices=self.choices)
 
 
+class AzClassesChoicesArgConfig(ChoicesArgConfig):
+    def __init__(self, *opts, azclasses, **kwargs):
+        super().__init__(*opts, choices=[c.azobject_name() for c in azclasses], **kwargs)
+
+
+class AzClassAncestorsChoicesArgConfig(AzClassesChoicesArgConfig):
+    def __init__(self, *opts, azclass, **kwargs):
+        super().__init__(*opts, azclasses=azclass.get_ancestor_classes(), **kwargs)
+
+
+class AzClassDescendantsChoicesArgConfig(AzClassesChoicesArgConfig):
+    def __init__(self, *opts, azclass, **kwargs):
+        super().__init__(*opts, azclasses=azclass.get_descendant_classes(), **kwargs)
+
+
 class ChoiceMapArgConfig(ArgConfig):
     def __init__(self, *opts, choicemap, **kwargs):
         super().__init__(*opts, **kwargs)
