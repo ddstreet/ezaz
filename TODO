@@ -1,4 +1,6 @@
 
+- update config param to allow simple strings which default to a filename in normal config dir
+
 - add full ancestor path of object anme params for commands missing
   them (where currently uses just one object name param)
 
