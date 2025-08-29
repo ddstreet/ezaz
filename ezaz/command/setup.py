@@ -85,16 +85,9 @@ class SetupCommand(ActionCommand):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
 
     @property
-    def _user(self):
+    def user(self):
         from ..azobject.user import User
         return User.get_instance(**self.opts)
-
-    @property
-    def user(self):
-        if not self._user.is_logged_in:
-            print("You are not logged in, so let's log you in first.")
-            self._user.login()
-        return self._user
 
     def get_default_child(self, container, name):
         objtype = container.get_child_class(name).azobject_text()
