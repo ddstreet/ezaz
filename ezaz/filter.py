@@ -73,6 +73,9 @@ class Filter:
     _del_regex = lambda self: self._del('regex')
     regex = property(_get_regex, _set_regex, _del_regex)
 
+    def check_info(self, info):
+        return self.check(info._id)
+
     def check(self, v):
         return self.check_prefix(v) and self.check_suffix(v) and self.check_regex(v)
 

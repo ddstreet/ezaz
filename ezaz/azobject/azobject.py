@@ -543,7 +543,7 @@ class AzSubObject(AzObject):
     def filter_infos(cls, infos, opts):
         f = cls.get_filter(**opts)
         for info in infos:
-            if f.check(info._id):
+            if f.check_info(info):
                 yield info
 
     def __init__(self, *, parent, **kwargs):
@@ -729,9 +729,9 @@ class AzListable(AzObject):
 
     @classmethod
     def get_list_action_argconfigs(cls):
-        return [ArgConfig('filter_prefix', noncmd=True, help=f'List only {cls.azobject_text()}s that start with the prefix'),
-                ArgConfig('filter_suffix', noncmd=True, help=f'List only {cls.azobject_text()}s that end with the suffix'),
-                ArgConfig('filter_regex', noncmd=True, help=f'List only {cls.azobject_text()}s that match the regular expression'),
+        return [ArgConfig('prefix', noncmd=True, help=f'List only {cls.azobject_text()}s that start with the prefix'),
+                ArgConfig('suffix', noncmd=True, help=f'List only {cls.azobject_text()}s that end with the suffix'),
+                ArgConfig('regex', noncmd=True, help=f'List only {cls.azobject_text()}s that match the regular expression'),
                 BoolArgConfig('-N', '--no-filters', noncmd=True, help=f'Do not use any configured filters (the --filter-* parameters will still be used)')]
 
     @classmethod
@@ -745,7 +745,7 @@ class AzListable(AzObject):
         return f'List {cls.azobject_text()}s'
 
     def _list_filter(self, infos, opts):
-        infos = [info for info in infos if Filter(opts).check(info)]
+        infos = [info for info in infos if Filter(opts).check_info(info)]
         if opts.get('no_filters') or not self.has_filter():
             return infos
         else:
