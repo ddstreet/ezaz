@@ -61,3 +61,7 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
                 AzObjectArgConfig('assignee',
                                   azclass=User,
                                   help='User to assign to role')]
+
+    @classmethod
+    def is_create_id_required(cls):
+        return False

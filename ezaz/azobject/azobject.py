@@ -156,13 +156,13 @@ class AzAction(ArgUtil, ABC):
 
 
 class CachedAzAction(AzAction):
-    def __init__(self, *, cache=None, **kwargs):
-        super().__init__(**kwargs)
-        self._cache = cache
+    def __init__(self, *args, cachedir=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cachedir = cachedir
 
-    @property
+    @cached_property
     def cache(self):
-        return self._cache
+        return Cache(self._cachedir)
 
     def _az_cacheable_action(self, action):
         return action in ['show', 'list', 'list-locations']
@@ -217,6 +217,10 @@ class AzObject(CachedAzAction):
         return cls.azobject_name(' ')
 
     @classmethod
+    def azobject_key(cls, azobject_id):
+        return f'{cls.azobject_name()}.{azobject_id}'
+
+    @classmethod
     def get_common_argconfigs(cls, is_parent=False):
         return cls.get_self_id_argconfigs(is_parent=is_parent)
 
@@ -256,8 +260,10 @@ class AzObject(CachedAzAction):
                            pre=None,
                            post=None,
                            context_manager=None,
+                           get_instance=None,
                            custom_action=None,
                            custom_instance_action=None,
+                           dry_runnable=None,
                            azaction_class=None,
                            **kwargs):
         if aliases is None:
@@ -278,10 +284,14 @@ class AzObject(CachedAzAction):
             post = getattr(cls, f'{action}_post', None)
         if context_manager is None:
             context_manager = getattr(cls, f'{action}_context_manager', None)
+        if get_instance is None:
+            get_instance = getattr(cls, f'get_{action}_action_get_instance', lambda: None)()
         if custom_action is None:
             custom_action = getattr(cls, f'custom_{action}_action', None)
         if custom_instance_action is None:
             custom_instance_action = getattr(cls, f'custom_{action}_instance_action', None)
+        if dry_runnable is None:
+            dry_runnable = getattr(cls, f'get_{action}_action_dry_runnable', False)
         if not azaction_class:
             azaction_class = AzActionConfig
         return azaction_class(action,
@@ -294,8 +304,10 @@ class AzObject(CachedAzAction):
                               pre=pre,
                               post=post,
                               context_manager=context_manager,
+                              get_instance=get_instance,
                               custom_action=custom_action,
                               custom_instance_action=custom_instance_action,
+                              dry_runnable=dry_runnable,
                               **kwargs)
 
     @classmethod
@@ -307,7 +319,7 @@ class AzObject(CachedAzAction):
         return False
 
     @classmethod
-    def is_child(cls):
+    def has_parent_class(cls):
         return False
 
     @classmethod
@@ -317,33 +329,97 @@ class AzObject(CachedAzAction):
         return cls._info_cache
 
     @classmethod
-    def get_instance(cls, **opts):
-        if not getattr(cls, '_cached_instance', False):
-            cls._cached_instance = cls(**opts)
-        return cls._cached_instance
+    def get_azobject_id_from_opts(cls, opts, required=False):
+        azobject_id = opts.get(cls.azobject_name())
+        if not azobject_id and required:
+            raise RequiredArgument(cls.azobject_name(),
+                                   required_by=required if isinstance(required, str) else None)
+        return azobject_id
 
-    def __init__(self, *, config, **kwargs):
+    @classmethod
+    @abstractmethod
+    def get_default_azobject_id(cls, **opts):
+        pass
+
+    @classmethod
+    def get_instance(cls, **opts):
+        with suppress(RequiredArgument):
+            return cls.get_specified_instance(**opts)
+        return cls._get_instance(**opts)
+
+    @classmethod
+    def _get_instance(cls, **opts):
+        opts[cls.azobject_name()] = cls.get_default_azobject_id(**opts)
+        return cls.get_specified_instance(**opts)
+
+    @classmethod
+    def get_specified_instance(cls, **opts):
+        if not hasattr(cls, '_instance_cache'):
+            cls._instance_cache = {}
+
+        azobject_id = cls.get_azobject_id_from_opts(opts, required=True)
+        azobject = cls._instance_cache.get(azobject_id)
+        if azobject:
+            return azobject
+
+        cls._instance_cache[azobject_id] = cls._get_specified_instance(azobject_id, opts)
+        return cls._instance_cache[azobject_id]
+
+    @classmethod
+    @abstractmethod
+    def _get_specified_instance(cls, azobject_id, opts):
+        pass
+
+    @classmethod
+    def get_null_instance(cls, **opts):
+        if not getattr(cls, '_null_instance', False):
+            cls._null_instance = cls._get_null_instance(**opts)
+        return cls._null_instance
+
+    @classmethod
+    def _get_null_instance(cls, **opts):
+        return cls(azobject_id=None, is_null=True, **opts)
+
+    def __init__(self, *, azobject_id, configfile=None, is_null=False, **kwargs):
         super().__init__(**kwargs)
-        self._config = config
+        self._configfile = configfile
+        self._azobject_id = azobject_id
+        self.is_null = is_null
+        assert azobject_id or is_null
 
     def __str__(self):
-        return str(self.info())
+        with suppress(NoAzObjectExists, NullAzObject):
+            return str(self.info())
+        return self.__repr__()
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(azobject_id={self.azobject_id})'
+        with suppress(NullAzObject):
+            return f'{self.__class__.__name__}(azobject_id={self.azobject_id})'
+        return f'{self.__class__.__name__}(null)'
 
-    @property
+    @cached_property
     def config(self):
-        return self._config
+        if self.is_null:
+            raise NullAzObject('config')
+        return Config(self._configfile).get_object(self.azobject_key(self.azobject_id))
 
     @cached_property
     def filters(self):
+        if self.is_null:
+            raise NullAzObject('filters')
         return Filters(self.config.get_object('filters'))
 
     @property
-    @abstractmethod
     def azobject_id(self):
-        pass
+        if self.is_null:
+            raise NullAzObject('azobject_id')
+        return self._azobject_id
+
+    @property
+    def is_default(self):
+        with suppress(DefaultConfigNotFound):
+            return self.parent.get_default_child_id(self.azobject_name()) == self.azobject_id
+        return False
 
     def get_self_id_opts(self):
         return {self.azobject_name(): self.azobject_id}
@@ -354,30 +430,21 @@ class AzObject(CachedAzAction):
 
     @property
     def exists(self):
-        try:
+        with suppress(NoAzObjectExists, NullAzObject):
             self.info()
             return True
-        except NoAzObjectExists:
-            return False
+        return False
 
 
 class AzSubObject(AzObject):
     @classmethod
-    def is_child(cls):
+    def has_parent_class(cls):
         return True
 
     @classmethod
     @abstractmethod
     def get_parent_class(cls):
         pass
-
-    @classmethod
-    def default_key(cls):
-        return f'default_{cls.azobject_name()}'
-
-    @classmethod
-    def object_key(cls, obj_id):
-        return f'{cls.azobject_name()}.{obj_id}'
 
     @classmethod
     def get_parent_common_argconfigs(cls):
@@ -393,82 +460,37 @@ class AzSubObject(AzObject):
         return cls.get_parent_class().get_instance(**opts)
 
     @classmethod
-    def get_instance(cls, **opts):
-        with suppress(RequiredArgument):
-            return cls.get_specified_instance(**opts)
-
-        name = cls.azobject_name()
-        parent = cls.get_parent_instance(**opts)
-        opts[name] = parent.get_default_child_id(name)
-        return cls.get_specified_instance(**opts)
+    def get_default_azobject_id(cls, **opts):
+        return cls.get_parent_instance(**opts).get_default_child_id(cls.azobject_name())
 
     @classmethod
-    def get_specified_instance(cls, **opts):
-        if not hasattr(cls, '_instance_cache'):
-            cls._instance_cache = {}
-
-        name = cls.azobject_name()
-        azobject_id = opts.get(name)
-        if not azobject_id:
-            raise RequiredArgument(name)
-
-        azobject = cls._instance_cache.get(azobject_id)
-        if azobject:
-            return azobject
-
-        parent = cls.get_parent_instance(**opts)
-        config = parent.config.get_object(cls.object_key(azobject_id))
-        cls._instance_cache[azobject_id] = cls(parent=parent, azobject_id=azobject_id, config=config)
-        return cls._instance_cache[azobject_id]
+    def _get_specified_instance(cls, azobject_id, opts):
+        return cls(parent=cls.get_parent_instance(**opts), azobject_id=azobject_id, **opts)
 
     @classmethod
-    def get_null_instance(cls, **opts):
-        if not getattr(cls, '_null_instance', False):
-            parent = cls.get_parent_class().get_instance(**opts)
-            cls._null_instance = cls(parent=parent, azobject_id=None, config=None, is_null=True)
-        return cls._null_instance
+    def _get_null_instance(cls, **opts):
+        return super()._get_null_instance(parent=cls.get_parent_instance(**opts), **opts)
 
-    def __init__(self, *, parent, azobject_id, is_null=False, **kwargs):
+    @classmethod
+    def default_key(cls):
+        return f'default_{cls.azobject_name()}'
+
+    def __init__(self, *, parent, **kwargs):
         super().__init__(**kwargs)
         self._parent = parent
-        self._azobject_id = azobject_id
-        self._is_null = is_null
-        assert self._parent.has_child_classes()
-
-    @property
-    def is_null(self):
-        return self._is_null
-
-    def __repr__(self):
-        if self.is_null:
-            return f'{self.__class__.__name__}(null)'
-        return super().__repr__()
-
-    @property
-    def exists(self):
-        if self.is_null:
-            return False
-        return super().exists
+        assert self.parent.has_child_classes()
 
     def get_self_id_opts(self):
         return ArgMap(**self.parent.get_self_id_opts(),
                       **super().get_self_id_opts())
 
     @property
-    def azobject_id(self):
-        if self.is_null:
-            raise NullAzObject('azobject_id')
-        return self._azobject_id
-
-    @property
-    def config(self):
-        if self.is_null:
-            raise NullAzObject('config')
-        return super().config
-
-    @property
     def parent(self):
         return self._parent
+
+    @cached_property
+    def config(self):
+        return self.parent.config.get_object(self.azobject_key(self.azobject_id))
 
     @property
     def cache(self):
@@ -483,7 +505,7 @@ class AzSubObject(AzObject):
         return self.parent.dry_run
 
 
-class AzSubObjectContainer(AzObject):
+class AzObjectContainer(AzObject):
     @classmethod
     def has_child_classes(cls):
         return True
@@ -568,8 +590,12 @@ class AzSubObjectContainer(AzObject):
         if no_filters:
             return True
         return (self.filters.check(name, azobject_id) and
-                (not self.is_child() or
+                (not self.has_parent_class() or
                  self.parent.filter_azobject_id(name, azobject_id, prefix=prefix, suffix=suffix, regex=regex)))
+
+
+class AzSubObjectContainer(AzObjectContainer, AzSubObject):
+    pass
 
 
 class AzShowable(AzObject):
@@ -579,7 +605,11 @@ class AzShowable(AzObject):
 
     @classmethod
     def get_show_action_config(cls):
-        return cls.make_action_config('show', dry_runnable=True)
+        return cls.make_action_config('show')
+
+    @classmethod
+    def get_show_action_dry_runnable(cls):
+        return True
 
     @classmethod
     def get_show_action_az(cls):
@@ -617,18 +647,26 @@ class AzShowable(AzObject):
         return self.get_show_action_config().do_instance_action(self, opts)
 
 
-class AzListable(AzSubObject):
+class AzListable(AzObject):
     @classmethod
     def get_action_configs(cls):
         return [*super().get_action_configs(), cls.get_list_action_config()]
 
     @classmethod
     def get_list_action_config(cls):
-        return cls.make_action_config('list', dry_runnable=True, get_instance=cls.get_null_instance)
+        return cls.make_action_config('list')
+
+    @classmethod
+    def get_list_action_dry_runnable(cls):
+        return True
 
     @classmethod
     def get_list_action_az(cls):
         return 'infolist'
+
+    @classmethod
+    def get_list_action_get_instance(cls):
+        return cls.get_null_instance
 
     @classmethod
     def get_list_action_argconfigs(cls):
@@ -649,7 +687,7 @@ class AzListable(AzSubObject):
 
     def list_pre(self, opts):
         if getattr(self.__class__, '_info_cache_complete', False):
-            return self.list_post(self.info_cache().values(), opts)
+            return self._list_filter(self.info_cache().values(), opts)
         return None
 
     def list_post(self, result, opts):
@@ -658,14 +696,21 @@ class AzListable(AzSubObject):
                 assert isinstance(info, Info)
                 self.info_cache()[info._id] = info
             self.__class__._info_cache_complete = True
+        return self._list_filter(result, opts)
 
-        return [info for info in result
-                if self.parent.filter_azobject_id(self.azobject_name(),
-                                                  info._id,
-                                                  prefix=opts.get('filter_prefix'),
-                                                  suffix=opts.get('filter_suffix'),
-                                                  regex=opts.get('filter_regex'),
-                                                  no_filters=opts.get('no_filters'))]
+    def _list_filter(self, infos, opts):
+        # TODO - move filter_azobject_id to classmethod of actual class being filtered
+        # TODO - also move filtering out of list(), into get_children()
+        if self.parent:
+            return [info for info in infos
+                    if self.parent.filter_azobject_id(self.azobject_name(),
+                                                      info._id,
+                                                      prefix=opts.get('filter_prefix'),
+                                                      suffix=opts.get('filter_suffix'),
+                                                      regex=opts.get('filter_regex'),
+                                                      no_filters=opts.get('no_filters'))]
+        else:
+            return list(infos)
 
     def list(self, **opts):
         return self.get_list_action_config().do_instance_action(self, opts)
@@ -688,10 +733,14 @@ class AzCreatable(AzObject):
     def get_create_action_description(cls):
         return f'Create a {cls.azobject_text()}'
 
+    @classmethod
+    def is_create_id_required(self):
+        # Do we require the id to be specified for create operation?
+        return True
+
     def create_pre(self, opts):
-        if not opts.get(self.azobject_name()):
-            # Need to explicitly specify id
-            raise RequiredArgument(self.azobject_name(), 'create')
+        if self.is_create_id_required():
+            self.get_azobject_id_from_opts(opts, required='create')
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
         return None
@@ -713,10 +762,14 @@ class AzDeletable(AzObject):
     def get_delete_action_description(cls):
         return f'Delete a {cls.azobject_text()}'
 
+    @classmethod
+    def is_create_id_required(self):
+        # Do we require the id to be specified for delete operation?
+        return True
+
     def delete_pre(self, opts):
-        if not opts.get(self.azobject_name()):
-            # Need to explicitly specify id
-            raise RequiredArgument(self.azobject_name(), 'delete')
+        if self.is_create_id_required():
+            self.get_azobject_id_from_opts(opts, required='delete')
         if not self.exists:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
         return None

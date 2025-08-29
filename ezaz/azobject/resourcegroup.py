@@ -7,11 +7,10 @@ from ..argutil import BoolGroupArgConfig
 from ..argutil import NoWaitFlagArgConfig
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
-from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 
 
-class ResourceGroup(AzCommonActionable, AzSubObject, AzSubObjectContainer):
+class ResourceGroup(AzCommonActionable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['resource', 'group']

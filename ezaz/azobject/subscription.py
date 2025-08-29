@@ -1,6 +1,10 @@
 
+from contextlib import suppress
+
 from ..argutil import AzObjectArgConfig
 from ..argutil import GroupArgConfig
+from ..exception import NullAzObject
+from ..exception import RequiredArgument
 from .azobject import AzSubObjectContainer
 from .azobject import AzListable
 from .azobject import AzShowable
@@ -17,8 +21,8 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
 
     @classmethod
     def get_parent_class(cls):
-        from .account import Account
-        return Account
+        from .user import User
+        return User
 
     @classmethod
     def get_child_classes(cls):
@@ -30,14 +34,20 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
         return [Location, ResourceGroup, RoleAssignment, RoleDefinition, Sku]
 
     @classmethod
-    def get_self_id_argconfigs(cls, is_parent=False, help=None, **kwargs):
-        return [GroupArgConfig(AzObjectArgConfig('subscription',
-                                                 azclass=cls,
-                                                 help=help or f'Use the specified {cls.azobject_text()}, instead of the default',
-                                                 **kwargs),
-                               AzObjectArgConfig('subscription_name',
-                                                 azclass=cls,
-                                                 infoattr='name',
-                                                 help=help or f'Use the specified {cls.azobject_text()}, instead of the default',
-                                                 **kwargs),
-                               cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent))]
+    def get_action_configs(cls):
+        return [*super().get_action_configs(),
+                cls.make_action_config('get_current',
+                                       az='info',
+                                       cmd=cls.get_cmd_base() + ['show'],
+                                       common_argconfigs=[],
+                                       get_instance=cls.get_null_instance,
+                                       description='Get the current subscription'),
+                cls.make_action_config('set_current',
+                                       cmd=cls.get_cmd_base() + ['set'],
+                                       description='Set the current subscription')]
+
+    def get_current(self, **opts):
+        return self.get_action_config('get').do_instance_action(self, opts)
+
+    def set_current(self, **opts):
+        self.get_action_config('set').do_instance_action(self, opts)

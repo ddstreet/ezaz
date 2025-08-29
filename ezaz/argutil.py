@@ -201,9 +201,6 @@ class AzObjectInfoHelper:
         self.azclass = azclass
         self.infoattr = infoattr
 
-    def parent(self, opts):
-        return self.azclass.get_parent_class().get_instance(**opts)
-
     def get_info_list(self, opts):
         return self.azclass.get_null_instance(**opts).list(**opts)
 
@@ -235,7 +232,7 @@ class AzObjectDefaultId(AzObjectInfoHelper):
         try:
             # Can't directly get child info, as we can be called from
             # the show command
-            azobject_id = self.parent(opts).get_default_child_id(self.azclass.azobject_name())
+            azobject_id = self.azclass.get_default_azobject_id(**opts)
         except DefaultConfigNotFound:
             return None
 
@@ -268,6 +265,10 @@ class BaseArgConfig(ArgUtil, ABC):
             raise ArgumentError('Cannot have required argument with default')
 
     @property
+    def is_group(self):
+        return False
+
+    @property
     def dest(self):
         """This is the name the argparse will set in the parsed options."""
         return self._dest
@@ -278,6 +279,7 @@ class BaseArgConfig(ArgUtil, ABC):
         return self._cmddest or self.dest
 
     def cmdvalue(self, value, opts):
+        """This is an external callback that may modify the value."""
         return self._cmdvalue(value, opts) if self._cmdvalue else value
 
     @property
@@ -540,6 +542,10 @@ class GroupArgConfig(BaseArgConfig):
             raise ArgumentError(f'Do not set dest/cmddest for both GroupArgConfig and its arguments')
         if list(filter(lambda a: a._required, argconfigs)):
             raise ArgumentError(f'Do not set required for GroupArgConfig arguments')
+
+    @property
+    def is_group(self):
+        return True
 
     @property
     def opts(self):

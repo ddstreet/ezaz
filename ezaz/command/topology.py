@@ -19,14 +19,14 @@ class TopologyCommand(AzObjectCommand):
 
     @classmethod
     def azclass(cls):
-        from ..azobject.subscription import Subscription
-        return Subscription
+        from ..azobject.user import User
+        return User
 
     @classmethod
     def get_simple_command_argconfigs(cls):
         classes = cls.azclass().get_descendant_classes()
         ignore_choices = sorted([c.azobject_name() for c in classes])
-        ignore_default = ['location', 'role_definition', 'role_assignment', 'storage_key']
+        ignore_default = ['location', 'role_definition', 'role_assignment', 'storage_key', 'sku']
 
         return [*super().get_simple_command_argconfigs(),
                 *chain(*[c.get_self_id_argconfigs(help=f'Show only specified {c.azobject_text()}') for c in classes]),
@@ -58,11 +58,6 @@ class TopologyCommand(AzObjectCommand):
             return []
         return self.options.ignore or self.options.ignore_also
 
-    def is_default(self, child):
-        with suppress(DefaultConfigNotFound):
-            return child.parent.get_default_child_id(child.azobject_name()) == child.azobject_id
-        return False
-
     def show(self, msg):
         indent = ' ' * self._indent
         print(f'{indent}{msg}')
@@ -80,7 +75,7 @@ class TopologyCommand(AzObjectCommand):
             if name in self.ignore:
                 continue
             for child in azobject.get_children(name):
-                if self.options.defaults_only and not self.is_default(child):
+                if self.options.defaults_only and not child.is_default:
                     continue
                 if self.opts.get(name) and self.opts.get(name) != child.azobject_id:
                     continue

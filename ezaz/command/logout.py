@@ -8,5 +8,5 @@ class LogoutCommand(SimpleCommand):
         return ['logout']
 
     def logout(self, **opts):
-        from ..azobject.account import Account
-        return Account.get_instance(**opts).logout(**opts)
+        from ..azobject.user import User
+        return User.get_null_instance(**opts).logout(**opts)

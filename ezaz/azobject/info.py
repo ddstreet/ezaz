@@ -21,7 +21,7 @@ class Info(DictNamespace):
         assert self._schema
         jsonschema.validate(info, self._schema)
 
-    # Default to using 'name' as unique id
+    # Main id attribute, will be used for azobject_id
     _id_attr = 'name'
 
     @property
@@ -29,39 +29,48 @@ class Info(DictNamespace):
         assert self._id_attr
         return operator.attrgetter(self._id_attr)(self)
 
+    # Id attrs to use for this info, by verbosity levels.
+    #
+    # Will look like the following (except any id set to the same attr
+    # as the previous one is elided):
+    #
+    # id0 (id1) [id2]
+    #
+    # Using defaults, this results in:
+    #
+    # name [id]
+    _id0_attr = '_id'
+    _id1_attr = '_id'
+    _id2_attr = 'id'
+
     def __str__(self):
         verbose = self._verbose[id(self)]
         with suppress(AttributeError):
             return getattr(self, f'_str{verbose}')
         return self._str3
 
-    _str0_attr = '_id'
-
     @property
     def _str0(self):
-        assert self._str0_attr
-        return operator.attrgetter(self._str0_attr)(self)
-
-    _str1_attr = '_id'
+        assert self._id0_attr
+        return operator.attrgetter(self._id0_attr)(self)
 
     @property
     def _str1(self):
-        extra = (operator.attrgetter(self._str1_attr)(self)
-                 if self._str1_attr and self._str0_attr != self._str1_attr
+        extra = (operator.attrgetter(self._id1_attr)(self)
+                 if self._id1_attr and self._id0_attr != self._id1_attr
                  else None)
         return f'{self._str0} ({extra})' if extra else self._str0
 
-    _str2_attr = 'id'
-
     @property
     def _str2(self):
-        extra = (operator.attrgetter(self._str2_attr)(self)
-                 if self._str2_attr and self._str1_attr != self._str2_attr
+        extra = (operator.attrgetter(self._id2_attr)(self)
+                 if self._id2_attr and self._id1_attr != self._id2_attr
                  else None)
         return f'{self._str1} [{extra}]' if extra else self._str1
 
     @property
     def _str3(self):
+        # At verbose=3 or higher, the full info is provided (as a json string)
         return repr(self)
 
 
@@ -74,9 +83,6 @@ class AccountInfo(Info):
         ),
     )
 
-    _id_attr = 'id'
-    _str0_attr = 'user.name'
-
 
 class ConfigVarInfo(Info):
     _schema = OBJ(
@@ -86,8 +92,8 @@ class ConfigVarInfo(Info):
     )
 
     _id_attr = 'id'
-    _str1_attr = 'source'
-    _str2_attr = 'value'
+    _id1_attr = 'source'
+    _id2_attr = 'value'
 
 
 class GroupInfo(Info):
@@ -137,7 +143,7 @@ class ImageGalleryInfo(Info):
         ),
     )
 
-    _str1_attr = 'identifier.uniqueName'
+    _id1_attr = 'identifier.uniqueName'
 
 
 class ImageVersionInfo(Info):
@@ -175,7 +181,7 @@ class LocationInfo(Info):
         type=STR,
     )
 
-    _str0_attr = 'displayName'
+    _id0_attr = 'displayName'
 
 
 class MarketplaceImageVersionInfo(Info):
@@ -189,8 +195,8 @@ class MarketplaceImageVersionInfo(Info):
     )
 
     _id_attr = 'version'
-    _str1_attr = 'architecture'
-    _str2_attr = 'urn'
+    _id1_attr = 'architecture'
+    _id2_attr = 'urn'
 
 
 class MarketplaceOfferInfo(Info):
@@ -200,7 +206,7 @@ class MarketplaceOfferInfo(Info):
         location=STR,
     )
 
-    _str1_attr = 'location'
+    _id1_attr = 'location'
 
 
 class MarketplacePublisherInfo(Info):
@@ -210,7 +216,7 @@ class MarketplacePublisherInfo(Info):
         location=STR,
     )
 
-    _str1_attr = 'location'
+    _id1_attr = 'location'
 
 
 class MarketplaceSkuInfo(Info):
@@ -220,7 +226,7 @@ class MarketplaceSkuInfo(Info):
         location=STR,
     )
 
-    _str1_attr = 'location'
+    _id1_attr = 'location'
 
 
 class RoleAssignmentInfo(Info):
@@ -238,8 +244,8 @@ class RoleDefinitionInfo(Info):
         roleType=STR,
     )
 
-    _str0_attr = 'roleName'
-    _str1_attr = 'name'
+    _id0_attr = 'roleName'
+    _id1_attr = 'name'
 
 
 class SshKeyInfo(Info):
@@ -297,7 +303,7 @@ class StorageContainerInfo(Info):
         name=STR,
     )
 
-    _str2_attr = 'name'
+    _id2_attr = 'name'
 
 
 class StorageKeyInfo(Info):
@@ -309,7 +315,7 @@ class StorageKeyInfo(Info):
     )
 
     _id_attr = 'keyName'
-    _str2_attr = '_id'
+    _id2_attr = '_id'
 
 
 class UserInfo(Info):
@@ -320,8 +326,8 @@ class UserInfo(Info):
     )
 
     _id_attr = 'id'
-    _str0_attr = 'displayName'
-    _str2_attr = 'userPrincipalName'
+    _id0_attr = 'displayName'
+    _id2_attr = 'userPrincipalName'
 
 
 class VMInfo(Info):
@@ -345,7 +351,7 @@ class VMInfo(Info):
         ),
     )
 
-    _str1_attr = 'vmId'
+    _id1_attr = 'vmId'
 
 
 class VMInstanceInfo(Info):
@@ -392,7 +398,7 @@ class VMInstanceInfo(Info):
         vmId=STR,
     )
 
-    _str1_attr = 'vmId'
+    _id1_attr = 'vmId'
 
 
 class VMSkuInfo(Info):

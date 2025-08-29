@@ -7,11 +7,10 @@ from ..argutil import AzObjectArgConfig
 from ..argutil import AzObjectDefaultId
 from ..argutil import ChoicesArgConfig
 from .azobject import AzCommonActionable
-from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 
 
-class StorageContainer(AzCommonActionable, AzSubObject, AzSubObjectContainer):
+class StorageContainer(AzCommonActionable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['storage', 'container']

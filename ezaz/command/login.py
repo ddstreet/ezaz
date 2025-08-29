@@ -8,5 +8,5 @@ class LoginCommand(SimpleCommand):
         return ['login']
 
     def login(self, **opts):
-        from ..azobject.account import Account
-        return Account.get_instance(**opts).login(**opts)
+        from ..azobject.user import User
+        return User.get_null_instance(**opts).login(**opts)

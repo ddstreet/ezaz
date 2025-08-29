@@ -31,6 +31,18 @@ class ActionConfig(ArgUtil, ABC):
     def argconfigs(self):
         return self._argconfigs or []
 
+    def _get_argconfig(self, argconfigs, optname, want_group=False):
+        for argconfig in argconfigs:
+            if optname in argconfig.opts:
+                if not argconfig.is_group or want_group:
+                    return argconfig
+                else:
+                    return self._get_argconfig(argconfig.argconfigs, optname)
+        return None
+
+    def get_argconfig(self, optname, want_group=False):
+        return self._get_argconfig(self.argconfigs, optname, want_group)
+
     @abstractmethod
     def do_action(self, **opts):
         pass

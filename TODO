@@ -1,11 +1,9 @@
 
 - change 'user' to 'account', since current 'account' is actually just 'subscription'
 
-- add per-action configuration of caching
-
-- add class for: az vm list-skus (and/or az vm list-sizes)
-
 - rework (or remove) subscription set-current/get-current
+
+- add per-action configuration of caching
 
 - add full ancestor path of object anme params for commands missing
   them (where currently uses just one object name param)
@@ -14,6 +12,10 @@
 - change Filter/Filters to subclass of Config
 
 - update cacheing to remove specific cache after object create/delete operation
+
+- convert 'default' api to top-level 'default' command that accepts
+  all azobject self id args, to be able to set a 'path' of objects in
+  one call
 
 DOCS:
 

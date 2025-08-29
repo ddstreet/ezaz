@@ -85,23 +85,23 @@ class SetupCommand(ActionCommand):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
 
     @property
-    def _account(self):
-        from ..azobject.account import Account
-        return Account.get_instance(**self.opts)
+    def _user(self):
+        from ..azobject.user import User
+        return User.get_instance(**self.opts)
 
     @property
-    def account(self):
-        if not self._account.is_logged_in:
+    def user(self):
+        if not self._user.is_logged_in:
             print("You are not logged in, so let's log you in first.")
-            self._account.login()
-        return self._account
+            self._user.login()
+        return self._user
 
     def get_default_child(self, container, name):
         objtype = container.get_child_class(name).azobject_text()
         print(f'Checking for default {objtype}: ', end='\n' if self.verbose else '', flush=True)
 
         with suppress(DefaultConfigNotFound):
-            default = container.get_child(name, container.get_default_child_id(name))
+            default = container.get_default_child(name)
             if default.exists:
                 return default
             print(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
@@ -143,7 +143,7 @@ class SetupCommand(ActionCommand):
 
     def choose_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().name)
+            subscription = self.choose_child(self.user, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().id)
 
             self.add_resource_group_filter(subscription)
             self.choose_location(subscription)
@@ -157,7 +157,7 @@ class SetupCommand(ActionCommand):
         if subscription.filters.is_empty:
             if self.yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
                 username = getpass.getuser()
-                accountname = self.account.info().user.name.split('@')[0]
+                accountname = self.user.info().userPrincipalName.split('@')[0]
                 if self.yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
                     rgfilter.prefix = username
                 elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
@@ -239,7 +239,7 @@ class SetupCommand(ActionCommand):
 
     def create_subscription(self):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_child(self.account, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().name)
+            subscription = self.choose_child(self.user, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().id)
             self.add_resource_group_filter(subscription)
             location = self.choose_location(subscription)
             self.create_resource_group(subscription, location)

@@ -4,11 +4,10 @@ from ..argutil import BoolGroupArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
-from .azobject import AzSubObject
 from .azobject import AzSubObjectContainer
 
 
-class StorageAccount(AzCommonActionable, AzSubObject, AzSubObjectContainer):
+class StorageAccount(AzCommonActionable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['storage', 'account']
