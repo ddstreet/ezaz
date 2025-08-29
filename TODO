@@ -1,10 +1,7 @@
 
-- convert 'default' api to top-level 'default' command that accepts
-  all azobject self id args, to be able to set a 'path' of objects in
-  one call
-
 - update Config to be subclassable
 - change Filter/Filters to subclass of Config
+- move filtering into top-level command, like default
 
 - add full ancestor path of object anme params for commands missing
   them (where currently uses just one object name param)
