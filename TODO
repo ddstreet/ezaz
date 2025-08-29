@@ -1,4 +1,7 @@
 
+- update 'distro' choices for vm create
+- update vm create to allow choosing marketplace images
+
 - update config param to allow simple strings which default to a filename in normal config dir
 
 - add full ancestor path of object anme params for commands missing
