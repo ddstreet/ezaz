@@ -159,7 +159,7 @@ class VM(AzCommonActionable, AzSubObject):
         return None
 
     def log(self, **opts):
-        return self.get_action_config('log').do_instance_action(self, opts)
+        return self.do_action_config_instance_action('log', opts)
 
     def console_pre(self, opts):
         if not self.is_boot_diagnostics_enabled:
@@ -167,22 +167,22 @@ class VM(AzCommonActionable, AzSubObject):
         return None
 
     def console(self, **opts):
-        self.get_action_config('console').do_instance_action(self, opts)
+        self.do_action_config_instance_action('console', opts)
 
     def status(self, **opts):
-        return self.get_action_config('status').do_instance_action(self, opts)
+        return self.do_action_config_instance_action('status', opts)
 
     def start(self, **opts):
-        self.get_action_config('start').do_instance_action(self, opts)
+        self.do_action_config_instance_action('start', opts)
 
     def stop(self, **opts):
-        self.get_action_config('stop').do_instance_action(self, opts)
+        self.do_action_config_instance_action('stop', opts)
 
     def restart(self, **opts):
-        self.get_action_config('restart').do_instance_action(self, opts)
+        self.do_action_config_instance_action('restart', opts)
 
     def enable_boot_diagnostics(self, **opts):
-        self.get_enable_boot_diagnostics_actioncfg().do_instance_action(self, opts)
+        self.get_enable_boot_diagnostics_actioncfg().do_instance_action(self, self.get_self_id_opts(**opts))
 
     @property
     def is_boot_diagnostics_enabled(self):

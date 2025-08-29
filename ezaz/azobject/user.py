@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from contextlib import suppress
 from functools import cached_property
 
+from .. import LOGGER
 from ..argutil import FlagArgConfig
 from ..cache import Cache
 from ..config import Config
@@ -78,7 +79,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
         return getattr(self.__class__, '_signed_in_user_info', None)
 
     def signed_in_user(self, **opts):
-        return self.get_action_config('signed_in_user').do_instance_action(self, opts)
+        return self.do_action_config_instance_action('signed_in_user', opts)
 
     def signed_in_user_post(self, result, opts):
         self.__class__._signed_in_user_info = result
@@ -103,22 +104,24 @@ class User(AzShowable, AzListable, AzObjectContainer):
             raise AlreadyLoggedIn(self.signed_in_user(**opts))
 
     def login(self, **opts):
-        self.get_action_config('login').do_instance_action(self, opts)
+        self.do_action_config_instance_action('login', opts)
 
     def login_post(self, result, opts):
         with suppress(DefaultConfigNotFound):
             # Switch subscriptions, if needed
             from .subscription import Subscription
-            default_subscription = self.get_signed_in_user_instance(**opts).get_default_child(Subscription.azobject_name())
-            default_subscription.set_current(subscription=default_subscription.azobject_id)
+            self.get_signed_in_user_instance(**opts).get_default_child(Subscription.azobject_name()).set_current()
         return result
 
     def logout_pre(self, opts):
-        if not self.is_logged_in:
-            raise AlreadyLoggedOut()
+        try:
+            if not self.is_logged_in:
+                raise AlreadyLoggedOut()
+        except AzCommandError as ace:
+            LOGGER.error(f'Unknown error, logging out anyway: {ace}')
 
     def logout(self, **opts):
-        self.get_action_config('logout').do_instance_action(self, opts)
+        self.do_action_config_instance_action('logout', opts)
 
     def logout_post(self, result, opts):
         # TODO - technically, we should clear all subclass info caches

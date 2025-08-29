@@ -47,7 +47,7 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
                                        description='Set the current subscription')]
 
     def get_current(self, **opts):
-        return self.get_action_config('get').do_instance_action(self, opts)
+        return self.do_action_config_instance_action('get_current', opts)
 
     def set_current(self, **opts):
-        self.get_action_config('set').do_instance_action(self, opts)
+        self.do_action_config_instance_action('set_current', opts)

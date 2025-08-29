@@ -415,18 +415,25 @@ class AzObject(CachedAzAction):
             raise NullAzObject('azobject_id')
         return self._azobject_id
 
-    @property
-    def is_default(self):
-        with suppress(DefaultConfigNotFound):
-            return self.parent.get_default_child_id(self.azobject_name()) == self.azobject_id
-        return False
+    def get_self_id_opts(self, **opts):
+        if not self.is_null:
+            opts[self.azobject_name()] = opts.get(self.azobject_name()) or self.azobject_id
+        return opts
 
-    def get_self_id_opts(self):
-        return {self.azobject_name(): self.azobject_id}
+    def do_action_config_instance_action(self, action, opts, include_self=True):
+        if include_self:
+            opts = self.get_self_id_opts(**opts)
+        return self.get_action_config(action).do_instance_action(self, opts)
 
     @abstractmethod
     def info(self):
         pass
+
+    @property
+    def is_default(self):
+        with suppress(DefaultConfigNotFound, NullAzOnbject):
+            return self.get_default_azobject_id(self.get_self_id_opts()) == self.azobject_id
+        return False
 
     @property
     def exists(self):
@@ -480,9 +487,8 @@ class AzSubObject(AzObject):
         self._parent = parent
         assert self.parent.has_child_classes()
 
-    def get_self_id_opts(self):
-        return ArgMap(**self.parent.get_self_id_opts(),
-                      **super().get_self_id_opts())
+    def get_self_id_opts(self, **opts):
+        return super().get_self_id_opts(**self.parent.get_self_id_opts(**opts))
 
     @property
     def parent(self):
@@ -632,8 +638,7 @@ class AzShowable(AzObject):
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id) from aze
 
     def info(self):
-        # Use the chain of our (and ancestors') azobject opts
-        return self.show(**self.get_self_id_opts())
+        return self.show()
 
     def show_pre(self, opts):
         return self.info_cache().get(self.azobject_id)
@@ -644,7 +649,7 @@ class AzShowable(AzObject):
         return result
 
     def show(self, **opts):
-        return self.get_show_action_config().do_instance_action(self, opts)
+        return self.do_action_config_instance_action('show', opts)
 
 
 class AzListable(AzObject):
@@ -713,7 +718,7 @@ class AzListable(AzObject):
             return list(infos)
 
     def list(self, **opts):
-        return self.get_list_action_config().do_instance_action(self, opts)
+        return self.do_action_config_instance_action('list', opts)
 
 
 class AzCreatable(AzObject):
@@ -746,7 +751,7 @@ class AzCreatable(AzObject):
         return None
 
     def create(self, **opts):
-        return self.get_create_action_config().do_instance_action(self, opts)
+        return self.do_action_config_instance_action('create', opts, include_self=False)
 
 
 class AzDeletable(AzObject):
@@ -775,7 +780,7 @@ class AzDeletable(AzObject):
         return None
 
     def delete(self, **opts):
-        self.get_delete_action_config().do_instance_action(self, opts)
+        return self.do_action_config_instance_action('delete', opts, include_self=False)
 
 
 # Do not ever actually call the show command, always use the list

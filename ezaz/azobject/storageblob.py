@@ -100,7 +100,7 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                                 '(w)rite (x)delete_previous_version (y)permanent_delete.'))]
 
     def url(self, **opts):
-        return self.get_action_config('url').do_instance_action(self, opts).strip().strip('"')
+        return self.do_action_config_instance_action('url', opts).strip().strip('"')
 
     def sas(self, **opts):
-        return self.get_action_config('sas').do_instance_action(self, opts).strip().strip('"')
+        return self.do_action_config_instance_action('sas', opts).strip().strip('"')

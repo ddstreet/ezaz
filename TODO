@@ -1,21 +1,17 @@
 
-- change 'user' to 'account', since current 'account' is actually just 'subscription'
-
-- rework (or remove) subscription set-current/get-current
-
-- add per-action configuration of caching
-
-- add full ancestor path of object anme params for commands missing
-  them (where currently uses just one object name param)
+- convert 'default' api to top-level 'default' command that accepts
+  all azobject self id args, to be able to set a 'path' of objects in
+  one call
 
 - update Config to be subclassable
 - change Filter/Filters to subclass of Config
 
-- update cacheing to remove specific cache after object create/delete operation
+- add full ancestor path of object anme params for commands missing
+  them (where currently uses just one object name param)
 
-- convert 'default' api to top-level 'default' command that accepts
-  all azobject self id args, to be able to set a 'path' of objects in
-  one call
+- add per-action configuration of caching
+
+- update cacheing to remove specific cache after object create/delete operation
 
 DOCS:
 
