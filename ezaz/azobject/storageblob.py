@@ -62,7 +62,7 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                 FlagArgConfig('overwrite', help='Overwrite an existing blob')]
 
     @classmethod
-    def custom_create_action(cls, actioncfg, opts):
+    def create_handler(cls, actioncfg, opts):
         if not opts.get(cls.azobject_name()):
             opts[cls.azobject_name()] = opts.get('file')
         return actioncfg._do_action(**opts)
@@ -81,7 +81,7 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                 FlagArgConfig('no_progress', help='Do not show download progress bar')]
 
     @classmethod
-    def custom_download_action(cls, actioncfg, opts):
+    def download_handler(cls, actioncfg, opts):
         if not opts.get(cls.azobject_name()):
             opts[cls.azobject_name()] = opts.get('file')
         return actioncfg._do_action(**opts)

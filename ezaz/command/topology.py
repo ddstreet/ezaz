@@ -7,7 +7,7 @@ from itertools import chain
 from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
 from ..argutil import ChoicesArgConfig
-from ..argutil import GroupArgConfig
+from ..argutil import ExclusiveGroupArgConfig
 from ..exception import DefaultConfigNotFound
 from .command import AzObjectCommand
 
@@ -29,20 +29,20 @@ class TopologyCommand(AzObjectCommand):
         ignore_default = ['location', 'role_definition', 'role_assignment', 'storage_key', 'sku']
 
         return [*super().get_simple_command_argconfigs(),
-                *chain(*[c.get_self_id_argconfigs(help=f'Show only specified {c.azobject_text()}') for c in classes]),
+                *cls.azclass().get_descendant_azobject_id_argconfigs(help='Show only specified {azobject_text}'),
                 BoolArgConfig('defaults_only', help='Only show the default objects'),
-                GroupArgConfig(ChoicesArgConfig('ignore',
-                                                multiple=True,
-                                                choices=ignore_choices,
-                                                default=ignore_default,
-                                                help=f'Do not show these types of objects, or their children (default: {", ".join(ignore_default)})'),
-                               ChoicesArgConfig('ignore_also',
-                                                multiple=True,
-                                                choices=sorted(set(ignore_choices) - set(ignore_default)),
-                                                default=[],
-                                                help=f'Same as --ignore, but include the defaults as well'),
-                               BoolArgConfig('ignore_none',
-                                             help='Do not ignore any types of objects'))]
+                ExclusiveGroupArgConfig(ChoicesArgConfig('ignore',
+                                                         multiple=True,
+                                                         choices=ignore_choices,
+                                                         default=ignore_default,
+                                                         help=f'Do not show these types of objects, or their children (default: {", ".join(ignore_default)})'),
+                                        ChoicesArgConfig('ignore_also',
+                                                         multiple=True,
+                                                         choices=sorted(set(ignore_choices) - set(ignore_default)),
+                                                         default=[],
+                                                         help=f'Same as --ignore, but include the defaults as well'),
+                                        BoolArgConfig('ignore_none',
+                                                      help='Do not ignore any types of objects'))]
 
     @contextmanager
     def indent(self):

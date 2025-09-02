@@ -28,8 +28,8 @@ class Location(AzEmulateShowable, AzListable, AzSubObjectContainer):
         return cls.get_cmd_base() + ['list-locations']
 
     @classmethod
-    def get_list_common_argconfigs(cls, is_parent=False):
+    def get_list_action_azobject_id_argconfigs(cls):
         from .subscription import Subscription
         # Don't include our subscription id param for list action
-        return [argconfig for argconfig in super().get_list_common_argconfigs(is_parent=is_parent)
+        return [argconfig for argconfig in super().get_list_action_azobject_id_argconfigs()
                 if argconfig.cmddest != Subscription.get_self_id_argconfig_cmddest(is_parent=True)]

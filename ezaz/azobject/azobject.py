@@ -22,7 +22,6 @@ from ..argutil import ArgMap
 from ..argutil import ArgUtil
 from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
-from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
 from ..cache import Cache
 from ..config import Config
@@ -218,24 +217,54 @@ class AzObject(CachedAzAction):
         return f'{cls.azobject_name()}.{azobject_id}'
 
     @classmethod
-    def get_common_argconfigs(cls, is_parent=False):
-        return cls.get_self_id_argconfigs(is_parent=is_parent)
+    def get_aliases(cls):
+        return []
 
     @classmethod
-    def get_self_id_argconfigs(cls, is_parent=False, help=None, **kwargs):
-        if help is None:
-            help = 'Use the specified {azobject_text}, instead of the default'
-        help = help.format(azobject_name=cls.azobject_name(),
-                           azobject_text=cls.azobject_text())
-        return [AzObjectArgConfig(cls.azobject_name(),
-                                  cmddest=cls.get_self_id_argconfig_cmddest(is_parent=is_parent),
-                                  azclass=cls,
-                                  help=help,
-                                  **kwargs)]
+    def get_description(cls):
+        return None
+
+    @classmethod
+    def get_argconfigs(cls):
+        return []
+
+    @classmethod
+    def get_argconfigs_title(cls):
+        return None
+
+    @classmethod
+    def get_common_argconfigs(cls, is_parent=False):
+        return []
+
+    @classmethod
+    def get_common_argconfigs_title(cls):
+        return None
+
+    @classmethod
+    def get_self_id_argconfigs(cls, *, is_parent=False, prefix=None, **kwargs):
+        if 'help' not in kwargs:
+            kwargs['help'] = 'Use the specified {azobject_text}, instead of the default'
+        if kwargs['help']:
+            kwargs['help'] = kwargs['help'].format(azobject_name=cls.azobject_name(),
+                                                   azobject_text=cls.azobject_text())
+        if 'cmddest' not in kwargs:
+            kwargs['cmddest'] = cls.get_self_id_argconfig_cmddest(is_parent=is_parent)
+        if 'metavar' not in kwargs:
+            kwargs['metavar'] = cls.azobject_name().upper()
+        arg = f'{prefix}_{cls.azobject_name()}' if prefix else cls.azobject_name()
+        return [AzObjectArgConfig(arg, azclass=cls, prefix=prefix, **kwargs)]
 
     @classmethod
     def get_self_id_argconfig_cmddest(cls, is_parent):
         return cls.azobject_name()
+
+    @classmethod
+    def get_azobject_id_argconfigs(cls, is_parent=False, **kwargs):
+        return cls.get_self_id_argconfigs(is_parent=is_parent, **kwargs)
+
+    @classmethod
+    def get_azobject_id_argconfigs_title(cls):
+        return 'Resource options'
 
     @classmethod
     def get_action_configs(cls):
@@ -255,50 +284,68 @@ class AzObject(CachedAzAction):
                            aliases=None,
                            description=None,
                            argconfigs=None,
+                           argconfigs_title=None,
                            common_argconfigs=None,
+                           common_argconfigs_title=None,
+                           azobject_id_argconfigs=None,
+                           azobject_id_argconfigs_title=None,
                            az=None,
                            cmd=None,
                            pre=None,
                            post=None,
                            context_manager=None,
                            get_instance=None,
-                           custom_action=None,
-                           custom_instance_action=None,
+                           handler=None,
+                           instance_handler=None,
                            dry_runnable=None,
                            azaction_class=None,
                            **kwargs):
         if aliases is None:
-            aliases = getattr(cls, f'get_{action}_action_aliases', lambda: [])()
+            aliases = getattr(cls, f'get_{action}_action_aliases', cls.get_aliases)()
         if description is None:
-            description = getattr(cls, f'get_{action}_action_description', lambda: None)()
+            description = getattr(cls, f'get_{action}_action_description', cls.get_description)()
         if argconfigs is None:
-            argconfigs = getattr(cls, f'get_{action}_action_argconfigs', lambda: None)()
+            argconfigs = getattr(cls, f'get_{action}_action_argconfigs', cls.get_argconfigs)()
+        if argconfigs_title is None:
+            argconfigs_title = getattr(cls, f'get_{action}_action_argconfigs_title', cls.get_argconfigs_title)()
+        if argconfigs_title:
+            argconfigs = [GroupArgConfig(*argconfigs, title=argconfigs_title)]
         if common_argconfigs is None:
-            common_argconfigs = getattr(cls, f'get_{action}_common_argconfigs', cls.get_common_argconfigs)()
+            common_argconfigs = getattr(cls, f'get_{action}_action_common_argconfigs', cls.get_common_argconfigs)()
+        if common_argconfigs_title is None:
+            common_argconfigs_title = getattr(cls, f'get_{action}_action_common_argconfigs_title', cls.get_common_argconfigs_title)()
+        if common_argconfigs_title:
+            common_argconfigs = [GroupArgConfig(*common_argconfigs, title=common_argconfigs_title)]
+        if azobject_id_argconfigs is None:
+            azobject_id_argconfigs = getattr(cls, f'get_{action}_action_azobject_id_argconfigs', cls.get_azobject_id_argconfigs)()
+        if azobject_id_argconfigs_title is None:
+            azobject_id_argconfigs_title = getattr(cls, f'get_{action}_action_azobject_id_argconfigs_title', cls.get_azobject_id_argconfigs_title)()
+        if azobject_id_argconfigs_title:
+            azobject_id_argconfigs = [GroupArgConfig(*azobject_id_argconfigs, title=azobject_id_argconfigs_title)]
+        if get_instance is None:
+            get_instance = getattr(cls, f'get_{action}_action_get_instance', lambda: None)()
+        if dry_runnable is None:
+            dry_runnable = getattr(cls, f'get_{action}_action_dry_runnable', lambda: False)()
         if az is None:
             az = getattr(cls, f'get_{action}_action_az', lambda: None)()
         if cmd is None:
-            cmd = getattr(cls, f'get_{action}_action_cmd', lambda: cls.get_cmd_base() + [action])()
+            cmd = getattr(cls, f'get_{action}_action_cmd', lambda: None)()
         if pre is None:
             pre = getattr(cls, f'{action}_pre', None)
         if post is None:
             post = getattr(cls, f'{action}_post', None)
         if context_manager is None:
             context_manager = getattr(cls, f'{action}_context_manager', None)
-        if get_instance is None:
-            get_instance = getattr(cls, f'get_{action}_action_get_instance', lambda: None)()
-        if custom_action is None:
-            custom_action = getattr(cls, f'custom_{action}_action', None)
-        if custom_instance_action is None:
-            custom_instance_action = getattr(cls, f'custom_{action}_instance_action', None)
-        if dry_runnable is None:
-            dry_runnable = getattr(cls, f'get_{action}_action_dry_runnable', False)
+        if handler is None:
+            handler = getattr(cls, f'{action}_handler', None)
+        if instance_handler is None:
+            instance_handler = getattr(cls, f'{action}_instance_handler', None)
         if not azaction_class:
             azaction_class = AzActionConfig
         return azaction_class(action,
                               aliases=aliases,
                               description=description,
-                              argconfigs=(argconfigs or []) + (common_argconfigs or []),
+                              argconfigs=[*argconfigs, *common_argconfigs, *azobject_id_argconfigs],
                               azclass=cls,
                               az=az,
                               cmd=cmd,
@@ -306,8 +353,8 @@ class AzObject(CachedAzAction):
                               post=post,
                               context_manager=context_manager,
                               get_instance=get_instance,
-                              custom_action=custom_action,
-                              custom_instance_action=custom_instance_action,
+                              handler=handler,
+                              instance_handler=instance_handler,
                               dry_runnable=dry_runnable,
                               **kwargs)
 
@@ -330,7 +377,7 @@ class AzObject(CachedAzAction):
         return cls._info_cache
 
     @classmethod
-    def get_azobject_id_from_opts(cls, opts, required=False):
+    def get_self_id_from_opts(cls, opts, required=False):
         azobject_id = opts.get(cls.azobject_name())
         if not azobject_id and required:
             raise RequiredArgument(cls.azobject_name(),
@@ -338,8 +385,8 @@ class AzObject(CachedAzAction):
         return azobject_id
 
     @classmethod
-    def set_azobject_id_in_opts(cls, azobject_id, opts, replace=True):
-        if replace or cls.get_azobject_id_from_opts(opts) is None:
+    def set_self_id_in_opts(cls, azobject_id, opts, replace=True):
+        if replace or cls.get_self_id_from_opts(opts) is None:
             opts[cls.azobject_name()] = azobject_id
         return opts
 
@@ -367,14 +414,14 @@ class AzObject(CachedAzAction):
     @classmethod
     def get_default_instance(cls, **opts):
         default_id = cls.get_default_azobject_id(**opts)
-        return cls.get_specific_instance(**cls.set_azobject_id_in_opts(default_id, opts))
+        return cls.get_specific_instance(**cls.set_self_id_in_opts(default_id, opts))
 
     @classmethod
     def get_specific_instance(cls, **opts):
         if not hasattr(cls, '_instance_cache'):
             cls._instance_cache = {}
 
-        azobject_id = cls.get_azobject_id_from_opts(opts, required=True)
+        azobject_id = cls.get_self_id_from_opts(opts, required=True)
         azobject = cls._instance_cache.get(azobject_id)
         if azobject:
             return azobject
@@ -430,14 +477,14 @@ class AzObject(CachedAzAction):
             raise NullAzObject('azobject_id')
         return self._azobject_id
 
-    def get_self_id_opts(self, **opts):
+    def get_azobject_id_opts(self, **opts):
         if not self.is_null:
-            return self.set_azobject_id_in_opts(self.azobject_id, opts, replace=False)
+            return self.set_self_id_in_opts(self.azobject_id, opts, replace=False)
         return opts
 
     def do_action_config_instance_action(self, action, opts, include_self=True):
         if include_self:
-            opts = self.get_self_id_opts(**opts)
+            opts = self.get_azobject_id_opts(**opts)
         return self.get_action_config(action).do_instance_action(self, opts)
 
     @abstractmethod
@@ -447,7 +494,7 @@ class AzObject(CachedAzAction):
     @property
     def is_default(self):
         with suppress(DefaultConfigNotFound, NullAzOnbject):
-            return self.get_default_azobject_id(self.get_self_id_opts()) == self.azobject_id
+            return self.get_default_azobject_id(self.get_azobject_id_opts()) == self.azobject_id
         return False
 
     @property
@@ -479,17 +526,22 @@ class AzSubObject(AzObject):
         return [*cls.get_parent_ancestor_classes(), cls.get_parent_class()]
 
     @classmethod
-    def get_ancestor_self_id_argconfigs(cls, **kwargs):
-        return sum([c.get_self_id_argconfigs(**kwargs) for c in cls.get_ancestor_classes()], start=[])
-
-    @classmethod
     def get_parent_common_argconfigs(cls):
         return cls.get_parent_class().get_common_argconfigs(is_parent=True)
 
     @classmethod
     def get_common_argconfigs(cls, is_parent=False):
-        return (cls.get_parent_common_argconfigs() +
-                super().get_common_argconfigs(is_parent=is_parent))
+        return [*cls.get_parent_common_argconfigs(),
+                *super().get_common_argconfigs(is_parent=is_parent)]
+
+    @classmethod
+    def get_parent_azobject_id_argconfigs(cls, **kwargs):
+        return cls.get_parent_class().get_azobject_id_argconfigs(is_parent=True, **kwargs)
+
+    @classmethod
+    def get_azobject_id_argconfigs(cls, is_parent=False, **kwargs):
+        return [*cls.get_parent_azobject_id_argconfigs(**kwargs),
+                *super().get_azobject_id_argconfigs(is_parent=is_parent, **kwargs)]
 
     @classmethod
     def get_parent_instance(cls, **opts):
@@ -551,8 +603,8 @@ class AzSubObject(AzObject):
         self._parent = parent
         assert self.parent.has_child_classes()
 
-    def get_self_id_opts(self, **opts):
-        return super().get_self_id_opts(**self.parent.get_self_id_opts(**opts))
+    def get_azobject_id_opts(self, **opts):
+        return super().get_azobject_id_opts(**self.parent.get_azobject_id_opts(**opts))
 
     @property
     def parent(self):
@@ -598,8 +650,10 @@ class AzObjectContainer(AzObject):
                    start=cls.get_child_classes())
 
     @classmethod
-    def get_descendant_self_id_argconfigs(cls, **kwargs):
-        return sum([c.get_self_id_argconfigs(**kwargs) for c in cls.get_descendant_classes()], start=[])
+    def get_descendant_azobject_id_argconfigs(cls, include_self=False, is_parent=True, **kwargs):
+        return sum([c.get_self_id_argconfigs(is_parent=is_parent, **kwargs)
+                    for c in cls.get_descendant_classes()],
+                   start=cls.get_self_id_argconfigs(is_parent=is_parent, **kwargs) if include_self else [])
 
     def has_default_child_id(self, name):
         try:
@@ -629,10 +683,10 @@ class AzObjectContainer(AzObject):
         return self.get_child(name, obj_id)
 
     def get_child(self, name, obj_id, info=None):
-        return self.get_child_class(name).get_instance(**self.get_self_id_opts(**{name: obj_id, 'info': info}))
+        return self.get_child_class(name).get_instance(**self.get_azobject_id_opts(**{name: obj_id, 'info': info}))
 
     def get_null_child(self, name):
-        return self.get_child_class(name).get_null_instance(**self.get_self_id_opts())
+        return self.get_child_class(name).get_null_instance(**self.get_azobject_id_opts())
 
     def get_default_child(self, name):
         return self.get_child(name, self.get_default_child_id(name))
@@ -729,16 +783,17 @@ class AzListable(AzObject):
 
     @classmethod
     def get_list_action_argconfigs(cls):
-        return [ArgConfig('prefix', noncmd=True, help=f'List only {cls.azobject_text()}s that start with the prefix'),
-                ArgConfig('suffix', noncmd=True, help=f'List only {cls.azobject_text()}s that end with the suffix'),
-                ArgConfig('regex', noncmd=True, help=f'List only {cls.azobject_text()}s that match the regular expression'),
-                BoolArgConfig('-N', '--no-filters', noncmd=True, help=f'Do not use any configured filters (the --filter-* parameters will still be used)')]
+        return [GroupArgConfig(ArgConfig('prefix', noncmd=True, help=f'List only {cls.azobject_text()}s that start with the prefix'),
+                               ArgConfig('suffix', noncmd=True, help=f'List only {cls.azobject_text()}s that end with the suffix'),
+                               ArgConfig('regex', noncmd=True, help=f'List only {cls.azobject_text()}s that match the regular expression'),
+                               BoolArgConfig('-N', '--no-filters', noncmd=True, help=f'Do not use any configured filters (only use the CLI parameters)'),
+                               title='Filter options')]
 
     @classmethod
-    def get_list_common_argconfigs(cls, is_parent=False):
+    def get_list_action_azobject_id_argconfigs(cls):
         # Don't include our self id param for list action
-        return [argconfig for argconfig in cls.get_common_argconfigs(is_parent=is_parent)
-                if argconfig.cmddest != cls.get_self_id_argconfig_cmddest(is_parent=is_parent)]
+        return [argconfig for argconfig in cls.get_azobject_id_argconfigs()
+                if argconfig.cmddest != cls.get_self_id_argconfig_cmddest(is_parent=False)]
 
     @classmethod
     def get_list_action_description(cls):
@@ -786,13 +841,21 @@ class AzCreatable(AzObject):
         return f'Create a {cls.azobject_text()}'
 
     @classmethod
+    def get_create_action_argconfigs_title(cls):
+        return f'{cls.azobject_text().capitalize()} creation options'
+
+    @classmethod
+    def get_create_action_azobject_id_argconfigs(cls):
+        return cls.get_azobject_id_argconfigs()
+
+    @classmethod
     def is_create_id_required(self):
         # Do we require the id to be specified for create operation?
         return True
 
     def create_pre(self, opts):
         if self.is_create_id_required():
-            self.get_azobject_id_from_opts(opts, required='create')
+            self.get_self_id_from_opts(opts, required='create')
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
         return None
@@ -815,13 +878,21 @@ class AzDeletable(AzObject):
         return f'Delete a {cls.azobject_text()}'
 
     @classmethod
+    def get_delete_action_argconfigs_title(cls):
+        return f'{cls.azobject_text().capitalize()} deletion options'
+
+    @classmethod
+    def get_delete_action_azobject_id_argconfigs(cls):
+        return cls.get_azobject_id_argconfigs()
+
+    @classmethod
     def is_create_id_required(self):
         # Do we require the id to be specified for delete operation?
         return True
 
     def delete_pre(self, opts):
         if self.is_create_id_required():
-            self.get_azobject_id_from_opts(opts, required='delete')
+            self.get_self_id_from_opts(opts, required='delete')
         if not self.exists:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
         return None
@@ -868,8 +939,8 @@ class AzActionConfig(ActionConfig):
                  instance_opts=None,
                  post=None,
                  context_manager=None,
-                 custom_action=None,
-                 custom_instance_action=None,
+                 handler=None,
+                 instance_handler=None,
                  **kwargs):
         super().__init__(action, **kwargs)
         self.azclass = azclass
@@ -880,8 +951,8 @@ class AzActionConfig(ActionConfig):
         self.pre = pre or self._noop_pre
         self.post = post or self._noop_post
         self.context_manager = context_manager or self._noop_context_manager
-        self.custom_action = custom_action
-        self.custom_instance_action = custom_instance_action
+        self.handler = handler
+        self.instance_handler = instance_handler
 
     def _noop_pre(self, azobject, opts):
         return None
@@ -894,8 +965,8 @@ class AzActionConfig(ActionConfig):
         yield
 
     def do_action(self, **opts):
-        if self.custom_action:
-            result = self.custom_action(self, opts)
+        if self.handler:
+            result = self.handler(self, opts)
         else:
             result = self._do_action(**opts)
         if isinstance(result, list):
@@ -908,8 +979,8 @@ class AzActionConfig(ActionConfig):
         return self.do_instance_action(self.get_instance(**opts), opts)
 
     def do_instance_action(self, azobject, opts):
-        if self.custom_instance_action:
-            return self.custom_instance_action(self, azobject, opts)
+        if self.instance_handler:
+            return self.instance_handler(self, azobject, opts)
         return self._do_instance_action(azobject, opts)
 
     def _do_instance_action(self, azobject, opts):

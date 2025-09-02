@@ -8,7 +8,7 @@ from ..argutil import AzClassDescendantsChoicesArgConfig
 from ..argutil import BoolArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import ConstArgConfig
-from ..argutil import GroupArgConfig
+from ..argutil import ExclusiveGroupArgConfig
 from ..config import Config
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgument
@@ -40,7 +40,7 @@ class FiltersCommand(AzObjectActionCommand):
 
     @classmethod
     def get_show_action_argconfigs(cls):
-        return [*cls.azclass().get_descendant_self_id_argconfigs()]
+        return [*cls.azclass().get_descendant_azobject_id_argconfigs()]
 
     @classmethod
     def get_azclass_descendants_argconfigs(cls):
@@ -52,7 +52,7 @@ class FiltersCommand(AzObjectActionCommand):
 
     @classmethod
     def get_set_action_argconfigs(cls):
-        return [*cls.azclass().get_descendant_self_id_argconfigs(),
+        return [*cls.azclass().get_descendant_azobject_id_argconfigs(),
                 cls.get_azclass_descendants_argconfigs(),
                 ArgConfig('prefix', help='Add or modify the prefix filter'),
                 ArgConfig('suffix', help='Add or modify the suffix filter'),
@@ -61,13 +61,13 @@ class FiltersCommand(AzObjectActionCommand):
 
     @classmethod
     def get_unset_action_argconfigs(cls):
-        return [*cls.azclass().get_descendant_self_id_argconfigs(),
+        return [*cls.azclass().get_descendant_azobject_id_argconfigs(),
                 cls.get_azclass_descendants_argconfigs(),
-                GroupArgConfig(ChoicesArgConfig('remove',
-                                                choices=['prefix', 'suffix', 'regex'],
-                                                default=[],
-                                                multiple=True,
-                                                help='Which filters to remove'),
+                ExclusiveGroupArgConfig(ChoicesArgConfig('remove',
+                                                         choices=['prefix', 'suffix', 'regex'],
+                                                         default=[],
+                                                         multiple=True,
+                                                         help='Which filters to remove'),
                                ConstArgConfig('all',
                                               dest='remove',
                                               const=['all'],

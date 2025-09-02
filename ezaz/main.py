@@ -36,14 +36,15 @@ class Main:
 
     def parse_args(self, args):
         partial_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
-        partial_parser.add_argument('--debug-parser', action='store_true', help=argparse.SUPPRESS)
-        partial_parser.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
-        partial_parser.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
-        partial_parser.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
-        partial_parser.add_argument('--configfile', metavar='PATH', help='Path to config file')
-        partial_parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
-        partial_parser.add_argument('-n', '--dry-run', action='store_true',
-                                    help='For commands other than show/list, only print what would be done, do not run commands')
+        common_group = partial_parser.add_shared_argument_group(title='Global options')
+        common_group.add_argument('--debug-parser', action='store_true', help=argparse.SUPPRESS)
+        common_group.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
+        common_group.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
+        common_group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
+        common_group.add_argument('--configfile', metavar='PATH', help='Path to config file')
+        common_group.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
+        common_group.add_argument('-n', '--dry-run', action='store_true',
+                                  help='For commands other than show/list, only print what would be done, do not run commands')
 
         self.setup_logging(partial_parser.parse_known_args(self.args)[0])
 

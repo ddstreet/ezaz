@@ -7,10 +7,12 @@ from .. import DISTRO_IMAGES
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import AzObjectArgConfig
+from ..argutil import AzObjectGroupArgConfig
 from ..argutil import BoolArgConfig
 from ..argutil import ChoiceMapArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import EnableDisableGroupArgConfig
+from ..argutil import ExclusiveGroupArgConfig
 from ..argutil import FlagArgConfig
 from ..argutil import GroupArgConfig
 from ..argutil import NoWaitBoolArgConfig
@@ -53,65 +55,86 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        from .imagegallery import ImageGallery
         from .imagedefinition import ImageDefinition
+        from .imagegallery import ImageGallery
         from .imageversion import ImageVersion
+        from .marketplaceimage import MarketplaceImage
+        from .marketplaceimageversion import MarketplaceImageVersion
+        from .marketplaceoffer import MarketplaceOffer
         from .sku import Sku
         from .sshkey import SshKey
         from .storageaccount import StorageAccount
-        return [*ImageGallery.get_self_id_argconfigs(is_parent=True, noncmd=True),
-                *ImageDefinition.get_self_id_argconfigs(is_parent=True, noncmd=True),
-                GroupArgConfig(ArgConfig('image',
-                                         help='Deploy the provided full image id'),
-                               AzObjectArgConfig('latest_image_version',
-                                                 azclass=ImageDefinition,
-                                                 cmdattr='id',
-                                                 nodefault=True,
-                                                 help='Deploy the latest version of this image definition'),
-                               AzObjectArgConfig('image_version',
-                                                 azclass=ImageVersion,
-                                                 cmdattr='id',
-                                                 nodefault=True,
-                                                 help='Deploy this image version'),
-                               ChoiceMapArgConfig('distro',
-                                                  choicemap=DISTRO_IMAGES,
-                                                  help='Deploy the specified distro'),
-                               required=True,
-                               cmddest='image'),
-                AzObjectArgConfig('instance_type',
-                                  azclass=Sku,
-                                  dest='size',
-                                  help=''),
-                ArgConfig('username',
-                          dest='admin_username',
-                          default=getpass.getuser(),
-                          help='User to create on instance'),
-                ArgConfig('password',
-                          dest='admin_password',
-                          help='User password'),
-                AzObjectArgConfig('ssh-key',
-                                  dest='ssh_key_name',
-                                  azclass=SshKey,
-                                  help='ssh key to use for authentication'),
-                ChoicesArgConfig('security_type',
-                                 choices=['Standard', 'TrustedLaunch', 'ConfidentialVM'],
-                                 default='TrustedLaunch',
-                                 help='Security type'),
-                EnableDisableGroupArgConfig('enable_secure_boot',
-                                            default=True,
-                                            help_enable='Enable secure boot (default)',
-                                            help_disable='Disable secure boot'),
-                EnableDisableGroupArgConfig('enable_vtpm',
-                                            default=True,
-                                            help_enable='Enable secure boot (default)',
-                                            help_disable='Disable secure boot'),
-                ChoicesArgConfig('os_type',
-                                 choices=['linux', 'windows'],
-                                 help='Type of OS'),
-                NumberArgConfig('size',
-                                dest='os_disk_size_gb',
-                                help='Size of OS disk, in GB'),
-                NoWaitFlagArgConfig()]
+        return [AzObjectGroupArgConfig(azclass=ImageGallery,
+                                       prefix='gallery_image',
+                                       title='Gallery Image options',
+                                       help='Use the specified {azobject_text} for the gallery image'),
+                AzObjectGroupArgConfig(azclass=MarketplaceOffer,
+                                       prefix='marketplace_image',
+                                       title='Marketplace Image options',
+                                       help='Use the specified {azobject_text} for the marketplace image'),
+                ExclusiveGroupArgConfig(ArgConfig('image',
+                                                  help='Deploy the provided full image id'),
+                                        AzObjectArgConfig('gallery_image_version',
+                                                          azclass=ImageVersion,
+                                                          cmdattr='id',
+                                                          nodefault=True,
+                                                          help='Deploy this version of an Azure Image Gallery image definition'),
+                                        AzObjectArgConfig('gallery_image_latest',
+                                                          azclass=ImageDefinition,
+                                                          cmdattr='id',
+                                                          nodefault=True,
+                                                          help='Deploy the latest version of an Azure Image Gallery image definition'),
+                                        AzObjectArgConfig('marketplace_image_version',
+                                                          azclass=MarketplaceImageVersion,
+                                                          cmdattr='id',
+                                                          nodefault=True,
+                                                          help='Deploy this version of an Azure Marketplace image'),
+                                        AzObjectArgConfig('marketplace_image_latest',
+                                                          azclass=MarketplaceImage,
+                                                          cmdattr='id',
+                                                          nodefault=True,
+                                                          help='Deploy the latest version of an Azure Marketplace image'),
+                                        ChoiceMapArgConfig('distro',
+                                                           choicemap=DISTRO_IMAGES,
+                                                           help='Deploy the specified distro'),
+                                        title='Image to deploy',
+                                        required=True,
+                                        cmddest='image'),
+                GroupArgConfig(AzObjectArgConfig('instance_type',
+                                                 azclass=Sku,
+                                                 dest='size',
+                                                 help='Type of instance to deploy (e.g. Standard_A1_v2)'),
+                               ArgConfig('username',
+                                         dest='admin_username',
+                                         default=getpass.getuser(),
+                                         help='User to create on instance'),
+                               ArgConfig('password',
+                                         dest='admin_password',
+                                         help='User password'),
+                               AzObjectArgConfig('ssh_key',
+                                                 dest='ssh_key_name',
+                                                 azclass=SshKey,
+                                                 help='ssh key to use for authentication'),
+                               ChoicesArgConfig('security_type',
+                                                choices=['Standard', 'TrustedLaunch', 'ConfidentialVM'],
+                                                default='TrustedLaunch',
+                                                help='Security type'),
+                               EnableDisableGroupArgConfig('enable_secure_boot',
+                                                           default=True,
+                                                           help_enable='Enable secure boot (default)',
+                                                           help_disable='Disable secure boot'),
+                               EnableDisableGroupArgConfig('enable_vtpm',
+                                                           default=True,
+                                                           help_enable='Enable secure boot (default)',
+                                                           help_disable='Disable secure boot'),
+                               ChoicesArgConfig('os_type',
+                                                choices=['linux', 'windows'],
+                                                help='Type of OS'),
+                               NumberArgConfig('size',
+                                               dest='os_disk_size_gb',
+                                               help='Size of OS disk, in GB'),
+                               NoWaitFlagArgConfig(),
+                               title='VM creation options')]
 
     @classmethod
     def get_delete_action_argconfigs(cls):

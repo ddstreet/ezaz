@@ -38,7 +38,7 @@ class DefaultsCommand(AzObjectActionCommand):
 
     @classmethod
     def get_set_action_argconfigs(cls):
-        return [*cls.azclass().get_descendant_self_id_argconfigs(help='Set the {azobject_text} default id'),
+        return [*cls.azclass().get_descendant_azobject_id_argconfigs(help='Set the {azobject_text} default id'),
                 BoolArgConfig('check', help='Check if the default id for each object type exists'),
                 BoolArgConfig('force', help='Set the default id even if existence check failed')]
 

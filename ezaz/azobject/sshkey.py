@@ -5,7 +5,7 @@ from pathlib import Path
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import FileArgConfig
-from ..argutil import GroupArgConfig
+from ..argutil import ExclusiveGroupArgConfig
 from ..argutil import YesFlagArgConfig
 from ..exception import ArgumentError
 from ..exception import RequiredArgument
@@ -34,13 +34,13 @@ class SshKey(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [GroupArgConfig(ArgConfig('public_key',
-                                         help='Public key data'),
-                               FileArgConfig('public_key_file',
-                                             default=cls.find_public_key_file,
-                                             help='Public key file'),
-                               cmddest='public_key',
-                               required=True)]
+        return [ExclusiveGroupArgConfig(ArgConfig('public_key',
+                                                  help='Public key data'),
+                                        FileArgConfig('public_key_file',
+                                                      default=cls.find_public_key_file,
+                                                      help='Public key file'),
+                                        cmddest='public_key',
+                                        required=True)]
 
     @classmethod
     def get_delete_action_argconfigs(cls):

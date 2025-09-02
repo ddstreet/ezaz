@@ -67,20 +67,20 @@ class User(AzShowable, AzListable, AzObjectContainer):
                 cls.make_action_config('signed_in_user',
                                        get_instance=cls.get_null_instance,
                                        cmd=['ad', 'signed-in-user', 'show'],
-                                       common_argconfigs=[],
+                                       azobject_id_argconfigs=[],
                                        az='info',
                                        description='Show signed-in user'),
                 cls.make_action_config('login',
                                        get_instance=cls.get_null_instance,
                                        cmd=['login'],
-                                       common_argconfigs=[],
+                                       azobject_id_argconfigs=[],
                                        description='Login',
                                        argconfigs=[FlagArgConfig('use_device_code',
                                                                  help='Instead of opening a browser window, show the URL and code')]),
                 cls.make_action_config('logout',
                                        get_instance=cls.get_null_instance,
                                        cmd=['logout'],
-                                       common_argconfigs=[],
+                                       azobject_id_argconfigs=[],
                                        description='Logout')]
 
     def signed_in_user_pre(self, opts):

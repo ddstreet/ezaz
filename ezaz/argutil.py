@@ -196,54 +196,6 @@ class ArgUtil:
         return ArgMap({k: None for k, v in cls.optional_args(keys, opts).items() if v})
 
 
-class AzObjectInfoHelper:
-    def __init__(self, azclass, infoattr=None):
-        self.azclass = azclass
-        self.infoattr = infoattr
-
-    def get_info_list(self, opts):
-        return self.azclass.get_null_instance(**opts).list(**opts)
-
-    def get_info(self, azobject_id, opts):
-        infos = list(filter(lambda info: info._id == azobject_id, self.get_info_list(opts)))
-        return infos[0] if infos else None
-
-    def get_infoattr(self, info):
-        return getattr(info, self.infoattr or '_id', None)
-
-
-class AzObjectCompleter(AzObjectInfoHelper):
-    def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
-        opts = vars(parsed_args)
-        try:
-            return filter(None, map(self.get_infoattr, self.get_info_list(opts)))
-        except Exception as e:
-            if opts.get('verbose', 0) > 2:
-                import argcomplete
-                argcomplete.warn(f'argcomplete error: {e}')
-                if opts.get('verbose', 0) > 3:
-                    import traceback
-                    argcomplete.warn(traceback.format_exc())
-            raise
-
-
-class AzObjectDefaultId(AzObjectInfoHelper):
-    def __call__(self, **opts):
-        try:
-            # Can't directly get child info, as we can be called from
-            # the show command
-            azobject_id = self.azclass.get_default_azobject_id(**opts)
-        except DefaultConfigNotFound:
-            return None
-
-        if not self.infoattr:
-            # Don't need to lookup custom attr
-            return azobject_id
-
-        # Can use list as it doesn't require the object's default id
-        return self.get_infoattr(self.get_info(azobject_id, opts))
-
-
 class BaseArgConfig(ArgUtil, ABC):
     def __init__(self, *,
                  dest=None,
@@ -347,12 +299,13 @@ class BaseArgConfig(ArgUtil, ABC):
 
 
 class ArgConfig(BaseArgConfig):
-    def __init__(self, *opts, help=None, hidden=False, completer=None, **kwargs):
+    def __init__(self, *opts, metavar=None, help=None, hidden=False, completer=None, **kwargs):
         super().__init__(**kwargs)
 
         # opts can be provided in arg or opt format
         self.opts = self._args_to_opts(*opts)
         self.help = argparse.SUPPRESS if hidden else help
+        self.metavar = metavar
         self.completer = completer
 
     def raise_required(self):
@@ -382,41 +335,12 @@ class ArgConfig(BaseArgConfig):
                       dest=self.dest,
                       required=self.required,
                       default=self.default,
+                      **(dict(metavar=self.metavar) if self.metavar else {}),
                       **(dict(action='append') if self.multiple else {}),
                       **self._parser_kwargs)
 
     def add_to_parser(self, parser):
         parser.add_argument(*self.parser_args, **self.parser_kwargs).completer = self.completer
-
-
-class AzObjectArgConfig(ArgConfig):
-    def __init__(self, *args, azclass, infoattr=None, cmdattr=None, completer=None, nocompleter=False, default=None, nodefault=False, **kwargs):
-        super().__init__(*args,
-                         completer=None if nocompleter else completer or AzObjectCompleter(azclass, infoattr=infoattr),
-                         default=None if nodefault else default or AzObjectDefaultId(azclass, infoattr=infoattr),
-                         **kwargs)
-        self.azclass = azclass
-        self.infoattr = infoattr or '_id'
-        self.cmdattr = cmdattr or '_id'
-
-    def _process_value(self, value, opts):
-        if self.infoattr == self.cmdattr:
-            return value
-
-        # This is problematic, as the azobject ancestors might not be
-        # the same as the cmdline's azobject, meaning the opts don't
-        # lead to an instance of the azobject here
-        null_instance = self.azclass.get_null_instance(**opts)
-
-        infos = [info for info in null_instance.list(**opts)
-                 if getattr(info, self.infoattr, None) == value]
-
-        if not infos:
-            return None
-        if len(infos) > 1:
-            raise ArgumentError(f'Multiple results found with attribute {self.infoattr} == {value}')
-
-        return getattr(infos[0], self.cmdattr, None)
 
 
 class NumberArgConfig(ArgConfig):
@@ -548,19 +472,104 @@ class DateTimeArgConfig(ArgConfig):
         raise InvalidDateTimeArgumentValue(self.parser_argname, value)
 
 
-class GroupArgConfig(BaseArgConfig):
-    # Note - this is an *exclusive* group, we don't have any use for a non-exclusive group
-    def __init__(self, *argconfigs, cmddest=None, cmdvalue=None, default=None, required=False):
-        self.argconfigs = argconfigs
-        super().__init__(cmddest=cmddest, cmdvalue=cmdvalue, default=default, required=required)
-        if cmddest and list(filter(lambda a: a._dest or a._cmddest, argconfigs)):
-            raise ArgumentError(f'Do not set dest/cmddest for both GroupArgConfig and its arguments')
-        if list(filter(lambda a: a._required, argconfigs)):
-            raise ArgumentError(f'Do not set required for GroupArgConfig arguments')
+class AzObjectInfoHelper:
+    def __init__(self, *args, azclass, infoattr=None, prefix=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.azclass = azclass
+        self.infoattr = infoattr
+        self.prefix = prefix
 
-    @property
-    def is_group(self):
-        return True
+    def unprefix_opts(self, opts):
+        if self.prefix:
+            return opts | {o.removeprefix(f'{self.prefix}_'): opts.get(o)
+                           for o in self.opts if o.startswith(f'{self.prefix}_')}
+        else:
+            return opts
+
+    def get_info_list(self, opts):
+        return self.azclass.get_null_instance(**opts).list(**opts)
+
+    def get_info(self, azobject_id, opts):
+        infos = list(filter(lambda value: value == azobject_id, map(self.get_infoattr, self.get_info_list(opts))))
+        if len(infos) > 1:
+            raise ArgumentError(f'Multiple results found with attribute {self.infoattr or "_id"} == {value}')
+        return infos[0] if infos else None
+
+    def get_infoattr(self, info):
+        return getattr(info, self.infoattr or '_id', None)
+
+
+class AzObjectCompleter(AzObjectInfoHelper):
+    def get_azobject_completer_choices(self, **opts):
+        try:
+            return filter(None, map(self.get_infoattr, self.get_info_list(opts)))
+        except Exception as e:
+            if opts.get('verbose', 0) > 2:
+                import argcomplete
+                argcomplete.warn(f'argcomplete error: {e}')
+                if opts.get('verbose', 0) > 3:
+                    import traceback
+                    argcomplete.warn(traceback.format_exc())
+            raise
+
+    def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
+        return self.get_azobject_completer_choices(**self.unprefix_opts(vars(parsed_args)))
+
+
+class AzObjectDefaultId(AzObjectInfoHelper):
+    def get_default_azobject_id(self, **opts):
+        try:
+            # Can't directly get child info, as we can be called from
+            # the show command
+            azobject_id = self.azclass.get_default_azobject_id(**opts)
+        except DefaultConfigNotFound:
+            return None
+
+        if not self.infoattr:
+            # Don't need to lookup custom attr
+            return azobject_id
+
+        # Can use list as it doesn't require the object's default id
+        return self.get_infoattr(self.get_info(azobject_id, opts))
+
+    def __call__(self, **opts):
+        return self.get_default_azobject_id(**self.unprefix_opts(opts))
+
+
+class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
+    def __init__(self,
+                 *args,
+                 azclass,
+                 infoattr=None,
+                 cmdattr=None,
+                 completer=None,
+                 nocompleter=False,
+                 default=None,
+                 nodefault=False,
+                 prefix=None,
+                 **kwargs):
+        self.cmdattr = cmdattr
+
+        completer=None if nocompleter else completer or AzObjectCompleter(azclass=azclass, infoattr=infoattr, prefix=prefix)
+        default=None if nodefault else default or AzObjectDefaultId(azclass=azclass, infoattr=infoattr, prefix=prefix)
+
+        super().__init__(*args, azclass=azclass, infoattr=infoattr, completer=completer, default=default, prefix=prefix, **kwargs)
+
+    def _process_value(self, value, opts):
+        if self.infoattr == self.cmdattr:
+            return value
+
+        info = self.get_info(value, self.unprefix_opts(opts))
+        if not info:
+            return None
+
+        return getattr(info, self.cmdattr or '_id', None)
+
+
+class BaseGroupArgConfig(BaseArgConfig):
+    def __init__(self, *argconfigs, **kwargs):
+        self.argconfigs = argconfigs
+        super().__init__(**kwargs)
 
     @property
     def opts(self):
@@ -568,59 +577,96 @@ class GroupArgConfig(BaseArgConfig):
             for opt in argconfig.opts:
                 yield opt
 
+    @property
+    def is_group(self):
+        return True
+
+    @property
+    def exclusive(self):
+        return False
+
+    def raise_required(self):
+        raise RequiredArgumentGroup(list(self.opts), exclusive=self.exclusive)
+
     def group(self, parser):
-        return parser.add_mutually_exclusive_group(required=self.required)
+        return parser
 
     def add_to_parser(self, parser):
         group = self.group(parser)
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(group)
 
+    def cmd_args(self, **opts):
+        return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
+
+
+class GroupArgConfig(BaseGroupArgConfig):
+    def __init__(self, *argconfigs, title, description=None, shared=False, **kwargs):
+        self.title = title
+        self.description = description
+        self.shared = shared
+        super().__init__(*argconfigs, **kwargs)
+
+    def group(self, parser):
+        add_argument_group = parser.add_shared_argument_group if self.shared else parser.add_argument_group
+        return add_argument_group(title=self.title, description=self.description)
+
+
+class ExclusiveGroupArgConfig(GroupArgConfig):
+    def __init__(self,
+                 *argconfigs,
+                 title=None,
+                 description=None,
+                 shared=False,
+                 cmddest=None,
+                 cmdvalue=None,
+                 default=None,
+                 required=False):
+
+        super().__init__(*argconfigs,
+                         title=title,
+                         description=description,
+                         shared=shared,
+                         cmddest=cmddest,
+                         cmdvalue=cmdvalue,
+                         default=default,
+                         required=required)
+
+        if cmddest and list(filter(lambda a: a._dest or a._cmddest, argconfigs)):
+            raise ArgumentError(f'Do not set dest/cmddest for both {self.__class__.__name__} and its arguments')
+        if list(filter(lambda a: a._required, argconfigs)):
+            raise ArgumentError(f'Do not set required for {self.__class__.__name__} arguments')
+
+    @property
+    def exclusive(self):
+        return True
+
     @property
     def required(self):
         return super().required and not any([callable(a._default) for a in self.argconfigs])
 
-    def raise_required(self):
-        raise RequiredArgumentGroup(list(self.opts), exclusive=True)
-
-    def is_argconfig_set(self, argconfig, opts):
-        # This is used by cmd_arg_value below to determine if the
-        # provided argconfig has its value != (non-callable) default,
-        # or if its callable default is not None
-        if argconfig.cmd_arg_value(**opts) != argconfig.default:
-            return True
-        return 
+    def group(self, parser):
+        return super().group(parser).add_mutually_exclusive_group(required=self.required)
 
     def cmd_arg_value(self, **opts):
-        # This is only called if cmddest is set for the group.
         for argconfig in self.argconfigs:
-            # First, look for the first argconfig whose value is
-            # different from its non-callable default (or None)
             value = argconfig.cmd_arg_value(**opts)
             if value != argconfig.default:
                 return value
-        for argconfig in self.argconfigs:
-            # Now, look for the first argconfig whose callable default
-            # is not None
-            if not callable(argconfig._default):
-                continue
-            value = argconfig.runtime_default_value(**opts)
-            if value is not None:
-                return value
         return self.runtime_default_value(**opts)
 
-    def _cmd_args(self, **opts):
+    def cmd_args(self, **opts):
         if self.cmddest:
             # cmddest means we put the changed child arg value into
             # cmddest, and ignore the rest
-            return super()._cmd_args(**opts)
+            return self._cmd_args(**opts)
         # without cmddest, we pass along all our child args; the only
         # use of group here is exclusivity (argparse enforces that the
         # user can only provide one of our child args)
-        return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
+        return super().cmd_args(**opts)
 
 
-class BoolGroupArgConfig(GroupArgConfig):
+class BoolGroupArgConfig(ExclusiveGroupArgConfig):
     # Create dual XXX and no_XXX args.
     # The opt param (either XXX or no_XXX) sets the value to True.
     # Examples for use:
@@ -669,6 +715,11 @@ class EnableDisableGroupArgConfig(BoolGroupArgConfig):
                                        **kwargs)
 
 
+class AzObjectGroupArgConfig(GroupArgConfig):
+    def __init__(self, *, azclass, title=None, description=None, **kwargs):
+        return super().__init__(*azclass.get_azobject_id_argconfigs(**kwargs), title=title, description=description)
+
+
 class PositionalArgConfig(ArgConfig):
     def __init__(self, opt, *, help=None, default=None, required=True, multiple=False, remainder=False):
         super().__init__(opt, help=help, default=default, required=required, multiple=multiple, noncmd=True)
@@ -706,19 +757,24 @@ class PositionalArgConfig(ArgConfig):
 # unexpected and unwanted behavior when using nested subparsers.
 class SharedArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, all_shared=False, shared_args=None, **kwargs):
-        self.all_shared = all_shared
+        if all_shared:
+            self.add_argument = self.add_shared_argument
         super().__init__(*args, **kwargs)
         for a in shared_args or []:
-            self.add_argument(*a.args, shared=True, **a.kwargs)
+            a.add_to_parser(self)
 
     @cached_property
     def shared_args(self):
         return []
 
-    def add_argument(self, *args, shared=False, **kwargs):
-        if shared or self.all_shared:
-            self.shared_args.append(SharedArgument(*args, **kwargs))
+    def add_shared_argument(self, *args, **kwargs):
+        self.shared_args.append(SharedArgument(*args, **kwargs))
         return super().add_argument(*args, **kwargs)
+
+    def add_shared_argument_group(self, title=None, description=None):
+        group = super().add_argument_group(title=title, description=description)
+        self.shared_args.append(SharedArgumentGroup(group))
+        return group
 
     def add_subparsers(self, *args, **kwargs):
         subparsers = super().add_subparsers(*args, **kwargs)
@@ -728,19 +784,18 @@ class SharedArgumentParser(argparse.ArgumentParser):
     def _subparsers_add_parser(self, add_parser, *args, **kwargs):
         parser = add_parser(*args, **kwargs)
         for p in self.shared_args:
-            parser.add_argument(*p.args, **p.kwargs)
-        parser.shared_args.extend(self.shared_args)
+            p.add_to_parser(parser)
         return parser
 
     def parse_args(self, args):
         opts = super().parse_args(args)
         for p in self.shared_args:
-            p.parse_shared_arg(args, opts)
+            opts = p.parse_shared_arg(args, opts)
         return opts
 
 
 class SharedArgument:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, shared=True, **kwargs):
         self.args = args
         self.kwargs = kwargs
 
@@ -748,6 +803,9 @@ class SharedArgument:
         args_str = ', '.join(self.args)
         kwargs_str = ', '.join([f'{k}={v}' for k, v in self.kwargs.items()])
         return f'{self.__class__.__name__}({", ".join([args_str, kwargs_str])})'
+
+    def add_to_parser(self, parser):
+        parser.add_shared_argument(*self.args, **self.kwargs)
 
     def parse_shared_arg(self, args, namespace):
         import string
@@ -760,3 +818,28 @@ class SharedArgument:
         for k, v in vars(ns).items():
             if k != '__ignore':
                 setattr(namespace, k, v)
+        return namespace
+
+
+class SharedArgumentGroup:
+    def __init__(self, group):
+        self.group = group
+        self.group.add_argument = partial(self._group_add_argument, group.add_argument)
+        self.shared_args = []
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(title={self.title}, description={self.description})'
+
+    def _group_add_argument(self, add_argument, *args, **kwargs):
+        self.shared_args.append(SharedArgument(*args, **kwargs))
+        return add_argument(*args, **kwargs)
+
+    def add_to_parser(self, parser):
+        group = parser.add_shared_argument_group(title=self.group.title, description=self.group.description)
+        for arg in self.shared_args:
+            group.add_argument(*arg.args, **arg.kwargs)
+
+    def parse_shared_arg(self, args, namespace):
+        for p in self.shared_args:
+            namespace = p.parse_shared_arg(args, namespace)
+        return namespace
