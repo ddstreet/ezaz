@@ -241,7 +241,7 @@ class AzObject(CachedAzAction):
         return None
 
     @classmethod
-    def get_self_id_argconfigs(cls, *, is_parent=False, prefix=None, **kwargs):
+    def get_self_id_argconfigs(cls, *args, is_parent=False, **kwargs):
         if 'help' not in kwargs:
             kwargs['help'] = 'Use the specified {azobject_text}, instead of the default'
         if kwargs['help']:
@@ -251,8 +251,7 @@ class AzObject(CachedAzAction):
             kwargs['cmddest'] = cls.get_self_id_argconfig_cmddest(is_parent=is_parent)
         if 'metavar' not in kwargs:
             kwargs['metavar'] = cls.azobject_name().upper()
-        arg = f'{prefix}_{cls.azobject_name()}' if prefix else cls.azobject_name()
-        return [AzObjectArgConfig(arg, azclass=cls, prefix=prefix, **kwargs)]
+        return [AzObjectArgConfig(*args, azclass=cls, **kwargs)]
 
     @classmethod
     def get_self_id_argconfig_cmddest(cls, is_parent):
@@ -377,7 +376,7 @@ class AzObject(CachedAzAction):
         return cls._info_cache
 
     @classmethod
-    def get_self_id_from_opts(cls, opts, required=False):
+    def get_azobject_id_from_opts(cls, opts, required=False):
         azobject_id = opts.get(cls.azobject_name())
         if not azobject_id and required:
             raise RequiredArgument(cls.azobject_name(),
@@ -385,8 +384,8 @@ class AzObject(CachedAzAction):
         return azobject_id
 
     @classmethod
-    def set_self_id_in_opts(cls, azobject_id, opts, replace=True):
-        if replace or cls.get_self_id_from_opts(opts) is None:
+    def set_azobject_id_in_opts(cls, azobject_id, opts, replace=True):
+        if replace or cls.get_azobject_id_from_opts(opts) is None:
             opts[cls.azobject_name()] = azobject_id
         return opts
 
@@ -414,14 +413,14 @@ class AzObject(CachedAzAction):
     @classmethod
     def get_default_instance(cls, **opts):
         default_id = cls.get_default_azobject_id(**opts)
-        return cls.get_specific_instance(**cls.set_self_id_in_opts(default_id, opts))
+        return cls.get_specific_instance(**cls.set_azobject_id_in_opts(default_id, opts))
 
     @classmethod
     def get_specific_instance(cls, **opts):
         if not hasattr(cls, '_instance_cache'):
             cls._instance_cache = {}
 
-        azobject_id = cls.get_self_id_from_opts(opts, required=True)
+        azobject_id = cls.get_azobject_id_from_opts(opts, required=True)
         azobject = cls._instance_cache.get(azobject_id)
         if azobject:
             return azobject
@@ -479,7 +478,7 @@ class AzObject(CachedAzAction):
 
     def get_azobject_id_opts(self, **opts):
         if not self.is_null:
-            return self.set_self_id_in_opts(self.azobject_id, opts, replace=False)
+            return self.set_azobject_id_in_opts(self.azobject_id, opts, replace=False)
         return opts
 
     def do_action_config_instance_action(self, action, opts, include_self=True):
@@ -855,7 +854,7 @@ class AzCreatable(AzObject):
 
     def create_pre(self, opts):
         if self.is_create_id_required():
-            self.get_self_id_from_opts(opts, required='create')
+            self.get_azobject_id_from_opts(opts, required='create')
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
         return None
@@ -892,7 +891,7 @@ class AzDeletable(AzObject):
 
     def delete_pre(self, opts):
         if self.is_create_id_required():
-            self.get_self_id_from_opts(opts, required='delete')
+            self.get_azobject_id_from_opts(opts, required='delete')
         if not self.exists:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
         return None

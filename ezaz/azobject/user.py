@@ -69,6 +69,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
                                        cmd=['ad', 'signed-in-user', 'show'],
                                        azobject_id_argconfigs=[],
                                        az='info',
+                                       dry_runnable=True,
                                        description='Show signed-in user'),
                 cls.make_action_config('login',
                                        get_instance=cls.get_null_instance,

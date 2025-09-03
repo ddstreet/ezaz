@@ -15,12 +15,12 @@ from ..argutil import EnableDisableGroupArgConfig
 from ..argutil import ExclusiveGroupArgConfig
 from ..argutil import FlagArgConfig
 from ..argutil import GroupArgConfig
+from ..argutil import LatestAzObjectArgConfig
 from ..argutil import NoWaitBoolArgConfig
 from ..argutil import NoWaitFlagArgConfig
 from ..argutil import NumberArgConfig
 from ..argutil import YesFlagArgConfig
 from ..exception import InvalidArgumentValue
-from ..exception import RequiredArgument
 from .azobject import AzCommonActionable
 from .azobject import AzSubObject
 
@@ -64,36 +64,29 @@ class VM(AzCommonActionable, AzSubObject):
         from .sku import Sku
         from .sshkey import SshKey
         from .storageaccount import StorageAccount
-        return [AzObjectGroupArgConfig(azclass=ImageGallery,
-                                       prefix='gallery_image',
-                                       title='Gallery Image options',
-                                       help='Use the specified {azobject_text} for the gallery image'),
-                AzObjectGroupArgConfig(azclass=MarketplaceOffer,
-                                       prefix='marketplace_image',
-                                       title='Marketplace Image options',
-                                       help='Use the specified {azobject_text} for the marketplace image'),
+        return [AzObjectGroupArgConfig(azclass=ImageDefinition,
+                                       prefix='gallery_image_',
+                                       destprefix='GALLERY_',
+                                       title='Azure Compute Gallery Image options',
+                                       help='Use the specified {azobject_text} for the Azure Compute Gallery image'),
+                AzObjectGroupArgConfig(azclass=MarketplaceImage,
+                                       prefix='marketplace_image_',
+                                       destprefix='MARKETPLACE_',
+                                       title='Azure Marketplace Image options',
+                                       help='Use the specified {azobject_text} for the Azure Marketplace image'),
                 ExclusiveGroupArgConfig(ArgConfig('image',
-                                                  help='Deploy the provided full image id'),
-                                        AzObjectArgConfig('gallery_image_version',
-                                                          azclass=ImageVersion,
-                                                          cmdattr='id',
-                                                          nodefault=True,
-                                                          help='Deploy this version of an Azure Image Gallery image definition'),
-                                        AzObjectArgConfig('gallery_image_latest',
-                                                          azclass=ImageDefinition,
-                                                          cmdattr='id',
-                                                          nodefault=True,
-                                                          help='Deploy the latest version of an Azure Image Gallery image definition'),
-                                        AzObjectArgConfig('marketplace_image_version',
-                                                          azclass=MarketplaceImageVersion,
-                                                          cmdattr='id',
-                                                          nodefault=True,
-                                                          help='Deploy this version of an Azure Marketplace image'),
-                                        AzObjectArgConfig('marketplace_image_latest',
-                                                          azclass=MarketplaceImage,
-                                                          cmdattr='id',
-                                                          nodefault=True,
-                                                          help='Deploy the latest version of an Azure Marketplace image'),
+                                                  help='Deploy the provided full image id or URN'),
+                                        LatestAzObjectArgConfig('gallery_image_version',
+                                                                azclass=ImageVersion,
+                                                                resourceprefix='GALLERY_',
+                                                                cmdattr='id',
+                                                                nodefault=True,
+                                                                help='Deploy a specific (or latest) version of an Azure Image Gallery image'),
+                                        LatestAzObjectArgConfig(azclass=MarketplaceImageVersion,
+                                                                resourceprefix='MARKETPLACE_',
+                                                                cmdattr='urn',
+                                                                nodefault=True,
+                                                                help='Deploy a specific (or latest) version of an Azure Marketplace image'),
                                         ChoiceMapArgConfig('distro',
                                                            choicemap=DISTRO_IMAGES,
                                                            help='Deploy the specified distro'),
@@ -135,6 +128,11 @@ class VM(AzCommonActionable, AzSubObject):
                                                help='Size of OS disk, in GB'),
                                NoWaitFlagArgConfig(),
                                title='VM creation options')]
+
+    @classmethod
+    def get_create_action_argconfigs_title(cls):
+        # Break down the create options into multiple groups, as above
+        return None
 
     @classmethod
     def get_delete_action_argconfigs(cls):
@@ -205,7 +203,7 @@ class VM(AzCommonActionable, AzSubObject):
         self.do_action_config_instance_action('restart', opts)
 
     def enable_boot_diagnostics(self, **opts):
-        self.get_enable_boot_diagnostics_actioncfg().do_instance_action(self, self.get_self_id_opts(**opts))
+        self.get_enable_boot_diagnostics_actioncfg().do_instance_action(self, self.get_azobject_id_opts(**opts))
 
     @property
     def is_boot_diagnostics_enabled(self):

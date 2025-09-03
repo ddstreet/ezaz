@@ -299,6 +299,10 @@ class BaseArgConfig(ArgUtil, ABC):
 
 
 class ArgConfig(BaseArgConfig):
+    @classmethod
+    def get_args_dest(self, *args, dest=None):
+        return argparse.ArgumentParser().add_argument(*args, **(dict(dest=dest) if dest else {})).dest
+
     def __init__(self, *opts, metavar=None, help=None, hidden=False, completer=None, **kwargs):
         super().__init__(**kwargs)
 
@@ -314,12 +318,12 @@ class ArgConfig(BaseArgConfig):
     @property
     def dest(self):
         """This is the name the argparse will set in the parsed options."""
-        return argparse.ArgumentParser().add_argument(*self.parser_args, dest=self._dest).dest
+        return self.get_args_dest(*self.parser_args, dest=self._dest)
 
     @property
     def parser_argname(self):
         """This is the argument name provided to the user."""
-        return argparse.ArgumentParser().add_argument(*self.parser_args).dest
+        return self.get_args_dest(*self.parser_args)
 
     @property
     def parser_args(self):
@@ -473,24 +477,25 @@ class DateTimeArgConfig(ArgConfig):
 
 
 class AzObjectInfoHelper:
-    def __init__(self, *args, azclass, infoattr=None, prefix=None, **kwargs):
+    def __init__(self, *args, azclass, infoattr=None, resourceprefix=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.azclass = azclass
         self.infoattr = infoattr
-        self.prefix = prefix
+        self.resourceprefix = resourceprefix
+
+    def _unprefix_opts(self, opts):
+        return opts | {o.removeprefix(self.resourceprefix): opts.get(o)
+                       for o in opts if o.startswith(self.resourceprefix)}
 
     def unprefix_opts(self, opts):
-        if self.prefix:
-            return opts | {o.removeprefix(f'{self.prefix}_'): opts.get(o)
-                           for o in self.opts if o.startswith(f'{self.prefix}_')}
-        else:
-            return opts
+        return self._unprefix_opts(opts) if self.resourceprefix else opts
 
     def get_info_list(self, opts):
+        opts = self.unprefix_opts(opts)
         return self.azclass.get_null_instance(**opts).list(**opts)
 
-    def get_info(self, azobject_id, opts):
-        infos = list(filter(lambda value: value == azobject_id, map(self.get_infoattr, self.get_info_list(opts))))
+    def get_info(self, value, opts):
+        infos = list(filter(lambda info: self.get_infoattr(info) == value, self.get_info_list(opts)))
         if len(infos) > 1:
             raise ArgumentError(f'Multiple results found with attribute {self.infoattr or "_id"} == {value}')
         return infos[0] if infos else None
@@ -513,7 +518,7 @@ class AzObjectCompleter(AzObjectInfoHelper):
             raise
 
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
-        return self.get_azobject_completer_choices(**self.unprefix_opts(vars(parsed_args)))
+        return self.get_azobject_completer_choices(**vars(parsed_args))
 
 
 class AzObjectDefaultId(AzObjectInfoHelper):
@@ -521,7 +526,7 @@ class AzObjectDefaultId(AzObjectInfoHelper):
         try:
             # Can't directly get child info, as we can be called from
             # the show command
-            azobject_id = self.azclass.get_default_azobject_id(**opts)
+            azobject_id = self.azclass.get_default_azobject_id(**self.unprefix_opts(opts))
         except DefaultConfigNotFound:
             return None
 
@@ -533,10 +538,13 @@ class AzObjectDefaultId(AzObjectInfoHelper):
         return self.get_infoattr(self.get_info(azobject_id, opts))
 
     def __call__(self, **opts):
-        return self.get_default_azobject_id(**self.unprefix_opts(opts))
+        return self.get_default_azobject_id(**opts)
 
 
 class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
+    completer_class = AzObjectCompleter
+    default_id_class = AzObjectDefaultId
+
     def __init__(self,
                  *args,
                  azclass,
@@ -547,13 +555,35 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
                  default=None,
                  nodefault=False,
                  prefix=None,
+                 destprefix=None,
+                 dest=None,
+                 resourceprefix=None,
                  **kwargs):
         self.cmdattr = cmdattr
 
-        completer=None if nocompleter else completer or AzObjectCompleter(azclass=azclass, infoattr=infoattr, prefix=prefix)
-        default=None if nodefault else default or AzObjectDefaultId(azclass=azclass, infoattr=infoattr, prefix=prefix)
+        if destprefix:
+            if resourceprefix:
+                raise ArgumentError(f'Cannot set both destprefix ({destprefix}) and resourceprefix ({resourceprefix})')
+            resourceprefix = destprefix
 
-        super().__init__(*args, azclass=azclass, infoattr=infoattr, completer=completer, default=default, prefix=prefix, **kwargs)
+        completer=None if nocompleter else completer or self.completer_class(azclass=azclass, infoattr=infoattr, resourceprefix=resourceprefix)
+        default=None if nodefault else default or self.default_id_class(azclass=azclass, infoattr=infoattr, resourceprefix=resourceprefix)
+
+        args = args or [azclass.azobject_name()]
+        if destprefix:
+            if dest:
+                raise ArgumentError(f'Cannot set both dest ({dest}) and destprefix ({destprefix})')
+            dest = destprefix + self.get_args_dest(*args)
+        if prefix:
+            args = [prefix + arg for arg in args]
+        super().__init__(*args,
+                         azclass=azclass,
+                         infoattr=infoattr,
+                         completer=completer,
+                         default=default,
+                         resourceprefix=resourceprefix,
+                         dest=dest,
+                         **kwargs)
 
     def _process_value(self, value, opts):
         if self.infoattr == self.cmdattr:
@@ -564,6 +594,27 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
             return None
 
         return getattr(info, self.cmdattr or '_id', None)
+
+
+class LatestAzObjectCompleter(AzObjectCompleter):
+    def get_azobject_completer_choices(self, **opts):
+        choices = list(super().get_azobject_completer_choices(**opts))
+        if choices:
+            choices.append('latest')
+        return choices
+
+
+class LatestAzObjectArgConfig(AzObjectArgConfig):
+    completer_class = LatestAzObjectCompleter
+
+    def _process_value(self, value, opts):
+        if value == 'latest':
+            infos = sorted(self.get_info_list(opts), key=self.get_infoattr, reverse=True)
+            try:
+                value = self.get_infoattr(infos[0])
+            except IndexError:
+                value = None
+        return super()._process_value(value, opts)
 
 
 class BaseGroupArgConfig(BaseArgConfig):
@@ -716,8 +767,8 @@ class EnableDisableGroupArgConfig(BoolGroupArgConfig):
 
 
 class AzObjectGroupArgConfig(GroupArgConfig):
-    def __init__(self, *, azclass, title=None, description=None, **kwargs):
-        return super().__init__(*azclass.get_azobject_id_argconfigs(**kwargs), title=title, description=description)
+    def __init__(self, *, azclass, title=None, description=None, noncmd=True, **kwargs):
+        return super().__init__(*azclass.get_azobject_id_argconfigs(noncmd=noncmd, **kwargs), title=title, description=description)
 
 
 class PositionalArgConfig(ArgConfig):
