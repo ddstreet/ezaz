@@ -4,41 +4,48 @@ from contextlib import suppress
 
 from itertools import chain
 
+from ..argutil import ArgMap
 from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
+from ..argutil import ChoiceMapArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import ExclusiveGroupArgConfig
 from ..exception import DefaultConfigNotFound
-from .command import AzObjectCommand
+from .command import SimpleCommand
 
 
-class TopologyCommand(AzObjectCommand):
+class TopologyCommand(SimpleCommand):
     @classmethod
     def command_name_list(cls):
         return ['topology']
 
     @classmethod
-    def azclass(cls):
+    def get_root_classmap(cls):
         from ..azobject.user import User
-        return User
+        return ArgMap(user=User, **{c.azobject_name(): c for c in User.get_descendant_classes()})
 
     @classmethod
     def get_simple_command_argconfigs(cls):
-        classes = cls.azclass().get_descendant_classes()
-        ignore_choices = sorted([c.azobject_name() for c in classes])
+        from ..azobject.user import User
+        classmap = cls.get_root_classmap()
+        classnames = sorted(set(classmap.keys()) - set('user'))
         ignore_default = ['location', 'role_definition', 'role_assignment', 'storage_key', 'sku']
 
         return [*super().get_simple_command_argconfigs(),
-                *cls.azclass().get_descendant_azobject_id_argconfigs(help='Show only specified {azobject_text}'),
+                ChoiceMapArgConfig('root',
+                                   choicemap=classmap,
+                                   default=User.azobject_name(),
+                                   help='Show the topology starting at this root object'),
+                *User.get_descendant_azobject_id_argconfigs(help='Only show the specified {azobject_text} object'),
                 BoolArgConfig('defaults_only', help='Only show the default objects'),
                 ExclusiveGroupArgConfig(ChoicesArgConfig('ignore',
                                                          multiple=True,
-                                                         choices=ignore_choices,
+                                                         choices=classnames,
                                                          default=ignore_default,
                                                          help=f'Do not show these types of objects, or their children (default: {", ".join(ignore_default)})'),
                                         ChoicesArgConfig('ignore_also',
                                                          multiple=True,
-                                                         choices=sorted(set(ignore_choices) - set(ignore_default)),
+                                                         choices=sorted(set(classnames) - set(ignore_default)),
                                                          default=[],
                                                          help=f'Same as --ignore, but include the defaults as well'),
                                         BoolArgConfig('ignore_none',
@@ -64,7 +71,8 @@ class TopologyCommand(AzObjectCommand):
 
     def topology(self, **opts):
         self._indent = 0
-        self.show_azobject(self.azobject)
+        rootcls = self.get_root_classmap().get(opts.get('root'))
+        self.show_azobject(rootcls.get_instance(**opts))
 
     def show_azobject(self, azobject):
         print(f'{self.tab}{azobject.__class__.__name__}: {azobject}')
