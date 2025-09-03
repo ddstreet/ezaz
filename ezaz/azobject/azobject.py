@@ -776,15 +776,18 @@ class AzListable(AzObject):
         return f'List {cls.azobject_text()}s'
 
     def _list_filter(self, infos, opts):
-        infos = [info for info in infos if Filter(opts).check_info(info)]
+        return infos
+
+    def list_filter(self, infos, opts):
+        infos = self._list_filter([info for info in infos if Filter(opts).check_info(info)], opts)
         if opts.get('no_filters') or not self.has_filter():
             return infos
         else:
-            return self.filter_infos(infos, opts)
+            return list(self.filter_infos(infos, opts))
 
     def list_pre(self, opts):
         with suppress(CacheError):
-            return self.cache.read_info_list()
+            return self.list_filter(self.cache.read_info_list(), opts)
         return None
 
     def list(self, **opts):
@@ -792,7 +795,7 @@ class AzListable(AzObject):
 
     def list_post(self, result, opts):
         self.cache.write_info_list(infolist=result)
-        return list(self._list_filter(result, opts))
+        return self.list_filter(result, opts)
 
 
 class AzCreatable(AzObject):
