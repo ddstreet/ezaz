@@ -72,20 +72,24 @@ class TopologyCommand(SimpleCommand):
     def topology(self, **opts):
         self._indent = 0
         rootcls = self.get_root_classmap().get(opts.get('root'))
-        self.show_azobject(rootcls.get_instance(**opts))
+        self.show_azobject_id(None, rootcls, rootcls.get_instance(**opts).info(), opts)
 
-    def show_azobject(self, azobject):
-        print(f'{self.tab}{azobject.__class__.__name__}: {azobject}')
-        if not azobject.has_child_classes():
+    def show_azobject_id(self, parent, azclass, azobject_info, opts):
+        print(f'{self.tab}{azclass.__name__}: {azobject_info}')
+        if not azclass.has_child_classes():
             return
-        for subcls in azobject.get_child_classes():
+        if parent:
+            azobject = parent.get_child(azclass.azobject_name(), azobject_info._id)
+        else:
+            azobject = azclass.get_instance(**opts)
+        for subcls in azclass.get_child_classes():
             name = subcls.azobject_name()
             if name in self.ignore:
                 continue
-            for child in azobject.get_children(name):
-                if self.options.defaults_only and not child.is_default:
+            for child_info in azobject.get_null_child(name).list():
+                if self.options.defaults_only and child_info._id != azobject.get_default_child_id(name):
                     continue
-                if self.opts.get(name) and self.opts.get(name) != child.azobject_id:
+                if self.opts.get(name) and self.opts.get(name) != child_info._id:
                     continue
                 with self.indent():
-                    self.show_azobject(child)
+                    self.show_azobject_id(azobject, subcls, child_info, opts)

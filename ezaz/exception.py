@@ -24,6 +24,10 @@ class CacheError(EzazException):
     pass
 
 
+class InvalidCache(CacheError):
+    pass
+
+
 class CacheMiss(CacheError):
     pass
 
@@ -187,3 +191,11 @@ class InvalidDateTimeArgumentValue(ArgumentError):
 class InvalidX509DERArgumentValue(ArgumentError):
     def __init__(self, arg):
         super().__init__(f'The argument {self._arg(arg)} value is not a DER-format X509 certificate')
+
+
+class InfoError(EzazException):
+    pass
+
+
+class InvalidInfo(InfoError):
+    pass

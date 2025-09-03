@@ -27,8 +27,7 @@ from ..cache import Cache
 from ..config import Config
 from ..exception import AzCommandError
 from ..exception import AzObjectExists
-from ..exception import CacheExpired
-from ..exception import CacheMiss
+from ..exception import CacheError
 from ..exception import DefaultConfigNotFound
 from ..exception import InvalidAzObjectName
 from ..exception import NoAzObjectExists
@@ -98,7 +97,8 @@ class AzAction(ArgUtil, ABC):
             return
 
         if any(s in stderr for s in ["Please run 'az login' to setup account",
-                                     "Interactive authentication is needed"]):
+                                     "Interactive authentication is needed",
+                                     "InteractionRequired"]):
             raise NotLoggedIn()
         raise AzCommandError(process.args, stdout, stderr)
 
@@ -151,54 +151,7 @@ class AzAction(ArgUtil, ABC):
         return cls(j, verbose=self.verbose) if j else []
 
 
-class CachedAzAction(AzAction):
-    def __init__(self, *args, cachedir=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._cachedir = cachedir
-
-    @cached_property
-    def cache(self):
-        return Cache(self._cachedir)
-
-    def _az_cacheable_action(self, action):
-        return action in ['show', 'list', 'list-locations']
-
-    def _az_get_cache(self, cmd, action):
-        if not all((self.cache, self._is_argcomplete, self._az_cacheable_action(action))):
-            return None
-
-        try:
-            return self.cache.read(cmd)
-        except (CacheExpired, CacheMiss, OSError):
-            return None
-
-    def _az_put_cache(self, cmd, action, stdout):
-        if not all((self.cache, self._is_argcomplete, self._az_cacheable_action(action))):
-            return None
-
-        with suppress(OSError):
-            self.cache.write(cmd, stdout)
-
-    def az(self, *args, cmd_args={}, **kwargs):
-        cmd = self._args_to_cmd(*args, cmd_args=cmd_args)
-        action = args[-1]
-
-        stdout = self._az_get_cache(cmd, action)
-        if stdout:
-            return (stdout, '')
-
-        (stdout, stderr) = super().az(*args, cmd_args=cmd_args, **kwargs)
-
-        self._az_put_cache(cmd, action, stdout)
-
-        return (stdout, stderr)
-
-    @property
-    def _is_argcomplete(cls):
-        return '_ARGCOMPLETE' in os.environ.keys()
-
-
-class AzObject(CachedAzAction):
+class AzObject(AzAction):
     @classmethod
     @abstractmethod
     def azobject_name_list(cls):
@@ -370,12 +323,6 @@ class AzObject(CachedAzAction):
         return False
 
     @classmethod
-    def info_cache(cls):
-        if not hasattr(cls, '_info_cache'):
-            cls._info_cache = {}
-        return cls._info_cache
-
-    @classmethod
     def get_azobject_id_from_opts(cls, opts, required=False):
         azobject_id = opts.get(cls.azobject_name())
         if not azobject_id and required:
@@ -417,16 +364,21 @@ class AzObject(CachedAzAction):
 
     @classmethod
     def get_specific_instance(cls, **opts):
-        if not hasattr(cls, '_instance_cache'):
-            cls._instance_cache = {}
+        instance_cache = cls.instance_cache(**opts)
 
         azobject_id = cls.get_azobject_id_from_opts(opts, required=True)
-        azobject = cls._instance_cache.get(azobject_id)
-        if azobject:
-            return azobject
+        if azobject_id:
+            azobject = instance_cache.get(azobject_id)
+            if azobject:
+                return azobject
 
-        cls._instance_cache[azobject_id] = cls._get_specific_instance(azobject_id, opts)
-        return cls._instance_cache[azobject_id]
+        instance_cache[azobject_id] = cls._get_specific_instance(azobject_id, opts)
+        return instance_cache[azobject_id]
+
+    @classmethod
+    @abstractmethod
+    def instance_cache(cls, **opts):
+        pass
 
     @classmethod
     @abstractmethod
@@ -435,9 +387,10 @@ class AzObject(CachedAzAction):
 
     @classmethod
     def get_null_instance(cls, **opts):
-        if not getattr(cls, '_null_instance', False):
-            cls._null_instance = cls._get_null_instance(**opts)
-        return cls._null_instance
+        instance_cache = cls.instance_cache(**opts)
+        if not instance_cache.get(None):
+            instance_cache[None] = cls._get_null_instance(**opts)
+        return instance_cache[None]
 
     @classmethod
     def _get_null_instance(cls, **opts):
@@ -447,8 +400,9 @@ class AzObject(CachedAzAction):
     def has_filter(cls):
         return False
 
-    def __init__(self, *, azobject_id, configfile=None, is_null=False, **kwargs):
+    def __init__(self, *, azobject_id, cachedir=None, configfile=None, is_null=False, **kwargs):
         super().__init__(**kwargs)
+        self._cachedir = cachedir
         self._configfile = configfile
         self._azobject_id = azobject_id
         self.is_null = is_null
@@ -463,6 +417,18 @@ class AzObject(CachedAzAction):
         with suppress(NullAzObject):
             return f'{self.__class__.__name__}(azobject_id={self.azobject_id})'
         return f'{self.__class__.__name__}(null)'
+
+    @property
+    def _cache(self):
+        if not getattr(self.__class__, '_class_cache', None):
+            self.__class__._class_cache = Cache(cachepath=self._cachedir, verbose=self.verbose, dry_run=self.dry_run)
+        return self.__class__._class_cache
+
+    @cached_property
+    def cache(self):
+        if self.is_null:
+            return self._cache.class_cache(self.azobject_name())
+        return self._cache.object_cache(self.azobject_name(), self.azobject_id)
 
     @cached_property
     def config(self):
@@ -547,6 +513,10 @@ class AzSubObject(AzObject):
         return cls.get_parent_class().get_instance(**opts)
 
     @classmethod
+    def instance_cache(cls, **opts):
+        return cls.get_parent_instance(**opts).get_child_instance_cache(cls)
+
+    @classmethod
     def _get_specific_instance(cls, azobject_id, opts):
         return cls(parent=cls.get_parent_instance(**opts), azobject_id=azobject_id, **opts)
 
@@ -610,12 +580,14 @@ class AzSubObject(AzObject):
         return self._parent
 
     @cached_property
+    def cache(self):
+        if self.is_null:
+            return self.parent.cache.child_class_cache(self.azobject_name())
+        return self.parent.cache.child_object_cache(self.azobject_name(), self.azobject_id)
+
+    @cached_property
     def config(self):
         return self.parent.config.get_object(self.azobject_key(self.azobject_id))
-
-    @property
-    def cache(self):
-        return self.parent.cache
 
     @property
     def verbose(self):
@@ -681,6 +653,10 @@ class AzObjectContainer(AzObject):
             return None
         return self.get_child(name, obj_id)
 
+    @cache
+    def get_child_instance_cache(self, cls):
+        return {}
+
     def get_child(self, name, obj_id, info=None):
         return self.get_child_class(name).get_instance(**self.get_azobject_id_opts(**{name: obj_id, 'info': info}))
 
@@ -735,7 +711,7 @@ class AzShowable(AzObject):
     def __init__(self, *, info=None, **kwargs):
         super().__init__(**kwargs)
         if info:
-            self.info_cache().setdefault(self.azobject_id, info)
+            self.cache.write_info(info=info)
 
     @contextmanager
     def show_context_manager(self):
@@ -748,15 +724,16 @@ class AzShowable(AzObject):
         return self.show()
 
     def show_pre(self, opts):
-        return self.info_cache().get(self.azobject_id)
-
-    def show_post(self, result, opts):
-        self.info_cache()[self.azobject_id] = result
-        assert isinstance(result, Info)
-        return result
+        with suppress(CacheError):
+            return self.cache.read_info()
+        return None
 
     def show(self, **opts):
         return self.do_action_config_instance_action('show', opts)
+
+    def show_post(self, result, opts):
+        self.cache.write_info(info=result)
+        return result
 
 
 class AzListable(AzObject):
@@ -806,19 +783,15 @@ class AzListable(AzObject):
             return self.filter_infos(infos, opts)
 
     def list_pre(self, opts):
-        if getattr(self.__class__, '_info_cache_complete', False):
-            return list(self._list_filter(self.info_cache().values(), opts))
+        with suppress(CacheError):
+            return self.cache.read_info_list()
         return None
 
     def list(self, **opts):
         return self.do_action_config_instance_action('list', opts)
 
     def list_post(self, result, opts):
-        if not getattr(self.__class__, '_info_cache_complete', False):
-            for info in result:
-                assert isinstance(info, Info)
-                self.info_cache()[info._id] = info
-            self.__class__._info_cache_complete = True
+        self.cache.write_info_list(infolist=result)
         return list(self._list_filter(result, opts))
 
 
@@ -907,8 +880,8 @@ class AzDeletable(AzObject):
 class AzEmulateShowable(AzShowable, AzListable):
     def show_pre(self, opts):
         self.list(**opts)
-        with suppress(KeyError):
-            return self.info_cache()[self.azobject_id]
+        with suppress(CacheError):
+            return self.cache.read_info()
         raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
 
 
@@ -984,7 +957,7 @@ class AzActionConfig(ActionConfig):
 
     def _do_instance_action(self, azobject, opts):
         result = self.pre(azobject, opts)
-        if result:
+        if result is not None:
             return result
 
         az = getattr(azobject, f'az_{self.az}')

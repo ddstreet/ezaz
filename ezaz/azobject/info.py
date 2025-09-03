@@ -1,18 +1,61 @@
 
+import json
 import jsonschema
 import operator
 
 from contextlib import suppress
 
 from ..dictnamespace import DictNamespace
+from ..exception import InvalidInfo
 from ..schema import *
 
 
 class Info(DictNamespace):
+    SAVE_KEY = 'ezaz_info_class'
     _schema = None
     _verbose = {}
 
-    def __init__(self, info, *, verbose=0):
+    @classmethod
+    def load(cls, content, verbose):
+        if not content:
+            return None
+        try:
+            obj = json.loads(content)
+        except json.decoder.JSONDecodeError as jde:
+            raise InvalidInfo(f'Failed to decode info: {content}') from jde
+        return cls._load(obj, verbose=verbose)
+
+    @classmethod
+    def _load(cls, obj, verbose):
+        infoclsname = obj.pop(cls.SAVE_KEY, None)
+        if not infoclsname:
+            raise InvalidInfo('Info does not contain its class name')
+        infocls = globals().get(infoclsname)
+        if not infocls:
+            raise InvalidInfo(f'No Info class found: {infoclsname}')
+        try:
+            return infocls(obj, verbose=verbose)
+        except jsonschema.exceptions.ValidationError as ve:
+            raise InvalidInfo('Failed to validate Info json') from ve
+
+    @classmethod
+    def load_list(cls, content, verbose):
+        if not content:
+            return []
+        try:
+            objs = json.loads(content)
+        except json.decoder.JSONDecodeError as jde:
+            raise InvalidInfo(f'Failed to decode info list: {content}') from jde
+        if not isinstance(objs, list):
+            raise InvalidInfo(f'Info list is not a list: {content}')
+        return [cls._load(obj, verbose) for obj in objs]
+
+    @classmethod
+    def save_list(cls, infos):
+        assert all([isinstance(info, Info) for info in infos])
+        return json.dumps([info._save() for info in infos])
+
+    def __init__(self, info, *, verbose):
         super().__init__(info)
         # Use a class dict instead of an instance attr, so it doesn't
         # show up in our verbose string repr
@@ -20,6 +63,14 @@ class Info(DictNamespace):
 
         assert self._schema
         jsonschema.validate(info, self._schema)
+
+    def _save(self):
+        obj = self._json
+        obj[self.SAVE_KEY] = self.__class__.__name__
+        return obj
+
+    def save(self):
+        return json.dumps(self._save())
 
     # Main id attribute, will be used for azobject_id
     _id_attr = 'name'

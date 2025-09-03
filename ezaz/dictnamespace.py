@@ -21,6 +21,10 @@ class DictNamespace(SimpleNamespace, Iterable):
 
         super().__init__(**{k: convert_item(v) for k, v in obj.items()})
 
+    @property
+    def _json(self):
+        return json.loads(repr(self))
+
     def __iter__(self):
         return iter(vars(self))
 

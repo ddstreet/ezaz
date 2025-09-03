@@ -1,12 +1,11 @@
 
 from contextlib import contextmanager
 from contextlib import suppress
+from functools import cache
 from functools import cached_property
 
 from .. import LOGGER
 from ..argutil import FlagArgConfig
-from ..cache import Cache
-from ..config import Config
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import AzCommandError
@@ -34,6 +33,15 @@ class User(AzShowable, AzListable, AzObjectContainer):
     @classmethod
     def get_signed_in_user_instance(cls, user=None, **opts):
         return cls.get_instance(**opts)
+
+    @classmethod
+    @cache
+    def _instance_cache(cls):
+        return {}
+
+    @classmethod
+    def instance_cache(cls, **opts):
+        return cls._instance_cache()
 
     @classmethod
     def _get_specific_instance(cls, azobject_id, opts):
@@ -136,7 +144,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
         # TODO - technically, we should clear all subclass info caches
         # too, and maybe instance caches
         self.__class__._signed_in_user_info = None
-        self.info_cache().clear()
+        self.cache.clear()
         return result
 
     @property
