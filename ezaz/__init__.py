@@ -33,4 +33,5 @@ DISTRO_IMAGES = {
     'ubuntults': 'Canonical:ubuntu-24_04-lts-daily:server:latest',
     'ubuntu2504': 'Canonical:ubuntu-25_04-daily:server:latest',
     'ubuntu2510': 'Canonical:ubuntu-25_10-daily:server:latest',
+    'opensuse-leap-15-6': 'SUSE:opensuse-leap-15-6:gen2:latest',
 }
