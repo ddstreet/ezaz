@@ -30,16 +30,21 @@ class MarketplaceImageVersion(AzEmulateShowable, AzListable, AzSubObject):
                 ChoicesArgConfig('architecture', choices=['Arm64', 'x64'], noncmd=True, help='Architecture'),
                 FlagArgConfig('all', default=True, hidden=True)]
 
-    def _list_filter(self, infos, opts):
+    def list_prefilter(self, infolist, opts):
         # We manually filter for architecture, so we can cache the full list
         architecture = opts.get('architecture')
-        # azcli is broken, and returns partial matches for these fields, so we have to filter these manually
+        if architecture:
+            return [info for info in infolist if info.architecture == architecture]
+        return infolist
+
+    def list_post(self, infolist, opts):
+        # azcli is broken, and returns partial matches for these
+        # fields, so we have to filter these manually, and *before*
+        # writing to cache
         image = self.parent
         offer = image.parent
         publisher = offer.parent
-        infos = [info for info in infos
-                 if all((info.publisher == publisher.azobject_id,
-                         info.offer == offer.azobject_id,
-                         info.sku == image.azobject_id,
-                         not architecture or info.architecture == architecture))]
-        return infos
+        infolist = [info for info in infolist if all((info.publisher == publisher.azobject_id,
+                                                      info.offer == offer.azobject_id,
+                                                      info.sku == image.azobject_id))]
+        return super().list_post(infolist, opts)

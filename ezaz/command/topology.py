@@ -38,6 +38,7 @@ class TopologyCommand(SimpleCommand):
                                    help='Show the topology starting at this root object'),
                 *User.get_descendant_azobject_id_argconfigs(help='Only show the specified {azobject_text} object'),
                 BoolArgConfig('defaults_only', help='Only show the default objects'),
+                BoolArgConfig('no_filters', help='Do not use any configured filters'),
                 ExclusiveGroupArgConfig(ChoicesArgConfig('ignore',
                                                          multiple=True,
                                                          choices=classnames,
@@ -86,7 +87,7 @@ class TopologyCommand(SimpleCommand):
             name = subcls.azobject_name()
             if name in self.ignore:
                 continue
-            for child_info in azobject.get_null_child(name).list():
+            for child_info in azobject.get_null_child(name).list(**opts):
                 if self.options.defaults_only and child_info._id != azobject.get_default_child_id(name):
                     continue
                 if self.opts.get(name) and self.opts.get(name) != child_info._id:

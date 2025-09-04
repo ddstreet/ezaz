@@ -561,9 +561,9 @@ class AzSubObject(AzObject):
         cls.get_parent_instance(**opts).del_child_filter(cls.azobject_name())
 
     @classmethod
-    def filter_infos(cls, infos, opts):
+    def filter_infolist(cls, infolist, opts):
         f = cls.get_filter(**opts)
-        for info in infos:
+        for info in infolist:
             if f.check_info(info):
                 yield info
 
@@ -775,15 +775,22 @@ class AzListable(AzObject):
     def get_list_action_description(cls):
         return f'List {cls.azobject_text()}s'
 
-    def _list_filter(self, infos, opts):
-        return infos
+    def list_prefilter(self, infolist, opts):
+        return infolist
 
-    def list_filter(self, infos, opts):
-        infos = self._list_filter([info for info in infos if Filter(opts).check_info(info)], opts)
-        if opts.get('no_filters') or not self.has_filter():
-            return infos
-        else:
-            return list(self.filter_infos(infos, opts))
+    def list_filter(self, infolist, opts):
+        infolist = self.list_prefilter(infolist, opts)
+
+        if any((opts.get('prefix'), opts.get('suffix'), opts.get('regex'))):
+            infolist = [info for info in infolist if Filter(opts).check_info(info)]
+
+        if not opts.get('no_filters') and self.has_filter():
+            return list(self.filter_infolist(infolist, opts))
+
+        return self.list_postfilter(infolist, opts)
+
+    def list_postfilter(self, infolist, opts):
+        return infolist
 
     def list_pre(self, opts):
         with suppress(CacheError):
@@ -793,9 +800,9 @@ class AzListable(AzObject):
     def list(self, **opts):
         return self.do_action_config_instance_action('list', opts)
 
-    def list_post(self, result, opts):
-        self.cache.write_info_list(infolist=result)
-        return self.list_filter(result, opts)
+    def list_post(self, infolist, opts):
+        self.cache.write_info_list(infolist=infolist)
+        return self.list_filter(infolist, opts)
 
 
 class AzCreatable(AzObject):
