@@ -6,6 +6,7 @@ from datetime import timezone
 from pathlib import Path
 
 from . import DEFAULT_CACHEPATH
+from .dictnamespace import DictNamespace
 from .exception import CacheExpired
 from .exception import CacheMiss
 from .exception import InvalidCache
@@ -17,21 +18,19 @@ DEFAULT_CACHE = DEFAULT_CACHEPATH / DEFAULT_CACHENAME
 
 
 class BaseCache:
-    def __init__(self, *, cachepath, hashmap, verbose=0, dry_run=False):
+    def __init__(self, *, cachepath, expiry, hashmap={}, verbose=0, dry_run=False):
         self.cachepath = cachepath
+        self.expiry = expiry
         self.hashmap = hashmap
         self.verbose = verbose
         self.dry_run = dry_run
 
     def clear(self):
-        if dry_run:
+        if self.dry_run:
             return
 
         import shutil
         shutil.rmtree(self.cachepath)
-
-    def _is_expired(self, path):
-        return False
 
     def _check_hash(self, path, content):
         return self.hashmap.get(path) == hash(content)
@@ -44,10 +43,17 @@ class BaseCache:
         with suppress(KeyError):
             del self.hashmap[path]
 
-    def _read(self, path):
+    def _is_expired(self, path, pathtype):
+        if pathtype == 'show':
+            return self.expiry.is_show_expired(path)
+        if pathtype == 'list':
+            return self.expiry.is_list_expired(path)
+        raise RuntimeError(f"Unknown pathtype '{pathtype}'")
+
+    def _read(self, path, pathtype):
         if not path.is_file():
             raise CacheMiss()
-        if self._is_expired(path):
+        if self._is_expired(path, pathtype):
             self._remove(path)
             raise CacheExpired()
 
@@ -62,7 +68,7 @@ class BaseCache:
         self._store_hash(path, content)
 
     def _remove(self, path):
-        if dry_run:
+        if self.dry_run:
             return
 
         self._remove_hash(path)
@@ -78,7 +84,7 @@ class ShowCache(BaseCache):
         return self.cachepath / f'show_{classname}_{self._quote(objid)}'
 
     def read_show(self, *, classname, objid):
-        return self._read(self.showfile(classname=classname, objid=objid))
+        return self._read(self.showfile(classname=classname, objid=objid), 'show')
 
     def write_show(self, *, classname, objid, content):
         self._write(self.showfile(classname=classname, objid=objid), content)
@@ -92,7 +98,7 @@ class ListCache(BaseCache):
         return self.cachepath / f'list_{classname}'
 
     def read_list(self, *, classname):
-        return self._read(self.listfile(classname=classname))
+        return self._read(self.listfile(classname=classname), 'list')
 
     def write_list(self, *, classname, content):
         self._write(self.listfile(classname=classname), content)
@@ -194,8 +200,8 @@ class ParentClassCache(BaseClassCache, ParentCache):
 
 
 class ClassCache(ShowClassCache, ListClassCache, InfoClassCache):
-    def object_cache(self, objid):
-        return ObjectCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, hashmap=self.hashmap, classname=self.classname, objid=objid)
+    def object_cache(self, objid, expiry):
+        return ObjectCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, hashmap=self.hashmap, classname=self.classname, objid=objid, expiry=expiry)
 
 
 class BaseObjectCache(BaseClassCache):
@@ -239,11 +245,11 @@ class ParentObjectCache(BaseObjectCache, ParentClassCache):
         # meaning all children share their parent's cache
         return super()._child_cache_dir(classname=classname, objid=objid or self.objid)
 
-    def child_class_cache(self, child_classname):
-        return ClassCache(cachepath=self._child_cache_dir(), verbose=self.verbose, dry_run=self.dry_run, hashmap=self.hashmap, classname=child_classname)
+    def child_class_cache(self, child_classname, expiry):
+        return ClassCache(cachepath=self._child_cache_dir(), verbose=self.verbose, dry_run=self.dry_run, classname=child_classname, expiry=expiry)
 
-    def child_object_cache(self, child_classname, child_objid):
-        return self.child_class_cache(child_classname).object_cache(child_objid)
+    def child_object_cache(self, child_classname, child_objid, expiry):
+        return ObjectCache(cachepath=self._child_cache_dir(), verbose=self.verbose, dry_run=self.dry_run, classname=child_classname, objid=child_objid, expiry=expiry)
 
 
 class ObjectCache(ParentObjectCache, ShowObjectCache, ListObjectCache, InfoObjectCache):
@@ -255,39 +261,38 @@ class Cache:
         self.cachepath = Path(cachepath or DEFAULT_CACHE).expanduser().resolve()
         self.verbose = verbose
         self.dry_run = dry_run
-        self.hashmap = {}
 
-    def class_cache(self, classname):
-        return ClassCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, hashmap=self.hashmap, classname=classname)
+    def class_cache(self, classname, expiry):
+        return ClassCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, classname=classname, expiry=expiry)
 
-    def object_cache(self, classname, objid):
-        return ObjectCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, hashmap=self.hashmap, classname=classname, objid=objid)
+    def object_cache(self, classname, objid, expiry):
+        return ObjectCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, classname=classname, objid=objid, expiry=expiry)
 
 
-class CacheExpiry:
+class CacheExpiry(DictNamespace):
     NOCACHE = 'nocache'
     FOREVER = 'forever'
 
-    def __init__(self, config={}, *, show_expiry=None, list_expiry=None):
-        if isinstance(config, CacheExpiry):
-            self._config = config.config
-        else:
-            self._config = config
+    def __init__(self, config, *, show_expiry=None, list_expiry=None):
+        super().__init__(config.config if isinstance(config, CacheExpiry) else config)
 
-        self.show_expiry = show_expiry or self.show_expiry
-        self.list_expiry = list_expiry or self.list_expiry
+        self.show_expiry = show_expiry or getattr(self, 'show_expiry', None)
+        self.list_expiry = list_expiry or getattr(self, 'list_expiry', None)
+
+    def __bool__(self):
+        return bool(self.show_expiry or self.list_expiry)
 
     def is_show_expired(self, entry):
-        return is_expired(entry, self.show_expiry)
+        return self.is_expired(entry, self.show_expiry)
 
     def is_list_expired(self, entry):
-        return is_expired(entry, self.list_expiry)
+        return self.is_expired(entry, self.list_expiry)
 
     def is_expired(self, entry, expiry):
+        if expiry is None or expiry == self.FOREVER:
+            return False
         if expiry == self.NOCACHE:
             return True
-        if expiry == self.FOREVER:
-            return False
         try:
             duration = timedelta(seconds=int(float(expiry)))
         except ValueError as ve:

@@ -4,6 +4,7 @@ import json
 from collections.abc import Mapping
 from collections.abc import MutableMapping
 from contextlib import suppress
+from copy import copy
 from functools import partial
 from pathlib import Path
 
@@ -20,31 +21,25 @@ class SubConfig(MutableMapping):
         self._mapping = mapping
 
     def __repr__(self):
-        return json.dumps(self._prep_file_config(self), indent=2, sort_keys=True)
+        return json.dumps(copy(self), indent=2, sort_keys=True)
 
-    def _prep_file_config(self, d):
-        # Copy everything except empty dicts, which we don't need to save
-        cleand = {}
-        for k, v in d.items():
-            if isinstance(v, Mapping):
-                v = self._prep_file_config(v)
-                if not v:
-                    continue
-            cleand[k] = v
-        return cleand
+    def __copy__(self):
+        # Copy everything except empty dicts and None values
+        return {k: copy(v) for k, v in self.items() if v not in (None, {})} or None
+
+    def __equals__(self, other):
+        if isinstance(other, Mapping):
+            return other == self._mapping
+        return super().__equals__(other)
 
     def __getitem__(self, key):
         return self._mapping[key]
 
     def __setitem__(self, key, value):
-        if value is None:
-            with suppress(KeyError):
-                del self[key]
-        else:
-            if isinstance(value, Mapping):
-                value = SubConfig(self, value)
-            self._mapping[key] = value
-            self.save()
+        if isinstance(value, Mapping):
+            value = SubConfig(self, value)
+        self._mapping[key] = value
+        self.save()
 
     def __delitem__(self, key):
         del self._mapping[key]
@@ -69,7 +64,10 @@ class SubConfig(MutableMapping):
 
     def setdefault(self, key, value):
         with suppress(KeyError):
-            return self[key]
+            v = self[key]
+            # We consider None value == missing key
+            if v is not None:
+                return v
         self[key] = value
         return self[key]
 
@@ -82,8 +80,11 @@ class Config(SubConfig):
     def __init__(self, configfile=None):
         self._configfile = Path(configfile or DEFAULT_CONFIGFILE).expanduser().resolve()
         super().__init__(self, self._read_config())
-        self._file_config = self._prep_file_config(self)
+        self._file_config = copy(self)
         # TODO - check with jsonschema
+
+    def __copy__(self):
+        return super().__copy__() or {}
 
     def _read_config(self):
         try:
@@ -100,7 +101,7 @@ class Config(SubConfig):
         return self._configfile
 
     def save(self):
-        file_config = self._prep_file_config(self)
+        file_config = copy(self)
         if file_config == self._file_config:
             return
 

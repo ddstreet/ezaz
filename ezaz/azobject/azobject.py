@@ -24,6 +24,7 @@ from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
 from ..argutil import GroupArgConfig
 from ..cache import Cache
+from ..cache import CacheExpiry
 from ..config import Config
 from ..exception import AzCommandError
 from ..exception import AzObjectExists
@@ -400,6 +401,14 @@ class AzObject(AzAction):
     def has_filter(cls):
         return False
 
+    @classmethod
+    def default_cache_expiry_key(cls):
+        return 'default_cache_expiry'
+
+    @classmethod
+    def cache_expiry_key(cls, name):
+        return f'cache_expiry_{name}'
+
     def __init__(self, *, azobject_id, cachedir=None, configfile=None, is_null=False, **kwargs):
         super().__init__(**kwargs)
         self._cachedir = cachedir
@@ -424,11 +433,20 @@ class AzObject(AzAction):
             self.__class__._class_cache = Cache(cachepath=self._cachedir, verbose=self.verbose, dry_run=self.dry_run)
         return self.__class__._class_cache
 
+    def default_cache_expiry(self):
+        return self.config.get_object(self.default_cache_expiry_key())
+
+    def find_cache_expiry(self, name):
+        return self.cache_expiry(name)
+
+    def cache_expiry(self, name):
+        return CacheExpiry(self.config.get_object(self.cache_expiry_key(name)))
+
     @cached_property
     def cache(self):
         if self.is_null:
-            return self._cache.class_cache(self.azobject_name())
-        return self._cache.object_cache(self.azobject_name(), self.azobject_id)
+            return self._cache.class_cache(self.azobject_name(), CacheExpiry({}))
+        return self._cache.object_cache(self.azobject_name(), self.azobject_id, self.cache_expiry(self.azobject_name()))
 
     @cached_property
     def config(self):
@@ -579,11 +597,17 @@ class AzSubObject(AzObject):
     def parent(self):
         return self._parent
 
+    def default_cache_expiry(self):
+        return self.parent.default_cache_expiry(self)
+
+    def find_cache_expiry(self, name):
+        return self.cache_expiry(name) or self.parent.find_cache_expiry(name) or self.default_cache_expiry()
+
     @cached_property
     def cache(self):
         if self.is_null:
-            return self.parent.cache.child_class_cache(self.azobject_name())
-        return self.parent.cache.child_object_cache(self.azobject_name(), self.azobject_id)
+            return self.parent.cache.child_class_cache(self.azobject_name(), self.parent.find_cache_expiry(self.azobject_name()))
+        return self.parent.cache.child_object_cache(self.azobject_name(), self.azobject_id, self.find_cache_expiry(self.azobject_name()))
 
     @cached_property
     def config(self):
@@ -830,14 +854,8 @@ class AzCreatable(AzObject):
     def get_create_action_azobject_id_argconfigs(cls):
         return cls.get_azobject_id_argconfigs()
 
-    @classmethod
-    def is_create_id_required(self):
-        # Do we require the id to be specified for create operation?
-        return True
-
     def create_pre(self, opts):
-        if self.is_create_id_required():
-            self.get_azobject_id_from_opts(opts, required='create')
+        self.get_azobject_id_from_opts(opts, required='create')
         if self.exists:
             raise AzObjectExists(self.azobject_text(), self.azobject_id)
         return None
@@ -871,14 +889,8 @@ class AzDeletable(AzObject):
     def get_delete_action_azobject_id_argconfigs(cls):
         return cls.get_azobject_id_argconfigs()
 
-    @classmethod
-    def is_create_id_required(self):
-        # Do we require the id to be specified for delete operation?
-        return True
-
     def delete_pre(self, opts):
-        if self.is_create_id_required():
-            self.get_azobject_id_from_opts(opts, required='delete')
+        self.get_azobject_id_from_opts(opts, required='delete')
         if not self.exists:
             raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
         return None

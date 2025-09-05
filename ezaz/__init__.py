@@ -18,9 +18,7 @@ REQUIRED_PACKAGES = [
     RequiredPackage('azure-cli', programs=['az']),
     RequiredPackage('argcomplete', modules=['argcomplete']),
     RequiredPackage('cryptography', modules=['cryptography']),
-    # dateparser is quite slow to load, and we're not currently using
-    # it; uncomment this if anything starts using DateTimeArgConfig
-    #RequiredPackage('dateparser', modules=['dateparser']),
+    RequiredPackage('dateparser', modules=['dateparser']),
     RequiredPackage('jsonschema', modules=['jsonschema']),
 ]
 

@@ -53,3 +53,6 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
     @classmethod
     def is_create_id_required(cls):
         return False
+
+    def create_pre(self, opts):
+        return None

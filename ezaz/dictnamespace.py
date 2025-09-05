@@ -5,6 +5,7 @@ import jsonschema
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Iterable
+from collections.abc import Mapping
 from collections.abc import MutableMapping
 from collections.abc import MutableSequence
 from contextlib import suppress
@@ -26,8 +27,8 @@ class Shim(ABC):
     def __deepcopy__(self, memo):
         return deepcopy(self._shim_real_value, memo)
 
-    def __repr__(self):
-        return json.dumps(self._shim_real_value, indent=2)
+    def __str__(self):
+        return json.dumps(copy(self._shim_real_value), indent=2)
 
 
 # Iterable namespace with direct r/w backing by a dict, including contained dicts and lists
@@ -39,7 +40,7 @@ class DictNamespace(Shim, Iterable):
     def __init__(self, obj):
         super().__init__()
         self._real_value = obj
-        self._shim_dict = DictShim(obj, dict_shim_class=DictNamespace)
+        self._shim_dict = DictShim(self._real_value, dict_shim_class=DictNamespace)
         self._validate()
 
     def _validate(self):
@@ -49,6 +50,9 @@ class DictNamespace(Shim, Iterable):
     @property
     def _shim_real_value(self):
         return self._real_value
+
+    def __bool__(self):
+        return bool(self._real_value)
 
     def __missing__(self, attr):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr}'")
@@ -83,8 +87,8 @@ class BaseShim(Shim):
                  *,
                  dict_shim_class=None,
                  list_shim_class=None,
-                 dict_test=lambda v: isinstance(v, dict),
-                 list_test=lambda v: isinstance(v, list)):
+                 dict_test=lambda v: isinstance(v, Mapping),
+                 list_test=lambda v: isinstance(v, MutableSequence)):
 
         super().__init__()
         self.real = real

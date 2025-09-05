@@ -21,25 +21,25 @@ class Main:
 
     def setup_logging(self, options):
         import logging
-        logging.basicConfig(level=logging.NOTSET, format='{message}', style='{')
+        logging.basicConfig(level={0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}.get(options.verbose, logging.DEBUG),
+                            format='{message}', style='{')
 
         from . import IMPORTCLASSES_LOGGER
         IMPORTCLASSES_LOGGER.propagate = options.debug_importclasses
         IMPORTCLASSES_LOGGER.setLevel(logging.NOTSET)
 
         from . import AZ_LOGGER
-        AZ_LOGGER.propagate = options.debug_az
-        AZ_LOGGER.setLevel({0: logging.INFO, 1: logging.INFO, 2: logging.DEBUG}.get(options.verbose, logging.NOTSET))
+        AZ_LOGGER.setLevel({0: logging.CRITICAL, 1: logging.INFO, 2: logging.DEBUG}.get(options.debug_az, logging.DEBUG))
 
         from . import LOGGER
-        LOGGER.setLevel({0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}.get(options.verbose, logging.NOTSET))
+        LOGGER.setLevel(logging.NOTSET)
 
     def parse_args(self, args):
         partial_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
         common_group = partial_parser.add_shared_argument_group(title='Global options')
         common_group.add_argument('--debug-parser', action='store_true', help=argparse.SUPPRESS)
         common_group.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
-        common_group.add_argument('--debug-az', action='store_true', help='Enable debug of az commands')
+        common_group.add_argument('--debug-az', action='count', default=0, help='Enable debug of az commands')
         common_group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
         common_group.add_argument('--configfile', metavar='PATH', help='Path to config file')
         common_group.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')

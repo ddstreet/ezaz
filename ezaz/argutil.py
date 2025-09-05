@@ -5,6 +5,9 @@ from abc import ABC
 from abc import abstractmethod
 from collections import UserDict
 from contextlib import suppress
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from functools import cached_property
 from functools import partial
 from itertools import combinations
@@ -414,13 +417,15 @@ class AzClassesChoicesArgConfig(ChoicesArgConfig):
 
 
 class AzClassAncestorsChoicesArgConfig(AzClassesChoicesArgConfig):
-    def __init__(self, *opts, azclass, **kwargs):
-        super().__init__(*opts, azclasses=azclass.get_ancestor_classes(), **kwargs)
+    def __init__(self, *opts, azclass, include_self=False, **kwargs):
+        azclasses = ([azclass] if include_self else []) + azclass.get_ancestor_classes()
+        super().__init__(*opts, azclasses=azclasses, **kwargs)
 
 
 class AzClassDescendantsChoicesArgConfig(AzClassesChoicesArgConfig):
-    def __init__(self, *opts, azclass, **kwargs):
-        super().__init__(*opts, azclasses=azclass.get_descendant_classes(), **kwargs)
+    def __init__(self, *opts, azclass, include_self=False, **kwargs):
+        azclasses = ([azclass] if include_self else []) + azclass.get_descendant_classes()
+        super().__init__(*opts, azclasses=azclasses, **kwargs)
 
 
 class ChoiceMapArgConfig(ArgConfig):
@@ -466,14 +471,35 @@ class X509DERFileArgConfig(BinaryFileArgConfig):
         return cert
 
 
-class DateTimeArgConfig(ArgConfig):
-    def _process_value(self, value, opts):
+class BaseDateTimeArgConfig(ArgConfig):
+    def _get_datetime(self, value, opts):
         import dateparser
         settings=dict(TO_TIMEZONE='UTC', RETURN_AS_TIMEZONE_AWARE=True, PREFER_DATES_FROM='future')
         datetime_value = dateparser.parse(value, settings=settings)
         if datetime_value:
-            return datetime_value.strftime('%Y-%m-%dT%H:%MZ')
+            return datetime_value
         raise InvalidDateTimeArgumentValue(self.parser_argname, value)
+
+
+class DateTimeArgConfig(BaseDateTimeArgConfig):
+    def __init__(self, *args, datetime_format=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.datetime_format = datetime_format or '%Y-%m-%dT%H:%MZ'
+
+    def _process_value(self, value, opts):
+        return self._get_datetime(value, opts).strftime(self.datetime_format)
+
+
+class TimeDeltaArgConfig(BaseDateTimeArgConfig):
+    def __init__(self, *args, round_seconds=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.round_seconds = round_seconds
+
+    def _process_value(self, value, opts):
+        start = datetime.now(tz=timezone.utc)
+        delta = self._get_datetime(value, opts) - start
+        seconds = delta.total_seconds()
+        return int(seconds) if self.round_seconds else seconds
 
 
 class AzObjectInfoHelper:
