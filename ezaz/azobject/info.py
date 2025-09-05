@@ -13,8 +13,6 @@ from ..schema import *
 
 class Info(DictNamespace):
     SAVE_KEY = 'ezaz_info_class'
-    _schema = None
-    _verbose = {}
 
     @classmethod
     def load(cls, content, verbose):
@@ -56,19 +54,14 @@ class Info(DictNamespace):
         assert all([isinstance(info, Info) for info in infos])
         return json.dumps([info._save() for info in infos])
 
+    _verbose = 0
+
     def __init__(self, info, *, verbose):
         super().__init__(info)
-        # Use a class dict instead of an instance attr, so it doesn't
-        # show up in our verbose string repr
-        self._verbose[id(self)] = verbose
-
-        assert self._schema
-        jsonschema.validate(info, self._schema)
+        self._verbose = verbose
 
     def _save(self):
-        obj = deepcopy(self)
-        obj[self.SAVE_KEY] = self.__class__.__name__
-        return obj
+        return deepcopy(self) | {self.SAVE_KEY: self.__class__.__name__}
 
     def save(self):
         return json.dumps(self._save())
@@ -96,7 +89,7 @@ class Info(DictNamespace):
     _id2_attr = 'id'
 
     def __str__(self):
-        verbose = self._verbose[id(self)]
+        verbose = self._verbose
         with suppress(AttributeError):
             return getattr(self, f'_str{verbose}')
         return self._str3

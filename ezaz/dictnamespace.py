@@ -1,6 +1,6 @@
 
-import inspect
 import json
+import jsonschema
 
 from abc import ABC
 from abc import abstractmethod
@@ -32,12 +32,19 @@ class Shim(ABC):
 
 # Iterable namespace with direct r/w backing by a dict, including contained dicts and lists
 class DictNamespace(Shim, Iterable):
-    __slots__ = ('_real_value', '_shim_dict')
+    _real_value = None
+    _shim_dict = None
+    _schema = None
 
     def __init__(self, obj):
         super().__init__()
         self._real_value = obj
-        self._shim_dict = DictShim(obj, dict_shim_class=self.__class__)
+        self._shim_dict = DictShim(obj, dict_shim_class=DictNamespace)
+        self._validate()
+
+    def _validate(self):
+        if self._schema:
+            jsonschema.validate(self._real_value, self._schema)
 
     @property
     def _shim_real_value(self):
@@ -47,21 +54,18 @@ class DictNamespace(Shim, Iterable):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr}'")
 
     def __getattr__(self, attr):
-        if attr in self.__slots__:
-            return super().__getattr__(attr)
-        else:
-            with suppress(KeyError):
-                return self._shim_dict[attr]
-            self.__missing__(attr)
+        with suppress(KeyError):
+            return self._shim_dict[attr]
+        self.__missing__(attr)
 
     def __setattr__(self, attr, value):
-        if attr in self.__slots__:
+        if attr in dir(self):
             super().__setattr__(attr, value)
         else:
             self._shim_dict[attr] = value
 
     def __delattr__(self, attr):
-        if attr in self.__slots__:
+        if attr in dir(self):
             super().__delattr__(attr)
         else:
             try:
@@ -100,6 +104,15 @@ class BaseShim(Shim):
                                                           list_test=list_test)
 
         assert self.shim_test_real(), f'Unexpected object type {type(self.real)}'
+        self._setup()
+
+    @abstractmethod
+    def shim_test_real(self):
+        pass
+
+    @abstractmethod
+    def _setup(self):
+        pass
 
     @property
     @abstractmethod
@@ -110,9 +123,12 @@ class BaseShim(Shim):
     def _shim_real_value(self):
         return self.real
 
-    @abstractmethod
-    def shim_test_real(self):
-        pass
+    def __setitem__(self, key, value):
+        self.real[key] = self.unshim_value(value)
+        self.shim_and_set_value(key, self.real[key])
+
+    def __len__(self):
+        return len(self.real)
 
     def shim_value(self, value):
         if self.dict_test(value):
@@ -137,6 +153,10 @@ class DictShim(BaseShim, MutableMapping):
     def shim_test_real(self):
         return self.dict_test(self.real)
 
+    def _setup(self):
+        for k, v in self.real.items():
+            self[k] = v
+
     @cached_property
     def shim(self):
         return {}
@@ -146,10 +166,6 @@ class DictShim(BaseShim, MutableMapping):
             return self.shim[key]
         return self.shim_and_set_value(key, self.real[key])
 
-    def __setitem__(self, key, value):
-        self.real[key] = self.unshim_value(value)
-        self.shim_and_set_value(key, self.real[key])
-
     def __delitem__(self, key):
         with suppress(KeyError):
             del self.shim[key]
@@ -158,13 +174,14 @@ class DictShim(BaseShim, MutableMapping):
     def __iter__(self):
         return iter(self.real)
 
-    def __len__(self):
-        return len(self.real)
-
 
 class ListShim(BaseShim, MutableSequence):
     def shim_test_real(self):
         return self.list_test(self.real)
+
+    def _setup(self):
+        for k, v in enumerate(self.real):
+            self[k] = v
 
     __marker = object()
 
@@ -179,17 +196,10 @@ class ListShim(BaseShim, MutableSequence):
                 return value
         return self.shim_and_set_value(index, self.real[index])
 
-    def __setitem__(self, index, value):
-        self.real[index] = self.unshim_value(value)
-        self.shim_and_set_value(index, self.real[index])
-
     def __delitem__(self, index):
         with suppress(IndexError):
             self.shim.pop(index)
         self.real.pop(index)
-
-    def __len__(self):
-        return len(self.real)
 
     def insert(self, index, value):
         self.shim.insert(index, self.shim_value(value))
