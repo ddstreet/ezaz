@@ -1,24 +1,15 @@
 
-from contextlib import suppress
-from functools import cached_property
-
-from ..argutil import ArgConfig
 from ..argutil import AzClassDescendantsChoicesArgConfig
-from ..argutil import BoolArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import ConstArgConfig
 from ..argutil import ExclusiveGroupArgConfig
-from ..config import Config
-from ..exception import DefaultConfigNotFound
-from ..exception import RequiredArgument
-from ..exception import RequiredArgumentGroup
 from .command import AzObjectActionCommand
 
 
-class FiltersCommand(AzObjectActionCommand):
+class CacheCommand(AzObjectActionCommand):
     @classmethod
     def command_name_list(cls):
-        return ['filters']
+        return ['cache']
 
     @classmethod
     def azclass(cls):
@@ -28,14 +19,14 @@ class FiltersCommand(AzObjectActionCommand):
     @classmethod
     def get_action_configs(cls):
         return [cls.make_action_config('show',
-                                       description='Show filters',
+                                       description='Show cache',
                                        argconfigs=cls.get_show_action_argconfigs()),
                 cls.make_action_config('set',
-                                       description='Set filters',
+                                       description='Set cache',
                                        argconfigs=cls.get_set_action_argconfigs()),
-                cls.make_action_config('unset',
-                                       description='Unset/remove filters',
-                                       argconfigs=cls.get_unset_action_argconfigs())]
+                cls.make_action_config('clear',
+                                       description='Clear cache',
+                                       argconfigs=cls.get_clear_action_argconfigs())]
 
     @classmethod
     def get_show_action_argconfigs(cls):
@@ -47,19 +38,15 @@ class FiltersCommand(AzObjectActionCommand):
                                                   dest='object_type',
                                                   azclass=cls.azclass(),
                                                   required=True,
-                                                  help='The type of object to filter')
+                                                  help='The type of object to cache')
 
     @classmethod
     def get_set_action_argconfigs(cls):
         return [*cls.azclass().get_descendant_azobject_id_argconfigs(),
-                cls.get_azclass_descendants_argconfigs(),
-                ArgConfig('prefix', help='Add or modify the prefix filter'),
-                ArgConfig('suffix', help='Add or modify the suffix filter'),
-                ArgConfig('regex', help='Add or modify the regex filter'),
-                BoolArgConfig('all', dest='full', help='Add or modify the prefix, suffix, and regex for the filter')]
+                cls.get_azclass_descendants_argconfigs()]
 
     @classmethod
-    def get_unset_action_argconfigs(cls):
+    def get_clear_action_argconfigs(cls):
         return [*cls.azclass().get_descendant_azobject_id_argconfigs(),
                 cls.get_azclass_descendants_argconfigs(),
                 ExclusiveGroupArgConfig(ChoicesArgConfig('remove',
@@ -88,7 +75,7 @@ class FiltersCommand(AzObjectActionCommand):
                 return
 
         print(f'{self.tab}{azclass.__name__}: {azobject_id}')
-        filters = [f'{c.__name__}: {c.get_filter(**opts)}' for c in azclass.get_child_classes() if c.get_filter(**opts)]
+        cacheconfigs = [f'{c.__name__}: {c.get_filter(**opts)}' for c in azclass.get_child_classes() if c.get_filter(**opts)]
         if any(filters):
             print(f'{self.tab}[{", ".join(filters)}]')
         else:
@@ -99,10 +86,6 @@ class FiltersCommand(AzObjectActionCommand):
                 self.show_azclass(child_class, opts)
 
     def set(self, object_type, prefix, suffix, regex, full, **opts):
-        if not object_type:
-            raise RequiredArgument('type', 'set')
-        if not any((prefix, suffix, regex)):
-            raise RequiredArgumentGroup(['prefix', 'suffix', 'regex'], 'set', exclusive=False)
         self.set_azclass(self.azclass(), object_type, prefix, suffix, regex, full, opts)
 
     def set_azclass(self, azclass, object_type, prefix, suffix, regex, full, opts):
@@ -125,10 +108,6 @@ class FiltersCommand(AzObjectActionCommand):
         return False
 
     def unset(self, object_type, remove, **opts):
-        if not object_type:
-            raise RequiredArgument('type', 'unset')
-        if not remove:
-            raise RequiredArgumentGroup(['remove', 'all'], 'unset', exclusive=True)
         self.unset_azclass(self.azclass(), object_type, remove, opts)
 
     def unset_azclass(self, azclass, object_type, remove, opts):

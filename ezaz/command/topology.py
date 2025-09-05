@@ -1,5 +1,4 @@
 
-from contextlib import contextmanager
 from contextlib import suppress
 
 from itertools import chain
@@ -51,18 +50,6 @@ class TopologyCommand(SimpleCommand):
                                                          help=f'Same as --ignore, but include the defaults as well'),
                                         BoolArgConfig('ignore_none',
                                                       help='Do not ignore any types of objects'))]
-
-    @contextmanager
-    def indent(self):
-        self._indent += 2
-        try:
-            yield
-        finally:
-            self._indent -= 2
-
-    @property
-    def tab(self):
-        return ' ' * self._indent
 
     @property
     def ignore(self):

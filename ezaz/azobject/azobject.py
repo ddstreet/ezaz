@@ -845,6 +845,10 @@ class AzCreatable(AzObject):
     def create(self, **opts):
         return self.do_action_config_instance_action('create', opts, include_self=False)
 
+    def create_post(self, result, opts):
+        self.cache.invalidate_info_list()
+        return result
+
 
 class AzDeletable(AzObject):
     @classmethod
@@ -881,6 +885,10 @@ class AzDeletable(AzObject):
 
     def delete(self, **opts):
         return self.do_action_config_instance_action('delete', opts, include_self=False)
+
+    def delete_post(self, result, opts):
+        self.cache.invalidate_info()
+        return result
 
 
 # Do not ever actually call the show command, always use the list

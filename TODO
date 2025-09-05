@@ -1,4 +1,6 @@
 
+- finish implementing cache expiry and cache command
+
 - update 'distro' choices for vm create
 
 - add toplevel 'cache' command to control cache timeout and clearing
@@ -10,6 +12,9 @@
 
 - add per-action configuration of caching
 - update cacheing to remove specific cache after object create/delete operation
+
+- add 'ssh' command to vm
+  add vm sub-components like e.g. nics
 
 - review use of 'opts' vs '**opts' in methods; should try to be consistent
 

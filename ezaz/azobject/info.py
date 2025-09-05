@@ -4,6 +4,7 @@ import jsonschema
 import operator
 
 from contextlib import suppress
+from copy import deepcopy
 
 from ..dictnamespace import DictNamespace
 from ..exception import InvalidInfo
@@ -65,7 +66,7 @@ class Info(DictNamespace):
         jsonschema.validate(info, self._schema)
 
     def _save(self):
-        obj = self._json
+        obj = deepcopy(self)
         obj[self.SAVE_KEY] = self.__class__.__name__
         return obj
 

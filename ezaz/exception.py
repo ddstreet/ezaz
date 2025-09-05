@@ -28,6 +28,10 @@ class InvalidCache(CacheError):
     pass
 
 
+class InvalidCacheExpiry(CacheError):
+    pass
+
+
 class CacheMiss(CacheError):
     pass
 

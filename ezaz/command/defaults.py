@@ -1,5 +1,4 @@
 
-from contextlib import contextmanager
 from contextlib import suppress
 from functools import cached_property
 
@@ -46,18 +45,6 @@ class DefaultsCommand(AzObjectActionCommand):
     def get_unset_action_argconfigs(cls):
         return [BoolArgConfig(azclass.azobject_name(), help='Unset the {azclass.azobject_text()} default id')
                 for azclass in cls.azclass().get_descendant_classes()]
-
-    @contextmanager
-    def indent(self):
-        self._indent += 2
-        try:
-            yield
-        finally:
-            self._indent -= 2
-
-    @property
-    def tab(self):
-        return ' ' * self._indent
 
     def show(self, *, check, **opts):
         self._indent = 0

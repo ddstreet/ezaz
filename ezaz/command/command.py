@@ -1,6 +1,7 @@
 
 from abc import ABC
 from abc import abstractmethod
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 from ..actionutil import ActionConfig
@@ -53,6 +54,7 @@ class SimpleCommand(ArgUtil, ABC):
         self._verbose = verbose
         self._dry_run = dry_run
         self._opts = opts
+        self._indent = 0
 
     @property
     def opts(self):
@@ -69,6 +71,18 @@ class SimpleCommand(ArgUtil, ABC):
     @property
     def dry_run(self):
         return self._dry_run
+
+    @contextmanager
+    def indent(self, spaces=2):
+        self._indent += spaces
+        try:
+            yield
+        finally:
+            self._indent -= spaces
+
+    @property
+    def tab(self):
+        return ' ' * self._indent
 
 
 class AzObjectCommand(SimpleCommand):
