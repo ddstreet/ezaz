@@ -473,6 +473,12 @@ class X509DERFileArgConfig(BinaryFileArgConfig):
 
 class BaseDateTimeArgConfig(ArgConfig):
     def _get_datetime(self, value, opts):
+        with suppress(ValueError):
+            int(value)
+            # If the int conversion worked, it's a plain number, which
+            # dateparser won't parse correctly, so we add 's' to
+            # convert to seconds
+            value += 's'
         import dateparser
         settings=dict(TO_TIMEZONE='UTC', RETURN_AS_TIMEZONE_AWARE=True, PREFER_DATES_FROM='future')
         datetime_value = dateparser.parse(value, settings=settings)

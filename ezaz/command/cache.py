@@ -2,11 +2,15 @@
 import json
 
 from ..argutil import AzClassDescendantsChoicesArgConfig
+from ..argutil import BoolArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import ConstArgConfig
+from ..argutil import GroupArgConfig
 from ..argutil import TimeDeltaArgConfig
 from ..argutil import ExclusiveGroupArgConfig
 from ..exception import DefaultConfigNotFound
+from ..exception import RequiredArgument
+from ..exception import RequiredArgumentGroup
 from .command import AzObjectActionCommand
 
 
@@ -25,12 +29,10 @@ class CacheCommand(AzObjectActionCommand):
         return [cls.make_action_config('show',
                                        description='Show cache',
                                        argconfigs=cls.get_show_action_argconfigs()),
-                cls.make_action_config('set',
-                                       description='Set cache',
-                                       argconfigs=cls.get_set_action_argconfigs()),
-                cls.make_action_config('clear',
-                                       description='Clear cache',
-                                       argconfigs=cls.get_clear_action_argconfigs())]
+                cls.make_action_config('set-expiry',
+                                       func='set_expiry',
+                                       description='Set cache expiry duration',
+                                       argconfigs=cls.get_set_action_argconfigs())]
 
     @classmethod
     def get_show_action_argconfigs(cls):
@@ -38,38 +40,41 @@ class CacheCommand(AzObjectActionCommand):
 
     @classmethod
     def get_set_action_argconfigs(cls):
-        return [*cls.azclass().get_descendant_azobject_id_argconfigs(),
-                AzClassDescendantsChoicesArgConfig('object_type',
-                                                   dest='object_type',
-                                                   include_self=True,
-                                                   azclass=cls.azclass(),
-                                                   required=True,
-                                                   help='The type of object to cache'),
-                AzClassDescendantsChoicesArgConfig('target',
-                                                   dest='target',
-                                                   include_self=True,
-                                                   azclass=cls.azclass(),
-                                                   required=True,
-                                                   help='Where to attach the cache config'),
-                TimeDeltaArgConfig('show_expiry', help="How long to use cached 'show' command info"),
-                TimeDeltaArgConfig('list_expiry', help="How long to use cached 'list' command info")]
-
-    @classmethod
-    def get_clear_action_argconfigs(cls):
-        return [*cls.azclass().get_descendant_azobject_id_argconfigs(),
-                ExclusiveGroupArgConfig(ChoicesArgConfig('remove',
-                                                         choices=['prefix', 'suffix', 'regex'],
-                                                         default=[],
-                                                         multiple=True,
-                                                         help='Which filters to remove'),
-                               ConstArgConfig('all',
-                                              dest='remove',
-                                              const=['all'],
-                                              help='Remove the prefix, suffix, and regex filters'))]
+        return [GroupArgConfig(*cls.azclass().get_descendant_azobject_id_argconfigs(),
+                               title='Resource options'),
+                GroupArgConfig(BoolArgConfig('default_config',
+                                             help='Configure the default cache configuration'),
+                               AzClassDescendantsChoicesArgConfig('config_location',
+                                                                  include_self=True,
+                                                                  azclass=cls.azclass(),
+                                                                  metavar='RESOURCE_NAME',
+                                                                  help='Configure the cache configuration on this object type (must be same as or ancestor of --type)'),
+                               AzClassDescendantsChoicesArgConfig('type',
+                                                                  dest='object_type',
+                                                                  include_self=True,
+                                                                  azclass=cls.azclass(),
+                                                                  metavar='RESOURCE_NAME',
+                                                                  help='The type of object to cache (must be same as or descendant of --config-location)'),
+                               title='Configuration scope options'),
+                ExclusiveGroupArgConfig(TimeDeltaArgConfig('show_cache_duration', help="How long to use cached 'show' command info"),
+                                        ConstArgConfig('show_cache_disable', const='nocache', help="Disable caching of 'show' command info"),
+                                        ConstArgConfig('show_cache_forever', const='forever', help="Cache 'show' command info forever"),
+                                        ConstArgConfig('show_cache_none', const='none', help="Remove cache configuration for 'show' command info"),
+                                        cmddest='show_expiry',
+                                        title='Show command caching options'),
+                ExclusiveGroupArgConfig(TimeDeltaArgConfig('list_cache_duration', help="How long to use cached 'list' command info"),
+                                        ConstArgConfig('list_cache_disable', const='nocache', help="Disable caching of 'list' command info"),
+                                        ConstArgConfig('list_cache_forever', const='forever', help="Cache 'list' command info forever"),
+                                        ConstArgConfig('list_cache_none', const='none', help="Remove cache configuration for 'list' command info"),
+                                        cmddest='list_expiry',
+                                        title='List command caching options')]
 
     def show(self, **opts):
         self._indent = 0
-        self.show_azclass(self.azclass(), opts)
+        default_expiry = self.azclass().get_instance(**opts).default_cache_expiry()
+        print(f"[Defaults: {self.expirystr(default_expiry)}]")
+        with self.indent():
+            self.show_azclass(self.azclass(), opts)
 
     def show_azclass(self, azclass, opts):
         if not azclass.has_child_classes():
@@ -81,16 +86,10 @@ class CacheCommand(AzObjectActionCommand):
             return
 
         print(f'{self.tab}{azclass.__name__}: {azobject.azobject_id}')
-        expiries = []
-        for c in azclass.get_descendant_classes():
-            expiry = azobject.cache_expiry(c.azobject_name())
-            if expiry:
-                msg = []
-                if expiry.list_expiry:
-                    msg.append(f'list={expiry.list_expiry}')
-                if expiry.show_expiry:
-                    msg.append(f'show={expiry.show_expiry}')
-                expiries.append(c.__name__ + ': (' + ','.join(msg) + ')')
+        expiries = [f'{c.__name__}: {self.expirystr(expiry)}'
+                    for c in azclass.get_descendant_classes()
+                    for expiry in [azobject.cache_expiry(c.azobject_name())]
+                    if expiry]
         if expiries:
             print(f'{self.tab}[{", ".join(expiries)}]')
         else:
@@ -100,56 +99,57 @@ class CacheCommand(AzObjectActionCommand):
             with self.indent():
                 self.show_azclass(child_class, opts)
 
-    def set(self, object_type, target, **opts):
-        show_expiry = self.get_action_config('set').get_argconfig('show_expiry').cmd_arg_value(**opts)
-        list_expiry = self.get_action_config('set').get_argconfig('list_expiry').cmd_arg_value(**opts)
-        if not show_expiry and not list_expiry:
-            raise RequiredArgumentGroup(['show_expiry', 'list_expiry'], 'set', exclusive=False)
-        self.set_azclass(self.azclass(), object_type, target, show_expiry, list_expiry, opts)
+    def set_expiry(self, default_config, config_location, object_type, **opts):
+        if not any((default_config, config_location)):
+            raise RequiredArgumentGroup(['default_config', 'config_location'], 'set-expiry', exclusive=True)
 
-    def set_azclass(self, azclass, object_type, target, show_expiry, list_expiry, opts):
-        if azclass.azobject_name() == target:
+        if all((default_config, object_type)):
+            raise ArgumentError(f'Cannot use --config-location with --defualt-config')
+
+        if config_location:
+            if not object_type:
+                raise RequiredArgument('object_type', '--config-location')
+            config_location_azclass = self.azclass().get_descendant_classmap(include_self=True).get(config_location)
+            object_type_azclass = self.azclass().get_descendant_classmap(include_self=True).get(object_type)
+            if config_location != object_type and not config_location_azclass.is_ancestor_class(object_type_azclass):
+                raise ArgumentError(f"--config-location '{config_location}' not same as or ancestor of --object-type '{object_type}'")
+        
+        show_expiry = self.get_action_config('set-expiry').cmd_opts(**opts).get('show_expiry')
+        list_expiry = self.get_action_config('set-expiry').cmd_opts(**opts).get('list_expiry')
+        if not show_expiry and not list_expiry:
+            raise RequiredArgumentGroup(['show_expiry', 'list_expiry'], 'set-expiry', exclusive=False)
+
+        if default_config:
+            self.set_default_config(self.azclass(), show_expiry, list_expiry, opts)
+        else:
+            assert self.set_azclass_expiry(self.azclass(), config_location, object_type, show_expiry, list_expiry, opts)
+
+    def set_azclass_expiry(self, azclass, config_location, object_type, show_expiry, list_expiry, opts):
+        if azclass.azobject_name() == config_location:
             azobject = azclass.get_instance(**opts)
-            expiry = azobject.cache_expiry(object_type)
-            if show_expiry is not None:
-                expiry.show_expiry = show_expiry
-            if list_expiry is not None:
-                expiry.list_expiry = list_expiry
+            expiry = self.set_expiry_attrs(azobject.cache_expiry(object_type), show_expiry, list_expiry)
+            print(f'Set {config_location} id {azobject.azobject_id} cache config for {object_type} objects to: {self.expirystr(expiry)}')
             return True
 
         if not azclass.has_child_classes():
             return False
 
         for child_class in azclass.get_child_classes():
-            if self.set_azclass(child_class, object_type, target, show_expiry, list_expiry, opts):
+            if self.set_azclass_expiry(child_class, config_location, object_type, show_expiry, list_expiry, opts):
                 return True
 
         return False
 
-    def unset(self, object_type, remove, **opts):
-        self.unset_azclass(self.azclass(), object_type, remove, opts)
+    def set_default_config(self, azclass, show_expiry, list_expiry, opts):
+        expiry = self.set_expiry_attrs(azclass.get_instance(**opts).default_cache_expiry(), show_expiry, list_expiry)
+        print(f'Set default cache config to: {self.expirystr(expiry)}')
 
-    def unset_azclass(self, azclass, object_type, remove, opts):
-        if not azclass.has_child_classes():
-            return False
+    def set_expiry_attrs(self, expiry, show_expiry, list_expiry):
+        if show_expiry is not None:
+            expiry.show_expiry = None if show_expiry == 'none' else show_expiry
+        if list_expiry is not None:
+            expiry.list_expiry = None if list_expiry == 'none' else list_expiry
+        return expiry
 
-        for child_class in azclass.get_child_classes():
-            if child_class.azobject_name() == object_type:
-                parent = azclass.get_instance(**opts)
-                if 'all' in remove:
-                    parent.del_child_filter(object_type)
-                else:
-                    f = parent.get_child_filter(object_type)
-                    if 'prefix' in remove:
-                        del f.prefix
-                    if 'suffix' in remove:
-                        del f.suffix
-                    if 'regex' in remove:
-                        del f.regex
-                print(f'Unset {azclass.__name__}({parent.azobject_id}) {child_class.azobject_text()} filter to {parent.get_child_filter(object_type)}')
-                return True
-
-            if self.unset_azclass(child_class, object_type, remove, opts):
-                return True
-
-        return False
+    def expirystr(self, expiry, none='No configuration'):
+        return expiry._jsonstr() if expiry else none

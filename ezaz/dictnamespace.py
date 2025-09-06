@@ -28,7 +28,10 @@ class Shim(ABC):
         return deepcopy(self._shim_real_value, memo)
 
     def __str__(self):
-        return json.dumps(copy(self._shim_real_value), indent=2)
+        return self._jsonstr(2)
+
+    def _jsonstr(self, indent=None):
+        return json.dumps(copy(self._shim_real_value), indent=indent)
 
 
 # Iterable namespace with direct r/w backing by a dict, including contained dicts and lists

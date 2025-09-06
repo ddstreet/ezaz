@@ -434,7 +434,7 @@ class AzObject(AzAction):
         return self.__class__._class_cache
 
     def default_cache_expiry(self):
-        return self.config.get_object(self.default_cache_expiry_key())
+        return CacheExpiry(self.config.get_object(self.default_cache_expiry_key()))
 
     def find_cache_expiry(self, name):
         return self.cache_expiry(name)
@@ -507,6 +507,10 @@ class AzSubObject(AzObject):
     @classmethod
     def get_ancestor_classes(cls):
         return [*cls.get_parent_ancestor_classes(), cls.get_parent_class()]
+
+    @classmethod
+    def is_descendant_class(cls, ancestor):
+        return ancestor in cls.get_ancestor_classes()
 
     @classmethod
     def get_parent_common_argconfigs(cls):
@@ -640,15 +644,23 @@ class AzObjectContainer(AzObject):
         raise InvalidAzObjectName(f'AzObject {cls.__name__} does not contain AzObjects with name {name}')
 
     @classmethod
-    def get_descendant_classes(cls):
+    def get_descendant_classes(cls, include_self=False):
         return sum([c.get_descendant_classes() for c in cls.get_child_classes() if c.has_child_classes()],
-                   start=cls.get_child_classes())
+                   start=([cls] if include_self else []) + cls.get_child_classes())
+
+    @classmethod
+    def is_ancestor_class(cls, descendant):
+        return descendant in cls.get_descendant_classes()
 
     @classmethod
     def get_descendant_azobject_id_argconfigs(cls, include_self=False, is_parent=True, **kwargs):
         return sum([c.get_self_id_argconfigs(is_parent=is_parent, **kwargs)
                     for c in cls.get_descendant_classes()],
                    start=cls.get_self_id_argconfigs(is_parent=is_parent, **kwargs) if include_self else [])
+
+    @classmethod
+    def get_descendant_classmap(cls, include_self=False):
+        return {c.azobject_name(): c for c in cls.get_descendant_classes(include_self=include_self)}
 
     def has_default_child_id(self, name):
         try:
