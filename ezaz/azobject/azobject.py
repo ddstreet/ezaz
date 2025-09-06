@@ -602,7 +602,7 @@ class AzSubObject(AzObject):
         return self._parent
 
     def default_cache_expiry(self):
-        return self.parent.default_cache_expiry(self)
+        return self.parent.default_cache_expiry()
 
     def find_cache_expiry(self, name):
         return self.cache_expiry(name) or self.parent.find_cache_expiry(name) or self.default_cache_expiry()
