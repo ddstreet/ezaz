@@ -1,8 +1,4 @@
 
-- finish implementing cache expiry and cache command
-  update cache command to set 'forever' and 'nocache'
-  support modifying topevel 'default' cache expiry
-
 - convert Filter to DictNamespace subclass, directly backed by Config
 
 - update 'distro' choices for vm create
