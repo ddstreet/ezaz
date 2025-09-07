@@ -19,8 +19,14 @@ class ImportVenv:
     def __init__(self, *, venvdir=DEFAULT_VENVDIR, required_packages=REQUIRED_PACKAGES, debug=False, refresh=False):
         self.venvdir = Path(venvdir).expanduser().resolve()
         self.debug = debug
+        self.system_packages = []
+        self.venv_packages = []
 
-        if self.need_refresh(refresh) and not self.is_argcomplete:
+        # Skip everything for argcomplete
+        if '_ARGCOMPLETE' in os.environ.keys():
+            return
+
+        if self.need_refresh(refresh):
             # We want to be verbose during initial creation (usually first run of ezaz), or during a refresh
             self.debug = True
             recreated = 'recreated' if self.venvdir.is_dir() else 'created'
@@ -28,18 +34,12 @@ class ImportVenv:
             venv.create(str(self.venvdir), clear=refresh, with_pip=True)
             self.log('done.')
 
-        self.system_packages = []
-        self.venv_packages = []
         for p in required_packages:
             if p.is_available:
                 self.log(f'Using system version of package {p.name}')
                 self.system_packages.append(p)
             else:
                 self.venv_packages.append(p)
-
-    @property
-    def is_argcomplete(self):
-        return '_ARGCOMPLETE' in os.environ.keys()
 
     def need_refresh(self, refresh):
         return (refresh or
@@ -76,9 +76,6 @@ class ImportVenv:
         return self.sitepackagesdir / package.replace('-', '/')
 
     def run_pip(self, package):
-        if self.is_argcomplete:
-            return
-
         # We explicitly print everything here, as it might take a while
         print(f'Installing package in virtual environment: {package}')
         process = subprocess.Popen(['pip', 'install', '-v', package], stdout=subprocess.PIPE, bufsize=1, text=True)

@@ -1,6 +1,4 @@
 
-- convert Filter to DictNamespace subclass, directly backed by Config
-
 - update 'distro' choices for vm create
 
 - command actionconfigs should pass opts and also cmd_opts to command handler functions
@@ -10,14 +8,10 @@
 - add full ancestor path of object anme params for commands missing
   them (where currently uses just one object name param)
 
-- add per-action configuration of caching
-
 - add 'ssh' command to vm
   add vm sub-components like e.g. nics
 
 - review use of 'opts' vs '**opts' in methods; should try to be consistent
-
-- set importvenv to skip checking for dependencies when called inside argcomplete
 
 DOCS:
 
