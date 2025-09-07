@@ -42,7 +42,7 @@ class DictNamespace(Shim, Iterable):
 
     def __init__(self, obj):
         super().__init__()
-        self._real_value = obj
+        self._real_value = (obj._real_value if isinstance(obj, DictNamespace) else obj)
         self._shim_dict = DictShim(self._real_value, dict_shim_class=DictNamespace)
         self._validate()
 

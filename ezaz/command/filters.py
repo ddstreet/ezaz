@@ -88,7 +88,10 @@ class FiltersCommand(AzObjectActionCommand):
                 return
 
         print(f'{self.tab}{azclass.__name__}: {azobject_id}')
-        filters = [f'{c.__name__}: {c.get_filter(**opts)}' for c in azclass.get_child_classes() if c.get_filter(**opts)]
+        filters = [f'{c.__name__}: {f._jsonstr()}'
+                   for c in azclass.get_child_classes()
+                   for f in [c.get_filter(**opts)]
+                   if f]
         if any(filters):
             print(f'{self.tab}[{", ".join(filters)}]')
         else:

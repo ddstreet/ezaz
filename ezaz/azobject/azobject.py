@@ -712,7 +712,7 @@ class AzObjectContainer(AzObject):
         return Filter(self.config.get_object(self.get_child_class(name).filter_key()))
 
     def set_child_filter(self, name, value):
-        self.config[self.get_child_class(name).filter_key()] = Filter(value).config
+        self.config[self.get_child_class(name).filter_key()] = value
 
     def del_child_filter(self, name):
         with suppress(KeyError):

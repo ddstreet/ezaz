@@ -274,7 +274,7 @@ class CacheExpiry(DictNamespace):
     FOREVER = 'forever'
 
     def __init__(self, config, *, show_expiry=None, list_expiry=None):
-        super().__init__(config.config if isinstance(config, CacheExpiry) else config)
+        super().__init__(config)
 
         self.show_expiry = show_expiry or getattr(self, 'show_expiry', None)
         self.list_expiry = list_expiry or getattr(self, 'list_expiry', None)
