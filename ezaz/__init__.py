@@ -7,6 +7,8 @@ from pathlib import Path
 from .requiredpackage import RequiredPackage
 
 
+IS_ARGCOMPLETE = '_ARGCOMPLETE' in os.environ.keys()
+
 LOGGER = logging.getLogger(__name__)
 AZ_LOGGER = logging.getLogger(f'{__name__}.AZ')
 IMPORTCLASSES_LOGGER = logging.getLogger(f'{__name__}.IMPORTCLASSES')

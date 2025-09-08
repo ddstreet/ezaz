@@ -10,11 +10,13 @@ from .exception import ArgumentError
 
 
 class ActionConfig(ArgUtil, ABC):
-    def __init__(self, action, description, *, aliases=None, argconfigs=None):
+    def __init__(self, action, description, *, aliases=None, argconfigs=None, defaults=None, parser_kwargs=None):
         self.action = action
         self.aliases = aliases or []
         self.description = description
         self._argconfigs = argconfigs
+        self.defaults = defaults or {}
+        self.parser_kwargs = parser_kwargs or {}
         self.parser = None
         self.group_default = False
 
@@ -47,11 +49,14 @@ class ActionConfig(ArgUtil, ABC):
     def do_action(self, **opts):
         pass
 
+    def set_defaults(self, parser):
+        parser.set_defaults(action_function=self.do_action, print_help=parser.print_help, **self.defaults)
+
     def add_to_group(self, group):
         assert self.parser is None
-        self.parser = group.add_parser(self.action, aliases=self.aliases)
+        self.parser = group.add_parser(self.action, aliases=self.aliases, **self.parser_kwargs)
         self.parser.formatter_class = argparse.RawTextHelpFormatter
-        self.parser.set_defaults(action_function=self.do_action)
+        self.set_defaults(self.parser)
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(self.parser)
         return self.parser

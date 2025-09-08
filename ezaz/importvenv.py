@@ -9,6 +9,7 @@ from functools import cached_property
 from pathlib import Path
 
 from . import DEFAULT_CONFIGPATH
+from . import IS_ARGCOMPLETE
 from . import REQUIRED_PACKAGES
 
 
@@ -23,7 +24,7 @@ class ImportVenv:
         self.venv_packages = []
 
         # Skip everything for argcomplete
-        if '_ARGCOMPLETE' in os.environ.keys():
+        if IS_ARGCOMPLETE:
             return
 
         if self.need_refresh(refresh):

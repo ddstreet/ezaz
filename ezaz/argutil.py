@@ -870,8 +870,8 @@ class SharedArgumentParser(argparse.ArgumentParser):
             p.add_to_parser(parser)
         return parser
 
-    def parse_args(self, args):
-        opts = super().parse_args(args)
+    def parse_args(self, args=None, namespace=None):
+        opts = super().parse_args(args, namespace)
         for p in self.shared_args:
             opts = p.parse_shared_arg(args, opts)
         return opts

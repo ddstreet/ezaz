@@ -6,7 +6,9 @@ import sys
 import traceback
 
 from contextlib import suppress
+from functools import cached_property
 
+from . import IS_ARGCOMPLETE
 from .actionutil import ActionConfigGroup
 from .argutil import SharedArgumentParser
 
@@ -34,6 +36,16 @@ class Main:
         from . import LOGGER
         LOGGER.setLevel(logging.NOTSET)
 
+    def create_parser(self, **kwargs):
+        parser = SharedArgumentParser(prog='ezaz', **kwargs)
+
+        commands = ActionConfigGroup(action='command',
+                                     description='Commands',
+                                     required=True,
+                                     actionconfigs=[c.get_command_action_config() for c in self.cmds])
+        commands.add_to_parser(parser)
+        return parser
+
     def parse_args(self, args):
         partial_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
         common_group = partial_parser.add_shared_argument_group(title='Global options')
@@ -49,15 +61,13 @@ class Main:
 
         self.setup_logging(partial_parser.parse_known_args(self.args)[0])
 
-        parser = SharedArgumentParser(prog='ezaz',
-                                      formatter_class=argparse.RawTextHelpFormatter,
-                                      shared_args=partial_parser.shared_args)
+        if not IS_ARGCOMPLETE:
+            initial_parser = self.create_parser(add_help=False)
+            preparser = getattr(initial_parser.parse_known_args(args)[0], 'preparser', None)
+            if preparser:
+                args = preparser(args)
 
-        commands = ActionConfigGroup(action='command',
-                                     description='Commands',
-                                     required=True,
-                                     actionconfigs=[c.get_command_action_config() for c in self.cmds])
-        commands.add_to_parser(parser)
+        parser = self.create_parser(formatter_class=argparse.RawTextHelpFormatter, shared_args=partial_parser.shared_args)
 
         with suppress(ImportError):
             import argcomplete

@@ -44,7 +44,17 @@ class SimpleCommand(ArgUtil, ABC):
                                    cls,
                                    description='',
                                    aliases=cls.aliases(),
+                                   defaults=cls.get_simple_command_defaults(),
+                                   parser_kwargs=cls.get_simple_command_parser_kwargs(),
                                    argconfigs=cls.get_simple_command_argconfigs())
+
+    @classmethod
+    def get_simple_command_defaults(cls):
+        return {}
+
+    @classmethod
+    def get_simple_command_parser_kwargs(cls):
+        return {}
 
     @classmethod
     def get_simple_command_argconfigs(cls):
