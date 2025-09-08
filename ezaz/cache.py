@@ -11,6 +11,7 @@ from .exception import CacheExpired
 from .exception import CacheMiss
 from .exception import InvalidCache
 from .exception import InvalidCacheExpiry
+from .exception import NoCache
 
 
 DEFAULT_CACHENAME = 'cache'
@@ -18,12 +19,23 @@ DEFAULT_CACHE = DEFAULT_CACHEPATH / DEFAULT_CACHENAME
 
 
 class BaseCache:
-    def __init__(self, *, cachepath, expiry, hashmap={}, verbose=0, dry_run=False):
+    def __init__(self, *, cachepath, expiry, cachecfg, hashmap={}):
         self.cachepath = cachepath
         self.expiry = expiry
+        self.cachecfg = cachecfg
         self.hashmap = hashmap
-        self.verbose = verbose
-        self.dry_run = dry_run
+
+    @property
+    def verbose(self):
+        return self.cachecfg.verbose
+
+    @property
+    def dry_run(self):
+        return self.cachecfg.dry_run
+
+    @property
+    def no_cache(self):
+        return self.cachecfg.no_cache
 
     def clear(self):
         if self.dry_run:
@@ -51,6 +63,8 @@ class BaseCache:
         raise RuntimeError(f"Unknown pathtype '{pathtype}'")
 
     def _read(self, path, pathtype):
+        if self.no_cache:
+            raise NoCache()
         if not path.is_file():
             raise CacheMiss()
         if self._is_expired(path, pathtype):
@@ -200,8 +214,8 @@ class ParentClassCache(BaseClassCache, ParentCache):
 
 
 class ClassCache(ShowClassCache, ListClassCache, InfoClassCache):
-    def object_cache(self, objid, expiry):
-        return ObjectCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, hashmap=self.hashmap, classname=self.classname, objid=objid, expiry=expiry)
+    def object_cache(self, expiry, objid):
+        return ObjectCache(cachepath=self.cachepath, expiry=expiry, cachecfg=self.cachecfg, hashmap=self.hashmap, classname=self.classname, objid=objid)
 
 
 class BaseObjectCache(BaseClassCache):
@@ -245,11 +259,11 @@ class ParentObjectCache(BaseObjectCache, ParentClassCache):
         # meaning all children share their parent's cache
         return super()._child_cache_dir(classname=classname, objid=objid or self.objid)
 
-    def child_class_cache(self, child_classname, expiry):
-        return ClassCache(cachepath=self._child_cache_dir(), verbose=self.verbose, dry_run=self.dry_run, classname=child_classname, expiry=expiry)
+    def child_class_cache(self, expiry, child_classname):
+        return ClassCache(cachepath=self._child_cache_dir(), expiry=expiry, cachecfg=self.cachecfg, classname=child_classname)
 
-    def child_object_cache(self, child_classname, child_objid, expiry):
-        return ObjectCache(cachepath=self._child_cache_dir(), verbose=self.verbose, dry_run=self.dry_run, classname=child_classname, objid=child_objid, expiry=expiry)
+    def child_object_cache(self, expiry, child_classname, child_objid):
+        return ObjectCache(cachepath=self._child_cache_dir(), expiry=expiry, cachecfg=self.cachecfg, classname=child_classname, objid=child_objid)
 
 
 class ObjectCache(ParentObjectCache, ShowObjectCache, ListObjectCache, InfoObjectCache):
@@ -257,16 +271,22 @@ class ObjectCache(ParentObjectCache, ShowObjectCache, ListObjectCache, InfoObjec
 
 
 class Cache:
-    def __init__(self, *, cachepath, verbose, dry_run):
+    def __init__(self, *, cachepath, verbose, dry_run, no_cache):
         self.cachepath = Path(cachepath or DEFAULT_CACHE).expanduser().resolve()
+        self.cachecfg = CacheConfig(verbose=verbose, dry_run=dry_run, no_cache=no_cache)
+
+    def class_cache(self, expiry, classname):
+        return ClassCache(cachepath=self.cachepath, expiry=expiry, cachecfg=self.cachecfg, classname=classname)
+
+    def object_cache(self, expiry, classname, objid):
+        return ObjectCache(cachepath=self.cachepath, expiry=expiry, cachecfg=self.cachecfg, classname=classname, objid=objid)
+
+
+class CacheConfig:
+    def __init__(self, verbose, dry_run, no_cache):
         self.verbose = verbose
         self.dry_run = dry_run
-
-    def class_cache(self, classname, expiry):
-        return ClassCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, classname=classname, expiry=expiry)
-
-    def object_cache(self, classname, objid, expiry):
-        return ObjectCache(cachepath=self.cachepath, verbose=self.verbose, dry_run=self.dry_run, classname=classname, objid=objid, expiry=expiry)
+        self.no_cache = no_cache
 
 
 class CacheExpiry(DictNamespace):

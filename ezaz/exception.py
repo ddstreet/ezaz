@@ -36,6 +36,10 @@ class CacheMiss(CacheError):
     pass
 
 
+class NoCache(CacheMiss):
+    pass
+
+
 class CacheExpired(CacheError):
     pass
 

@@ -8,6 +8,7 @@ from ..argutil import ConstArgConfig
 from ..argutil import GroupArgConfig
 from ..argutil import TimeDeltaArgConfig
 from ..argutil import ExclusiveGroupArgConfig
+from ..exception import ArgumentError
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
@@ -103,8 +104,8 @@ class CacheCommand(AzObjectActionCommand):
         if not any((default_config, config_location)):
             raise RequiredArgumentGroup(['default_config', 'config_location'], 'set-expiry', exclusive=True)
 
-        if all((default_config, object_type)):
-            raise ArgumentError(f'Cannot use --config-location with --defualt-config')
+        if all((default_config, config_location)):
+            raise ArgumentError(f'Cannot use --config-location with --default-config')
 
         if config_location:
             if not object_type:

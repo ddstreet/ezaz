@@ -40,6 +40,7 @@ class Main:
         common_group.add_argument('--debug-parser', action='store_true', help=argparse.SUPPRESS)
         common_group.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
         common_group.add_argument('--debug-az', action='count', default=0, help='Enable debug of az commands')
+        common_group.add_argument('--no-cache', action='store_true', help='Use no cached data (do update the cache)')
         common_group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
         common_group.add_argument('--configfile', metavar='PATH', help='Path to config file')
         common_group.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')

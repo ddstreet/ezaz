@@ -409,10 +409,11 @@ class AzObject(AzAction):
     def cache_expiry_key(cls, name):
         return f'cache_expiry_{name}'
 
-    def __init__(self, *, azobject_id, cachedir=None, configfile=None, is_null=False, **kwargs):
+    def __init__(self, *, azobject_id, cachedir=None, configfile=None, no_cache=False, is_null=False, **kwargs):
         super().__init__(**kwargs)
         self._cachedir = cachedir
         self._configfile = configfile
+        self._no_cache = no_cache
         self._azobject_id = azobject_id
         self.is_null = is_null
         assert azobject_id or is_null
@@ -430,7 +431,10 @@ class AzObject(AzAction):
     @property
     def _cache(self):
         if not getattr(self.__class__, '_class_cache', None):
-            self.__class__._class_cache = Cache(cachepath=self._cachedir, verbose=self.verbose, dry_run=self.dry_run)
+            self.__class__._class_cache = Cache(cachepath=self._cachedir,
+                                                verbose=self.verbose,
+                                                dry_run=self.dry_run,
+                                                no_cache=self._no_cache)
         return self.__class__._class_cache
 
     def default_cache_expiry(self):
@@ -445,8 +449,8 @@ class AzObject(AzAction):
     @cached_property
     def cache(self):
         if self.is_null:
-            return self._cache.class_cache(self.azobject_name(), CacheExpiry({}))
-        return self._cache.object_cache(self.azobject_name(), self.azobject_id, self.cache_expiry(self.azobject_name()))
+            return self._cache.class_cache(CacheExpiry({}), self.azobject_name())
+        return self._cache.object_cache(self.cache_expiry(self.azobject_name()), self.azobject_name(), self.azobject_id)
 
     @cached_property
     def config(self):
@@ -610,8 +614,8 @@ class AzSubObject(AzObject):
     @cached_property
     def cache(self):
         if self.is_null:
-            return self.parent.cache.child_class_cache(self.azobject_name(), self.parent.find_cache_expiry(self.azobject_name()))
-        return self.parent.cache.child_object_cache(self.azobject_name(), self.azobject_id, self.find_cache_expiry(self.azobject_name()))
+            return self.parent.cache.child_class_cache(self.parent.find_cache_expiry(self.azobject_name()), self.azobject_name())
+        return self.parent.cache.child_object_cache(self.find_cache_expiry(self.azobject_name()), self.azobject_name(), self.azobject_id)
 
     @cached_property
     def config(self):
