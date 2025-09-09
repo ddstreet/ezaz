@@ -23,10 +23,12 @@ class ResourceGroup(AzCommonActionable, AzSubObjectContainer):
     @classmethod
     def get_child_classes(cls):
         from .imagegallery import ImageGallery
+        from .nic import Nic
+        from .publicip import PublicIp
         from .sshkey import SshKey
         from .storageaccount import StorageAccount
-        from .vm import VM
-        return [ImageGallery, SshKey, StorageAccount, VM]
+        from .vm import Vm
+        return [ImageGallery, Nic, PublicIp, SshKey, StorageAccount, Vm]
 
     @classmethod
     def get_cmd_base(cls):

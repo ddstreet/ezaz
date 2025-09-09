@@ -22,10 +22,10 @@ from ..argutil import NumberArgConfig
 from ..argutil import YesFlagArgConfig
 from ..exception import InvalidArgumentValue
 from .azobject import AzCommonActionable
-from .azobject import AzSubObject
+from .azobject import AzSubObjectContainer
 
 
-class VM(AzCommonActionable, AzSubObject):
+class Vm(AzCommonActionable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['vm']
@@ -36,8 +36,13 @@ class VM(AzCommonActionable, AzSubObject):
         return ResourceGroup
 
     @classmethod
+    def get_child_classes(cls):
+        from .vmnic import VmNic
+        return [VmNic]
+
+    @classmethod
     def get_self_id_argconfig_cmddest(cls, is_parent):
-        return 'name'
+        return 'vm_name' if is_parent else 'name'
 
     @classmethod
     def get_action_configs(cls):
@@ -127,7 +132,7 @@ class VM(AzCommonActionable, AzSubObject):
                                                dest='os_disk_size_gb',
                                                help='Size of OS disk, in GB'),
                                NoWaitFlagArgConfig(),
-                               title='VM creation options')]
+                               title='Vm creation options')]
 
     @classmethod
     def get_create_action_argconfigs_title(cls):
@@ -138,7 +143,7 @@ class VM(AzCommonActionable, AzSubObject):
     def get_delete_action_argconfigs(cls):
         return [BoolArgConfig('force',
                               dest='force_deletion',
-                              help='Force deletion of the VM'),
+                              help='Force deletion of the virtual machine'),
                 NoWaitBoolArgConfig(),
                 YesFlagArgConfig()]
 
@@ -160,12 +165,12 @@ class VM(AzCommonActionable, AzSubObject):
 
     @classmethod
     def get_restart_action_argconfigs(cls):
-        return [FlagArgConfig('force', help='Force restart of the VM by redeploying it'),
+        return [FlagArgConfig('force', help='Force restart of the virtual machine by redeploying it'),
                 NoWaitFlagArgConfig()]
 
     @classmethod
     def get_stop_action_argconfigs(cls):
-        return [FlagArgConfig('force', dest='skip_shutdown', help='Force stop of the VM'),
+        return [FlagArgConfig('force', dest='skip_shutdown', help='Force stop of the virtual machine'),
                 NoWaitFlagArgConfig()]
 
     @classmethod

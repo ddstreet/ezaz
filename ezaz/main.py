@@ -61,7 +61,7 @@ class Main:
 
         self.setup_logging(partial_parser.parse_known_args(self.args)[0])
 
-        if not IS_ARGCOMPLETE:
+        if not IS_ARGCOMPLETE and not all((arg.startswith('-') for arg in args)):
             initial_parser = self.create_parser(add_help=False)
             preparser = getattr(initial_parser.parse_known_args(args)[0], 'preparser', None)
             if preparser:

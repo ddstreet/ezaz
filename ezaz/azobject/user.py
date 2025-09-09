@@ -52,7 +52,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
         return cls.get_null_instance(**opts).signed_in_user(**opts)._id
 
     @classmethod
-    def set_default_azobject_id(cls, azobject_id):
+    def set_default_azobject_id(cls, azobject_id, opts):
         raise ArgumentError('Cannot modify the default value of the signed in user')
 
     @classmethod

@@ -116,7 +116,7 @@ class Info(DictNamespace):
     @property
     def _str3(self):
         # At verbose=3 or higher, the full info is provided (as a json string)
-        return repr(self)
+        return self._jsonstr(2)
 
 
 class AccountInfo(Info):
@@ -217,6 +217,26 @@ class ImageVersionInfo(Info):
     )
 
 
+class IpConfigInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        primary=BOOL,
+        privateIPAddress=STR,
+        publicIPAddress=OBJ(
+            id=STR,
+            resourceGroup=STR,
+        ),
+        resourceGroup=STR,
+        subnet=OBJ(
+            id=STR,
+            resourceGroup=STR,
+        ),
+    )
+
+    _id1_attr = 'privateIPAddress'
+
+
 class LocationInfo(Info):
     _schema = OBJ(
         id=STR,
@@ -272,6 +292,29 @@ class MarketplaceSkuInfo(Info):
     )
 
     _id1_attr = 'location'
+
+
+class NicInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        location=STR,
+        macAddress=STR,
+        primary=BOOL,
+        resourceGroup=STR,
+        resourceGuid=STR,
+    )
+
+
+class PublicIpInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        name=STR,
+        ipAddress=STR,
+        location=STR,
+        resourceGroup=STR,
+        resourceGuid=STR,
+    )
 
 
 class RoleAssignmentInfo(Info):
@@ -375,7 +418,7 @@ class UserInfo(Info):
     _id2_attr = 'userPrincipalName'
 
 
-class VMInfo(Info):
+class VmInfo(Info):
     _schema = OBJ(
         id=STR,
         name=STR,
@@ -399,7 +442,7 @@ class VMInfo(Info):
     _id1_attr = 'vmId'
 
 
-class VMInstanceInfo(Info):
+class VmInstanceInfo(Info):
     _schema = OBJ(
         id=STR,
         instanceView=OBJ(),
@@ -446,7 +489,20 @@ class VMInstanceInfo(Info):
     _id1_attr = 'vmId'
 
 
-class VMSkuInfo(Info):
+class VmNicInfo(Info):
+    _schema = OBJ(
+        id=STR,
+        resourceGroup=STR,
+    )
+
+    @property
+    def name(self):
+        # Not sure why azure-cli can't just provide the actual name
+        # field here :(
+        return self.id.split('/')[-1]
+
+
+class VmSkuInfo(Info):
     _schema = OBJ(['name', 'resourceType', 'locations'],
         name=STR,
         resourceType=STR,
@@ -472,88 +528,106 @@ def IL(info):
 
 INFOS = DictNamespace({
     'account': {
-        'show': AccountInfo,
         'list': IL(AccountInfo),
         'list-locations': IL(LocationInfo),
+        'show': AccountInfo,
     },
     'ad': {
-        'user': {
-            'show': UserInfo,
-            'list': IL(UserInfo),
-        },
         'signed-in-user': {
             'show': UserInfo,
-        }
+        },
+        'user': {
+            'list': IL(UserInfo),
+            'show': UserInfo,
+        },
     },
     'config': {
         'get': ConfigVarInfo,
     },
     'group': {
         'create': GroupInfo,
-        'show': GroupInfo,
         'list': IL(GroupInfo),
+        'show': GroupInfo,
+    },
+    'network': {
+        'nic': {
+            'ip-config': {
+                'list': IL(IpConfigInfo),
+                'show': IpConfigInfo,
+            },
+            'list': IL(NicInfo),
+            'show': NicInfo,
+        },
+        'public-ip': {
+            'list': IL(PublicIpInfo),
+            'show': PublicIpInfo,
+        },
     },
     'role': {
-        'definition': {
-            'show': RoleDefinitionInfo,
-            'list': IL(RoleDefinitionInfo),
-        },
         'assignment': {
             'create': RoleAssignmentInfo,
             'list': IL(RoleAssignmentInfo),
         },
+        'definition': {
+            'list': IL(RoleDefinitionInfo),
+            'show': RoleDefinitionInfo,
+        },
     },
     'sig': {
         'create': ImageGalleryInfo,
-        'show': ImageGalleryInfo,
         'list': IL(ImageGalleryInfo),
         'image-definition': {
             'create': ImageDefinitionInfo,
-            'show': ImageDefinitionInfo,
             'list': IL(ImageDefinitionInfo),
+            'show': ImageDefinitionInfo,
         },
         'image-version': {
             'create': ImageVersionInfo,
-            'show': ImageVersionInfo,
             'list': IL(ImageVersionInfo),
+            'show': ImageVersionInfo,
         },
-    },
-    'storage': {
-        'account': {
-            'create': StorageAccountInfo,
-            'show': StorageAccountInfo,
-            'list': IL(StorageAccountInfo),
-            'keys': {
-                'list': IL(StorageKeyInfo),
-            },
-        },
-        'container': {
-            'show': StorageContainerInfo,
-            'list': IL(StorageContainerInfo),
-        },
-        'blob': {
-            'create': StorageBlobInfo,
-            'show': StorageBlobInfo,
-            'list': IL(StorageBlobInfo),
-        },
+        'show': ImageGalleryInfo,
     },
     'sshkey': {
         'create': SshKeyInfo,
         'show': SshKeyInfo,
         'list': IL(SshKeyInfo),
     },
+    'storage': {
+        'account': {
+            'create': StorageAccountInfo,
+            'keys': {
+                'list': IL(StorageKeyInfo),
+            },
+            'list': IL(StorageAccountInfo),
+            'show': StorageAccountInfo,
+        },
+        'blob': {
+            'create': StorageBlobInfo,
+            'list': IL(StorageBlobInfo),
+            'show': StorageBlobInfo,
+        },
+        'container': {
+            'list': IL(StorageContainerInfo),
+            'show': StorageContainerInfo,
+        },
+    },
     'vm': {
-        'create': VMInfo,
+        'create': VmInfo,
+        'get-instance-view': VmInstanceInfo,
         'image': {
             'list': IL(MarketplaceImageVersionInfo),
             'list-offers': IL(MarketplaceOfferInfo),
             'list-publishers': IL(MarketplacePublisherInfo),
             'list-skus': IL(MarketplaceSkuInfo),
         },
-        'show': VMInfo,
-        'list': IL(VMInfo),
-        'list-skus': IL(VMSkuInfo),
-        'get-instance-view': VMInstanceInfo,
+        'list': IL(VmInfo),
+        'list-skus': IL(VmSkuInfo),
+        'nic': {
+            'list': IL(VmNicInfo),
+            'show': NicInfo,
+        },
+        'show': VmInfo,
     },
 })
 

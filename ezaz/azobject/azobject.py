@@ -344,7 +344,7 @@ class AzObject(AzAction):
 
     @classmethod
     @abstractmethod
-    def set_default_azobject_id(cls, azobject_id):
+    def set_default_azobject_id(cls, azobject_id, opts):
         pass
 
     @classmethod
@@ -751,7 +751,7 @@ class AzShowable(AzObject):
     def __init__(self, *, info=None, **kwargs):
         super().__init__(**kwargs)
         if info:
-            self.cache.write_info(info=info)
+            self.show_cache(info)
 
     @contextmanager
     def show_context_manager(self):
@@ -772,8 +772,11 @@ class AzShowable(AzObject):
         return self.do_action_config_instance_action('show', opts)
 
     def show_post(self, result, opts):
-        self.cache.write_info(info=result)
+        self.show_cache(result)
         return result
+
+    def show_cache(self, info):
+        self.cache.write_info(info=info)
 
 
 class AzListable(AzObject):
@@ -815,11 +818,11 @@ class AzListable(AzObject):
     def get_list_action_description(cls):
         return f'List {cls.azobject_text()}s'
 
-    def list_prefilter(self, infolist, opts):
+    def list_filter_pre(self, infolist, opts):
         return infolist
 
     def list_filter(self, infolist, opts):
-        infolist = self.list_prefilter(infolist, opts)
+        infolist = self.list_filter_pre(infolist, opts)
 
         if any((opts.get('prefix'), opts.get('suffix'), opts.get('regex'))):
             infolist = [info for info in infolist if Filter(opts).check_info(info)]
@@ -827,9 +830,9 @@ class AzListable(AzObject):
         if not opts.get('no_filters') and self.has_filter():
             return list(self.filter_infolist(infolist, opts))
 
-        return self.list_postfilter(infolist, opts)
+        return self.list_filter_post(infolist, opts)
 
-    def list_postfilter(self, infolist, opts):
+    def list_filter_post(self, infolist, opts):
         return infolist
 
     def list_pre(self, opts):
@@ -841,8 +844,16 @@ class AzListable(AzObject):
         return self.do_action_config_instance_action('list', opts)
 
     def list_post(self, infolist, opts):
-        self.cache.write_info_list(infolist=infolist)
+        self.list_cache(infolist)
         return self.list_filter(infolist, opts)
+
+    def list_cache(self, infolist):
+        self.cache.write_info_list(infolist=infolist)
+        self.list_cache_infos(infolist)
+
+    def list_cache_infos(self, infolist):
+        for info in infolist:
+            self.cache.write_info(info=info)
 
 
 class AzCreatable(AzObject):

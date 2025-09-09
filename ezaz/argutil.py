@@ -218,6 +218,8 @@ class BaseArgConfig(ArgUtil, ABC):
         if self.required and self.default:
             # Note that you can have a required argument with a callable default
             raise ArgumentError('Cannot have required argument with default')
+        if '-' in (self._cmddest or ''):
+            raise ArgumentError(f"Cannot have '-' in cmddest value '{self._cmddest}', please use underscores")
 
     @property
     def is_group(self):

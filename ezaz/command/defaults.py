@@ -82,7 +82,7 @@ class DefaultsCommand(AzObjectActionCommand):
         new_id = azclass.get_azobject_id_from_opts(opts)
         LOGGER.debug(f'{azclass.__name__}({current_id}) -> ({new_id})')
         if new_id:
-            current_id = self.set_azclass_default_id(azclass, current_id, new_id, check, force)
+            current_id = self.set_azclass_default_id(azclass, current_id, new_id, check, force, opts)
 
         if not current_id or not azclass.has_child_classes():
             return
@@ -90,7 +90,7 @@ class DefaultsCommand(AzObjectActionCommand):
         for child_class in azclass.get_child_classes():
             self.set_azclass(child_class, check, force, opts)
 
-    def set_azclass_default_id(self, azclass, current_id, new_id, check, force):
+    def set_azclass_default_id(self, azclass, current_id, new_id, check, force, opts):
         name = azclass.azobject_name()
         text = azclass.azobject_text()
 
@@ -105,7 +105,7 @@ class DefaultsCommand(AzObjectActionCommand):
             print(f'Refusing to set {text} default id to {new_id} because it does not exist')
             return current_id
 
-        azclass.set_default_azobject_id(new_id)
+        azclass.set_default_azobject_id(new_id, opts)
         if current_id:
             print(f'Changed {text} default id from {current_id} to {new_id}{exists_text}')
         else:

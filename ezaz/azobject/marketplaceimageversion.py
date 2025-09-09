@@ -30,7 +30,7 @@ class MarketplaceImageVersion(AzEmulateShowable, AzListable, AzSubObject):
                 ChoicesArgConfig('architecture', choices=['Arm64', 'x64'], noncmd=True, help='Architecture'),
                 FlagArgConfig('all', default=True, hidden=True)]
 
-    def list_prefilter(self, infolist, opts):
+    def list_filter_pre(self, infolist, opts):
         # We manually filter for architecture, so we can cache the full list
         architecture = opts.get('architecture')
         if architecture:

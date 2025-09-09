@@ -142,8 +142,6 @@ class InfoCache(ShowCache, ListCache):
     def write_info_list(self, *, classname, infolist):
         from .azobject.info import Info
         self.write_list(classname=classname, content=Info.save_list(infolist))
-        for info in infolist:
-            self.write_info(classname=classname, objid=info._id, info=info)
 
     def invalidate_info_list(self, *, classname):
         self.invalidate_list(classname=classname)
