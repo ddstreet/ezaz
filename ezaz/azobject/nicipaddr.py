@@ -1,9 +1,10 @@
 
 from .azobject import AzRoActionable
-from .azobject import AzSubObject
+from .azobject import AzSubObjectContainer
+from ..exception import NoPublicIp
 
 
-class NicIpAddr(AzRoActionable, AzSubObject):
+class NicIpAddr(AzRoActionable, AzSubObjectContainer):
     @classmethod
     def azobject_name_list(cls):
         return ['nic', 'ip', 'addr']
@@ -18,5 +19,19 @@ class NicIpAddr(AzRoActionable, AzSubObject):
         return Nic
 
     @classmethod
+    def get_child_classes(cls):
+        from .nicpublicip import NicPublicIp
+        return [NicPublicIp]
+
+    @classmethod
     def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'name'
+
+    def _get_public_ip_children(self):
+        from .nicpublicip import NicPublicIp
+        return self.get_children(NicPublicIp.azobject_name())
+
+    def get_public_ip(self):
+        for public_ip in self._get_public_ip_children():
+            return public_ip
+        raise NoPrimaryIpAddr(self)

@@ -207,3 +207,30 @@ class InfoError(EzazException):
 
 class InvalidInfo(InfoError):
     pass
+
+
+class VmError(EzazException):
+    pass
+
+
+class NoPrimaryNic(VmError):
+    def __init__(self, vm):
+        super().__init__(f'The virtual machine {vm.info().name} has no primary nic')
+
+
+class NicError(EzazException):
+    pass
+
+
+class NoPrimaryIpAddr(NicError):
+    def __init__(self, nic):
+        super().__init__(f'The nic {nic.azobject_id} has no primary ip address')
+
+
+class IpAddrError(EzazException):
+    pass
+
+
+class NoPublicIp(IpAddrError):
+    def __init__(self, nic):
+        super().__init__(f'The ip address {ipaddr.azobject_id} has no public ip')

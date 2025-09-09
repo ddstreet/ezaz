@@ -20,6 +20,11 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return StorageContainer
 
     @classmethod
+    def get_azobject_id_argconfigs_noncmd_classes(cls):
+        from .resourcegroup import ResourceGroup
+        return [ResourceGroup]
+
+    @classmethod
     def get_self_id_argconfig_cmddest(cls, is_parent):
         return 'name'
 

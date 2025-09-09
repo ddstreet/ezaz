@@ -30,12 +30,16 @@ class MarketplaceImageVersion(AzEmulateShowable, AzListable, AzSubObject):
                 ChoicesArgConfig('architecture', choices=['Arm64', 'x64'], noncmd=True, help='Architecture'),
                 FlagArgConfig('all', default=True, hidden=True)]
 
-    def list_filter_pre(self, infolist, opts):
+    @property
+    def id_list_supported(self):
+        return False
+
+    def list_filter(self, infolist, opts):
         # We manually filter for architecture, so we can cache the full list
         architecture = opts.get('architecture')
         if architecture:
             return [info for info in infolist if info.architecture == architecture]
-        return infolist
+        return super().list_filter(infolist, opts)
 
     def list_post(self, infolist, opts):
         # azcli is broken, and returns partial matches for these

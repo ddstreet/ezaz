@@ -21,6 +21,7 @@ from ..argutil import NoWaitFlagArgConfig
 from ..argutil import NumberArgConfig
 from ..argutil import YesFlagArgConfig
 from ..exception import InvalidArgumentValue
+from ..exception import NoPrimaryNic
 from .azobject import AzCommonActionable
 from .azobject import AzSubObjectContainer
 
@@ -215,3 +216,10 @@ class Vm(AzCommonActionable, AzSubObjectContainer):
         with suppress(AttributeError):
             return self.info().diagnosticsProfile.bootDiagnostics.enabled
         return False
+
+    def get_primary_nic(self):
+        from .vmnic import VmNic
+        for nic in self.get_children(VmNic.azobject_name()):
+            if nic.info().primary:
+                return nic
+        raise NoPrimaryNic(self)

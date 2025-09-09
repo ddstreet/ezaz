@@ -1,6 +1,5 @@
 
 - add 'ssh' command to vm
-  add vm sub-components like e.g. nics
 
 - update setup command
   allow creating from prompt command

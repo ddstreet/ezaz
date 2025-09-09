@@ -316,6 +316,8 @@ class PublicIpInfo(Info):
         resourceGuid=STR,
     )
 
+    _id1_attr = 'ipAddress'
+
 
 class RoleAssignmentInfo(Info):
     _schema = OBJ(

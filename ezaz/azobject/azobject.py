@@ -198,7 +198,9 @@ class AzObject(AzAction):
         return None
 
     @classmethod
-    def get_self_id_argconfigs(cls, *args, is_parent=False, **kwargs):
+    def get_self_id_argconfigs(cls, *args, is_parent=False, noncmd_classes=[], elide_classes=[], **kwargs):
+        if cls in elide_classes:
+            return []
         if 'help' not in kwargs:
             kwargs['help'] = 'Use the specified {azobject_text}, instead of the default'
         if kwargs['help']:
@@ -208,11 +210,21 @@ class AzObject(AzAction):
             kwargs['cmddest'] = cls.get_self_id_argconfig_cmddest(is_parent=is_parent)
         if 'metavar' not in kwargs:
             kwargs['metavar'] = cls.azobject_name().upper()
+        if 'noncmd' not in kwargs and cls in noncmd_classes:
+            kwargs['noncmd'] = True
         return [AzObjectArgConfig(*args, azclass=cls, **kwargs)]
 
     @classmethod
     def get_self_id_argconfig_cmddest(cls, is_parent):
         return cls.azobject_name()
+
+    @classmethod
+    def get_azobject_id_argconfigs_elide_classes(cls):
+        return []
+
+    @classmethod
+    def get_azobject_id_argconfigs_noncmd_classes(cls):
+        return []
 
     @classmethod
     def get_azobject_id_argconfigs(cls, is_parent=False, **kwargs):
@@ -535,6 +547,10 @@ class AzSubObject(AzObject):
 
     @classmethod
     def get_azobject_id_argconfigs(cls, is_parent=False, **kwargs):
+        if 'elide_classes' not in kwargs:
+            kwargs['elide_classes'] = cls.get_azobject_id_argconfigs_elide_classes()
+        if 'noncmd_classes' not in kwargs:
+            kwargs['noncmd_classes'] = cls.get_azobject_id_argconfigs_noncmd_classes()
         return [*cls.get_parent_azobject_id_argconfigs(**kwargs),
                 *super().get_azobject_id_argconfigs(is_parent=is_parent, **kwargs)]
 
@@ -808,8 +824,8 @@ class AzListable(AzObject):
     @classmethod
     def get_list_action_azobject_id_argconfigs(cls):
         # Don't include our self id param for list action
-        return [argconfig for argconfig in cls.get_azobject_id_argconfigs()
-                if argconfig.cmddest != cls.get_self_id_argconfig_cmddest(is_parent=False)]
+        elide_classes = cls.get_azobject_id_argconfigs_elide_classes() + [cls]
+        return cls.get_azobject_id_argconfigs(elide_classes=elide_classes)
 
     @classmethod
     def get_list_action_description(cls):
@@ -834,7 +850,15 @@ class AzListable(AzObject):
         return [i for i in idlist
                 if all([f.check(i) for f in self._list_filters(opts)])]
 
+    @property
+    def id_list_supported(self):
+        # Override and return False if subclass needs to perform full-info filtering
+        return True
+
     def id_list(self, **opts):
+        if not self.id_list_supported:
+            return [info._id for info in self.list(**opts)]
+
         try:
             with suppress(CacheError):
                 return self.id_list_filter(self.cache.read_id_list(), opts)

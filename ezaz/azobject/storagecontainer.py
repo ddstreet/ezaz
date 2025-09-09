@@ -30,8 +30,9 @@ class StorageContainer(AzCommonActionable, AzSubObjectContainer):
         return 'container_name' if is_parent else 'name'
 
     @classmethod
-    def get_azobject_id_argconfigs(self, is_parent=False):
-        return [*filter(lambda a: a.dest != 'resource_group', super().get_azobject_id_argconfigs(is_parent=is_parent))]
+    def get_azobject_id_argconfigs_noncmd_classes(cls):
+        from .resourcegroup import ResourceGroup
+        return [ResourceGroup]
 
     @classmethod
     def get_create_action_config(cls):
