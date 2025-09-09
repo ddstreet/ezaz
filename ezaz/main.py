@@ -36,15 +36,19 @@ class Main:
         from . import LOGGER
         LOGGER.setLevel(logging.NOTSET)
 
-    def create_parser(self, **kwargs):
-        parser = SharedArgumentParser(prog='ezaz', **kwargs)
+    @property
+    def command_preparsers(self):
+        for cmd in self.cmds:
+            preparser = cmd.get_command_preparser()
+            if preparser:
+                yield preparser
 
-        commands = ActionConfigGroup(action='command',
-                                     description='Commands',
-                                     required=True,
-                                     actionconfigs=[c.get_command_action_config() for c in self.cmds])
-        commands.add_to_parser(parser)
-        return parser
+    @cached_property
+    def action_config_group(self):
+        return ActionConfigGroup(action='command',
+                                 description='Commands',
+                                 required=True,
+                                 actionconfigs=[c.get_command_action_config() for c in self.cmds])
 
     def parse_args(self, args):
         partial_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
@@ -61,13 +65,12 @@ class Main:
 
         self.setup_logging(partial_parser.parse_known_args(self.args)[0])
 
-        if not IS_ARGCOMPLETE and not all((arg.startswith('-') for arg in args)):
-            initial_parser = self.create_parser(add_help=False)
-            preparser = getattr(initial_parser.parse_known_args(args)[0], 'preparser', None)
-            if preparser:
+        if not IS_ARGCOMPLETE:
+            for preparser in self.command_preparsers:
                 args = preparser(args)
 
-        parser = self.create_parser(formatter_class=argparse.RawTextHelpFormatter, shared_args=partial_parser.shared_args)
+        parser = SharedArgumentParser(prog='ezaz', formatter_class=argparse.RawTextHelpFormatter, shared_args=partial_parser.shared_args)
+        self.action_config_group.add_to_parser(parser)
 
         with suppress(ImportError):
             import argcomplete

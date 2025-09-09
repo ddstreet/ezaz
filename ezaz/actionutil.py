@@ -17,7 +17,6 @@ class ActionConfig(ArgUtil, ABC):
         self._argconfigs = argconfigs
         self.defaults = defaults or {}
         self.parser_kwargs = parser_kwargs or {}
-        self.parser = None
         self.group_default = False
 
     def __str__(self):
@@ -53,13 +52,12 @@ class ActionConfig(ArgUtil, ABC):
         parser.set_defaults(action_function=self.do_action, print_help=parser.print_help, **self.defaults)
 
     def add_to_group(self, group):
-        assert self.parser is None
-        self.parser = group.add_parser(self.action, aliases=self.aliases, **self.parser_kwargs)
-        self.parser.formatter_class = argparse.RawTextHelpFormatter
-        self.set_defaults(self.parser)
+        parser = group.add_parser(self.action, aliases=self.aliases, **self.parser_kwargs)
+        parser.formatter_class = argparse.RawTextHelpFormatter
+        self.set_defaults(parser)
         for argconfig in self.argconfigs:
-            argconfig.add_to_parser(self.parser)
-        return self.parser
+            argconfig.add_to_parser(parser)
+        return parser
 
     def cmd_args(self, **opts):
         return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
@@ -70,7 +68,6 @@ class ActionConfigGroup(ActionConfig):
         super().__init__(action, description, aliases=aliases)
         self.required = required
         self.actionconfigs = actionconfigs or []
-        self.group = None
         self.default_actionconfig = None
 
         if default:
@@ -101,19 +98,20 @@ class ActionConfigGroup(ActionConfig):
         self.add_to_parser(super().add_to_group(group))
 
     def add_to_parser(self, parser):
-        assert self.group is None
-        self.group = parser.add_subparsers(title='Actions',
-                                           description=self.group_description,
-                                           required=self.required,
-                                           metavar='')
+        group = parser.add_subparsers(title='Actions',
+                                      description=self.group_description,
+                                      required=self.required,
+                                      metavar='')
         for actionconfig in self.actionconfigs:
-            actionconfig.add_to_group(self.group)
+            actionconfig.add_to_group(group)
 
     def do_action(self, **opts):
         if self.default_actionconfig:
             self.default_actionconfig.do_action(**opts)
         else:
-            self.parser.print_help()
+            print_help = opts.get('print_help')
+            assert print_help
+            print_help()
 
     def cmd_args(self, **opts):
         if self.default_actionconfig:

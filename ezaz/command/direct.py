@@ -1,4 +1,5 @@
 
+from contextlib import suppress
 from functools import cached_property
 
 from ..argutil import PositionalArgConfig
@@ -12,17 +13,12 @@ class DirectCommand(SimpleCommand):
         return ['az']
 
     @classmethod
-    def preparse_args(cls, args):
-        args.insert(args.index('az') + 1, '--')
-        return args
-
-    @classmethod
-    def get_simple_command_defaults(cls):
-        return dict(preparser=cls.preparse_args)
-
-    @classmethod
-    def get_simple_command_parser_kwargs(cls):
-        return dict(add_help=False)
+    def get_command_preparser(cls):
+        def preparser(args):
+            with suppress(ValueError):
+                args.insert(args.index('az') + 1, '--')
+            return args
+        return preparser
 
     @classmethod
     def get_simple_command_argconfigs(cls):
@@ -39,7 +35,4 @@ class DirectCommand(SimpleCommand):
             command = command[1:]
         if not command:
             raise EzazException('Must provide az command')
-        if command[0] in ['-h', '--help'] and len(command) == 1:
-            opts.get('print_help')()
-        else:
-            self.direct.az(*command)
+        self.direct.az(*command)

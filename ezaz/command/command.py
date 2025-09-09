@@ -39,6 +39,10 @@ class SimpleCommand(ArgUtil, ABC):
         return []
 
     @classmethod
+    def get_command_preparser(cls):
+        return None
+
+    @classmethod
     def get_command_action_config(cls):
         return CommandActionConfig(cls.command_name_short(),
                                    cls,

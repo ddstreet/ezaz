@@ -841,10 +841,11 @@ class PositionalArgConfig(ArgConfig):
 # 'parents') to strictly correspond to each subparser which results in
 # unexpected and unwanted behavior when using nested subparsers.
 class SharedArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *args, all_shared=False, shared_args=None, **kwargs):
+    def __init__(self, *args, all_shared=False, shared_args=None, add_help=True, **kwargs):
         if all_shared:
             self.add_argument = self.add_shared_argument
-        super().__init__(*args, **kwargs)
+        self.add_help = add_help
+        super().__init__(*args, add_help=add_help, **kwargs)
         for a in shared_args or []:
             a.add_to_parser(self)
 
@@ -866,8 +867,10 @@ class SharedArgumentParser(argparse.ArgumentParser):
         subparsers.add_parser = partial(self._subparsers_add_parser, subparsers.add_parser)
         return subparsers
 
-    def _subparsers_add_parser(self, add_parser, *args, **kwargs):
-        parser = add_parser(*args, **kwargs)
+    def _subparsers_add_parser(self, add_parser, *args, add_help=None, **kwargs):
+        if add_help is None:
+            add_help = self.add_help
+        parser = add_parser(*args, add_help=add_help, **kwargs)
         for p in self.shared_args:
             p.add_to_parser(parser)
         return parser
