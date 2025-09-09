@@ -50,7 +50,9 @@ class User(AzShowable, AzListable, AzObjectContainer):
 
     @classmethod
     def get_default_azobject_id(cls, **opts):
-        return cls.get_null_instance(**opts).signed_in_user(**opts)._id
+        if not getattr(cls, '_signed_in_user_info_cache', None):
+            cls._signed_in_user_info_cache = cls.get_null_instance(**opts).signed_in_user(**opts)
+        return cls._signed_in_user_info_cache._id
 
     @classmethod
     def set_default_azobject_id(cls, azobject_id, opts):

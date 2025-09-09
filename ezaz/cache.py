@@ -12,6 +12,7 @@ from .exception import CacheMiss
 from .exception import InvalidCache
 from .exception import InvalidCacheExpiry
 from .exception import NoCache
+from .timing import TIMESTAMP
 
 
 DEFAULT_CACHENAME = 'cache'
@@ -34,8 +35,12 @@ class BaseCache:
         return self.cachecfg.dry_run
 
     @property
-    def no_cache(self):
-        return self.cachecfg.no_cache
+    def no_cache_read(self):
+        return self.cachecfg.no_cache_read
+
+    @property
+    def no_cache_write(self):
+        return self.cachecfg.no_cache_write
 
     def clear(self):
         if self.dry_run:
@@ -55,38 +60,54 @@ class BaseCache:
         with suppress(KeyError):
             del self.hashmap[path]
 
-    def _is_expired(self, path, pathtype):
-        if pathtype == 'show':
+    def _is_expired(self, *, cachetype, path):
+        if cachetype == 'show':
             return self.expiry.is_show_expired(path)
-        if pathtype == 'list':
+        if cachetype in ['list', 'id_list']:
             return self.expiry.is_list_expired(path)
-        raise RuntimeError(f"Unknown pathtype '{pathtype}'")
+        raise RuntimeError(f"Unknown cachetype '{cachetype}'")
 
-    def _read(self, path, pathtype):
-        if self.no_cache:
+    def _read(self, *, cachetype, path):
+        if self.no_cache_read:
             raise NoCache()
         if not path.is_file():
             raise CacheMiss()
-        if self._is_expired(path, pathtype):
-            self._remove(path)
-            raise CacheExpired()
 
-        return self._store_hash(path, path.read_text())
+        try:
+            if self._is_expired(cachetype=cachetype, path=path):
+                self._remove(cachetype=cachetype, path=path)
+                raise CacheExpired()
 
-    def _write(self, path, content):
-        if self.dry_run or self._check_hash(path, content):
+            return self._store_hash(path, path.read_text())
+        finally:
+            TIMESTAMP(f'Cache read {cachetype}')
+
+    def _write(self, *, cachetype, path, content):
+        if self.dry_run or self.no_cache_write or self._check_hash(path, content):
             return
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-        self._store_hash(path, content)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+            self._store_hash(path, content)
+        finally:
+            TIMESTAMP(f'Cache write {cachetype}')
 
-    def _remove(self, path):
+    def _remove(self, *, cachetype, path):
         if self.dry_run:
             return
 
         self._remove_hash(path)
         path.unlink(missing_ok=True)
+
+    def __file(self, *args):
+        return self.cachepath / '_'.join(args)
+
+    def _file(self, *, cachetype, classname, objid=None):
+        if objid:
+            return self.__file(cachetype, classname, self._quote(objid))
+        else:
+            return self.__file(cachetype, classname)
 
     def _quote(self, objid):
         from urllib.parse import quote
@@ -95,30 +116,52 @@ class BaseCache:
 
 class ShowCache(BaseCache):
     def showfile(self, *, classname, objid):
-        return self.cachepath / f'show_{classname}_{self._quote(objid)}'
+        return self._file(cachetype='show', classname=classname, objid=objid)
 
     def read_show(self, *, classname, objid):
-        return self._read(self.showfile(classname=classname, objid=objid), 'show')
+        return self._read(cachetype='show', path=self.showfile(classname=classname, objid=objid))
 
     def write_show(self, *, classname, objid, content):
-        self._write(self.showfile(classname=classname, objid=objid), content)
+        self._write(cachetype='show', path=self.showfile(classname=classname, objid=objid), content=content)
 
     def invalidate_show(self, *, classname, objid):
-        self._remove(self.showfile(classname=classname, objid=objid))
+        self._remove(cachetype='show', path=self.showfile(classname=classname, objid=objid))
 
 
 class ListCache(BaseCache):
     def listfile(self, *, classname):
-        return self.cachepath / f'list_{classname}'
+        return self._file(cachetype='list', classname=classname)
 
     def read_list(self, *, classname):
-        return self._read(self.listfile(classname=classname), 'list')
+        return self._read(cachetype='list', path=self.listfile(classname=classname))
 
     def write_list(self, *, classname, content):
-        self._write(self.listfile(classname=classname), content)
+        self._write(cachetype='list', path=self.listfile(classname=classname), content=content)
 
     def invalidate_list(self, *, classname):
-        self._remove(self.listfile(classname=classname))
+        self._remove(cachetype='list', path=self.listfile(classname=classname))
+
+
+class IdListCache(BaseCache):
+    def idlistfile(self, *, classname):
+        return self._file(cachetype='id_list', classname=classname)
+
+    def read_id_list(self, *, classname):
+        import json
+        try:
+            return json.loads(self._read(cachetype='id_list', path=self.idlistfile(classname=classname)))
+        except json.decoder.JSONDecodeError as je:
+            raise InvalidCache(f'Invalid id list cache: {je}') from je
+
+    def write_id_list(self, *, classname, idlist):
+        import json
+        try:
+            self._write(cachetype='id_list', path=self.idlistfile(classname=classname), content=json.dumps(idlist))
+        except TypeError as te:
+            raise InvalidCache(f'Invalid id list cache: {te}') from te
+
+    def invalidate_id_list(self, *, classname):
+        self._remove(cachetype='id_list', path=self.idlistfile(classname=classname))
 
 
 class InfoCache(ShowCache, ListCache):
@@ -186,6 +229,20 @@ class ListClassCache(BaseClassCache, ListCache):
         super().invalidate_list(classname=classname or self.classname)
 
 
+class IdListClassCache(BaseClassCache, IdListCache):
+    def idlistfile(self, *, classname=None):
+        return super().idlistfile(classname=classname or self.classname)
+
+    def read_id_list(self, *, classname=None):
+        return super().read_id_list(classname=classname or self.classname)
+
+    def write_id_list(self, *, classname=None, idlist):
+        super().write_id_list(classname=classname or self.classname, idlist=idlist)
+
+    def invalidate_id_list(self, *, classname=None):
+        super().invalidate_id_list(classname=classname or self.classname)
+
+
 class InfoClassCache(BaseClassCache, InfoCache):
     def read_info(self, *, classname=None, objid):
         return super().read_info(classname=classname or self.classname, objid=objid)
@@ -211,7 +268,7 @@ class ParentClassCache(BaseClassCache, ParentCache):
         return super()._child_cache_dir(classname=classname or self.classname, objid=objid)
 
 
-class ClassCache(ShowClassCache, ListClassCache, InfoClassCache):
+class ClassCache(ShowClassCache, ListClassCache, IdListClassCache, InfoClassCache):
     def object_cache(self, expiry, objid):
         return ObjectCache(cachepath=self.cachepath, expiry=expiry, cachecfg=self.cachecfg, hashmap=self.hashmap, classname=self.classname, objid=objid)
 
@@ -240,6 +297,10 @@ class ListObjectCache(BaseObjectCache, ListClassCache):
     pass
 
 
+class IdListObjectCache(BaseObjectCache, IdListClassCache):
+    pass
+
+
 class InfoObjectCache(BaseObjectCache, InfoClassCache):
     def read_info(self, *, classname=None, objid=None):
         return super().read_info(classname=classname, objid=objid or self.objid)
@@ -264,14 +325,14 @@ class ParentObjectCache(BaseObjectCache, ParentClassCache):
         return ObjectCache(cachepath=self._child_cache_dir(), expiry=expiry, cachecfg=self.cachecfg, classname=child_classname, objid=child_objid)
 
 
-class ObjectCache(ParentObjectCache, ShowObjectCache, ListObjectCache, InfoObjectCache):
+class ObjectCache(ParentObjectCache, ShowObjectCache, ListObjectCache, IdListObjectCache, InfoObjectCache):
     pass
 
 
 class Cache:
-    def __init__(self, *, cachepath, verbose, dry_run, no_cache):
+    def __init__(self, *, cachepath, verbose, dry_run, no_cache_read, no_cache_write):
         self.cachepath = Path(cachepath or DEFAULT_CACHE).expanduser().resolve()
-        self.cachecfg = CacheConfig(verbose=verbose, dry_run=dry_run, no_cache=no_cache)
+        self.cachecfg = CacheConfig(verbose=verbose, dry_run=dry_run, no_cache_read=no_cache_read, no_cache_write=no_cache_write)
 
     def class_cache(self, expiry, classname):
         return ClassCache(cachepath=self.cachepath, expiry=expiry, cachecfg=self.cachecfg, classname=classname)
@@ -281,10 +342,11 @@ class Cache:
 
 
 class CacheConfig:
-    def __init__(self, verbose, dry_run, no_cache):
+    def __init__(self, verbose, dry_run, no_cache_read, no_cache_write):
         self.verbose = verbose
         self.dry_run = dry_run
-        self.no_cache = no_cache
+        self.no_cache_read = no_cache_read
+        self.no_cache_write = no_cache_write
 
 
 class CacheExpiry(DictNamespace):

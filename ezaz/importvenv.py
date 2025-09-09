@@ -11,20 +11,21 @@ from pathlib import Path
 from . import DEFAULT_CONFIGPATH
 from . import IS_ARGCOMPLETE
 from . import REQUIRED_PACKAGES
+from .timing import TIMESTAMP
 
 
 DEFAULT_VENVDIR = DEFAULT_CONFIGPATH / 'venv'
 
 
 class ImportVenv:
-    def __init__(self, *, venvdir=DEFAULT_VENVDIR, required_packages=REQUIRED_PACKAGES, debug=False, refresh=False):
+    def __init__(self, *, venvdir=DEFAULT_VENVDIR, required_packages=REQUIRED_PACKAGES, debug=False, refresh=False, no_venv=False):
         self.venvdir = Path(venvdir).expanduser().resolve()
         self.debug = debug
         self.system_packages = []
         self.venv_packages = []
 
         # Skip everything for argcomplete
-        if IS_ARGCOMPLETE:
+        if IS_ARGCOMPLETE or no_venv:
             return
 
         if self.need_refresh(refresh):
@@ -108,6 +109,7 @@ class ImportVenv:
         for p in missing_packages:
             self.run_pip(p.name)
 
+        TIMESTAMP('venv')
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):

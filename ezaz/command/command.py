@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from ..actionutil import ActionConfig
 from ..actionutil import ActionConfigGroup
 from ..argutil import ArgUtil
+from ..timing import TIMESTAMP
 
 
 class SimpleCommand(ArgUtil, ABC):
@@ -39,8 +40,12 @@ class SimpleCommand(ArgUtil, ABC):
         return []
 
     @classmethod
-    def get_command_preparser(cls):
-        return None
+    def is_command(cls, command):
+        return command in [cls.command_name_short(), *cls.aliases()]
+
+    @classmethod
+    def command_preparse_args(cls, args):
+        return args
 
     @classmethod
     def get_command_action_config(cls):
@@ -175,6 +180,7 @@ class CommandActionConfig(ActionConfig):
 
     def do_action(self, **opts):
         result = self._do_action(**opts)
+        TIMESTAMP('CommandActionConfig _do_action')
         if isinstance(result, list):
             for r in result:
                 print(r)

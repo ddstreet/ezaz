@@ -1,5 +1,6 @@
 
 import logging
+import time
 import os
 
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 from .requiredpackage import RequiredPackage
 
 
-IS_ARGCOMPLETE = '_ARGCOMPLETE' in os.environ.keys()
+IS_ARGCOMPLETE = '_ARGCOMPLETE' in os.environ.keys() or '_TEST_ARGCOMPLETE' in os.environ.keys()
 
 LOGGER = logging.getLogger(__name__)
 AZ_LOGGER = logging.getLogger(f'{__name__}.AZ')

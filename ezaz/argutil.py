@@ -524,6 +524,10 @@ class AzObjectInfoHelper:
     def unprefix_opts(self, opts):
         return self._unprefix_opts(opts) if self.resourceprefix else opts
 
+    def get_id_list(self, opts):
+        opts = self.unprefix_opts(opts)
+        return self.azclass.get_null_instance(**opts).id_list(**opts)
+
     def get_info_list(self, opts):
         opts = self.unprefix_opts(opts)
         return self.azclass.get_null_instance(**opts).list(**opts)
@@ -541,7 +545,10 @@ class AzObjectInfoHelper:
 class AzObjectCompleter(AzObjectInfoHelper):
     def get_azobject_completer_choices(self, **opts):
         try:
-            return filter(None, map(self.get_infoattr, self.get_info_list(opts)))
+            if self.infoattr in [None, '_id']:
+                return self.get_id_list(opts)
+            else:
+                return filter(None, map(self.get_infoattr, self.get_info_list(opts)))
         except Exception as e:
             if opts.get('verbose', 0) > 2:
                 import argcomplete

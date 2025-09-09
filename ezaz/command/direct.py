@@ -13,12 +13,10 @@ class DirectCommand(SimpleCommand):
         return ['az']
 
     @classmethod
-    def get_command_preparser(cls):
-        def preparser(args):
-            with suppress(ValueError):
-                args.insert(args.index('az') + 1, '--')
-            return args
-        return preparser
+    def command_preparse_args(cls, args):
+        with suppress(ValueError):
+            args.insert(args.index('az') + 1, '--')
+        return args
 
     @classmethod
     def get_simple_command_argconfigs(cls):

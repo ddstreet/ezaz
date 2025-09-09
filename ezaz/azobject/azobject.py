@@ -15,6 +15,7 @@ from functools import cached_property
 from itertools import chain
 
 from .. import AZ_LOGGER
+from .. import IS_ARGCOMPLETE
 from .. import LOGGER
 from ..actionutil import ActionConfig
 from ..argutil import ArgConfig
@@ -42,6 +43,7 @@ from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
 from ..exception import UnsupportedAction
 from ..filter import Filter
+from ..timing import TIMESTAMP
 from .info import Info
 from .info import info_class
 
@@ -124,6 +126,7 @@ class AzAction(ArgUtil, ABC):
         stdout += process.stdout.read() if process.stdout else ''
         stderr = process.stderr.read() if process.stderr else ''
 
+        TIMESTAMP(f"{self.__class__.__name__} {' '.join(args)}")
         self._check_process(process, stdout, stderr)
         return (stdout, stderr)
 
@@ -434,7 +437,8 @@ class AzObject(AzAction):
             self.__class__._class_cache = Cache(cachepath=self._cachedir,
                                                 verbose=self.verbose,
                                                 dry_run=self.dry_run,
-                                                no_cache=self._no_cache)
+                                                no_cache_read=self._no_cache,
+                                                no_cache_write=IS_ARGCOMPLETE)
         return self.__class__._class_cache
 
     def default_cache_expiry(self):
@@ -585,13 +589,6 @@ class AzSubObject(AzObject):
     @classmethod
     def del_filter(cls, **opts):
         cls.get_parent_instance(**opts).del_child_filter(cls.azobject_name())
-
-    @classmethod
-    def filter_infolist(cls, infolist, opts):
-        f = cls.get_filter(**opts)
-        for info in infolist:
-            if f.check_info(info):
-                yield info
 
     def __init__(self, *, parent, **kwargs):
         super().__init__(**kwargs)
@@ -818,37 +815,54 @@ class AzListable(AzObject):
     def get_list_action_description(cls):
         return f'List {cls.azobject_text()}s'
 
-    def list_filter_pre(self, infolist, opts):
-        return infolist
-
-    def list_filter(self, infolist, opts):
-        infolist = self.list_filter_pre(infolist, opts)
+    def _list_filters(self, opts):
+        filters = []
 
         if any((opts.get('prefix'), opts.get('suffix'), opts.get('regex'))):
-            infolist = [info for info in infolist if Filter(opts).check_info(info)]
+            filters.append(Filter(opts))
 
         if not opts.get('no_filters') and self.has_filter():
-            return list(self.filter_infolist(infolist, opts))
+            filters.append(self.get_filter(**opts))
 
-        return self.list_filter_post(infolist, opts)
+        return filters
 
-    def list_filter_post(self, infolist, opts):
-        return infolist
+    def list_filter(self, infolist, opts):
+        return [info for info in infolist
+                if all([f.check_info(info) for f in self._list_filters(opts)])]
+
+    def id_list_filter(self, idlist, opts):
+        return [i for i in idlist
+                if all([f.check(i) for f in self._list_filters(opts)])]
+
+    def id_list(self, **opts):
+        try:
+            with suppress(CacheError):
+                return self.id_list_filter(self.cache.read_id_list(), opts)
+            return [info._id for info in self.list(**opts)]
+        finally:
+            TIMESTAMP('id_list')
 
     def list_pre(self, opts):
-        with suppress(CacheError):
-            return self.list_filter(self.cache.read_info_list(), opts)
-        return None
+        try:
+            with suppress(CacheError):
+                return self.list_filter(self.cache.read_info_list(), opts)
+            return None
+        finally:
+            TIMESTAMP('list_pre')
 
     def list(self, **opts):
         return self.do_action_config_instance_action('list', opts)
 
     def list_post(self, infolist, opts):
-        self.list_cache(infolist)
-        return self.list_filter(infolist, opts)
+        try:
+            self.list_cache(infolist)
+            return self.list_filter(infolist, opts)
+        finally:
+            TIMESTAMP('list_post')
 
     def list_cache(self, infolist):
         self.cache.write_info_list(infolist=infolist)
+        self.cache.write_id_list(idlist=[info._id for info in infolist])
         self.list_cache_infos(infolist)
 
     def list_cache_infos(self, infolist):
@@ -996,8 +1010,10 @@ class AzActionConfig(ActionConfig):
     def do_action(self, **opts):
         if self.handler:
             result = self.handler(self, opts)
+            TIMESTAMP('AzActionConfig handler')
         else:
             result = self._do_action(**opts)
+            TIMESTAMP('AzActionConfig _do_action')
         if isinstance(result, list):
             for r in result:
                 print(r)
