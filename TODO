@@ -1,15 +1,15 @@
 
-- add 'ssh' command to vm
+- change cache default to nocache instead of forever
 
 - update setup command
   allow creating from prompt command
   create cache expiries
 
-- change cache default to nocache instead of forever
+- update config param to allow simple strings which default to a filename in normal config dir
+
+LATER/CLEANUP:
 
 - command actionconfigs should pass opts and also cmd_opts to command handler functions
-
-- update config param to allow simple strings which default to a filename in normal config dir
 
 - add full ancestor path of object anme params for commands missing
   them (where currently uses just one object name param)
