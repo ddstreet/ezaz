@@ -9,6 +9,7 @@ from ..argutil import FlagArgConfig
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import AzCommandError
+from ..exception import CacheError
 from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
 from .azobject import AzListable
@@ -93,13 +94,16 @@ class User(AzShowable, AzListable, AzObjectContainer):
                                        description='Logout')]
 
     def signed_in_user_pre(self, opts):
-        return getattr(self.__class__, '_signed_in_user_info', None)
+        with suppress(CacheError):
+            # Let's assume there won't actually be a user with the id __signed_in_user__
+            return self.cache.read_info(objid='__signed_in_user__')
+        return None
 
     def signed_in_user(self, **opts):
         return self.do_action_config_instance_action('signed_in_user', opts)
 
     def signed_in_user_post(self, result, opts):
-        self.__class__._signed_in_user_info = result
+        self.cache.write_info(objid='__signed_in_user__', info=result)
         return result
 
     @contextmanager
@@ -119,6 +123,8 @@ class User(AzShowable, AzListable, AzObjectContainer):
     def login_pre(self, opts):
         if self.is_logged_in:
             raise AlreadyLoggedIn(self.signed_in_user(**opts))
+        # Clear the cache before we login
+        self.cache.clear()
 
     def login(self, **opts):
         self.do_action_config_instance_action('login', opts)
@@ -141,9 +147,6 @@ class User(AzShowable, AzListable, AzObjectContainer):
         self.do_action_config_instance_action('logout', opts)
 
     def logout_post(self, result, opts):
-        # TODO - technically, we should clear all subclass info caches
-        # too, and maybe instance caches
-        self.__class__._signed_in_user_info = None
         self.cache.clear()
         return result
 

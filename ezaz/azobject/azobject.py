@@ -853,7 +853,7 @@ class AzListable(AzObject):
 
     def list_cache_infos(self, infolist):
         for info in infolist:
-            self.cache.write_info(info=info)
+            self.cache.write_info(objid=info._id, info=info)
 
 
 class AzCreatable(AzObject):
