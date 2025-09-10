@@ -352,6 +352,7 @@ class CacheConfig:
 class CacheExpiry(DictNamespace):
     NOCACHE = 'nocache'
     FOREVER = 'forever'
+    DEFAULT = NOCACHE
 
     def __init__(self, config, *, show_expiry=None, list_expiry=None):
         super().__init__(config)
@@ -369,7 +370,9 @@ class CacheExpiry(DictNamespace):
         return self.is_expired(entry, self.list_expiry)
 
     def is_expired(self, entry, expiry):
-        if expiry is None or expiry == self.FOREVER:
+        if expiry is None:
+            expiry = self.DEFAULT
+        if expiry == self.FOREVER:
             return False
         if expiry == self.NOCACHE:
             return True

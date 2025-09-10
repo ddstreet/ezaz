@@ -1,6 +1,4 @@
 
-- change cache default to nocache instead of forever
-
 - update setup command
   allow creating from prompt command
   create cache expiries
