@@ -77,7 +77,7 @@ class FiltersCommand(AzObjectActionCommand):
         self.show_azclass(self.azclass(), opts)
 
     def show_azclass(self, azclass, opts):
-        if not azclass.has_child_classes():
+        if not azclass.get_child_classes():
             return
 
         azobject_id = azclass.get_azobject_id_from_opts(opts)
@@ -109,9 +109,6 @@ class FiltersCommand(AzObjectActionCommand):
         self.set_azclass(self.azclass(), object_type, prefix, suffix, regex, full, opts)
 
     def set_azclass(self, azclass, object_type, prefix, suffix, regex, full, opts):
-        if not azclass.has_child_classes():
-            return False
-
         for child_class in azclass.get_child_classes():
             if child_class.azobject_name() == object_type:
                 parent = azclass.get_instance(**opts)
@@ -135,9 +132,6 @@ class FiltersCommand(AzObjectActionCommand):
         self.unset_azclass(self.azclass(), object_type, remove, opts)
 
     def unset_azclass(self, azclass, object_type, remove, opts):
-        if not azclass.has_child_classes():
-            return False
-
         for child_class in azclass.get_child_classes():
             if child_class.azobject_name() == object_type:
                 parent = azclass.get_instance(**opts)

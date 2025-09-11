@@ -78,9 +78,6 @@ class CacheCommand(AzObjectActionCommand):
             self.show_azclass(self.azclass(), opts)
 
     def show_azclass(self, azclass, opts):
-        if not azclass.has_child_classes():
-            return
-
         try:
             azobject = azclass.get_instance(**opts)
         except DefaultConfigNotFound:
@@ -112,9 +109,9 @@ class CacheCommand(AzObjectActionCommand):
                 raise RequiredArgument('object_type', '--config-location')
             config_location_azclass = self.azclass().get_descendant_classmap(include_self=True).get(config_location)
             object_type_azclass = self.azclass().get_descendant_classmap(include_self=True).get(object_type)
-            if config_location != object_type and not config_location_azclass.is_ancestor_class(object_type_azclass):
+            if config_location != object_type and not config_location_azclass.is_ancestor_class_of(object_type_azclass):
                 raise ArgumentError(f"--config-location '{config_location}' not same as or ancestor of --object-type '{object_type}'")
-        
+
         show_expiry = self.get_action_config('set-expiry').cmd_opts(**opts).get('show_expiry')
         list_expiry = self.get_action_config('set-expiry').cmd_opts(**opts).get('list_expiry')
         if not show_expiry and not list_expiry:
@@ -131,9 +128,6 @@ class CacheCommand(AzObjectActionCommand):
             expiry = self.set_expiry_attrs(azobject.cache_expiry(object_type), show_expiry, list_expiry)
             print(f'Set {config_location} id {azobject.azobject_id} cache config for {object_type} objects to: {self.expirystr(expiry)}')
             return True
-
-        if not azclass.has_child_classes():
-            return False
 
         for child_class in azclass.get_child_classes():
             if self.set_azclass_expiry(child_class, config_location, object_type, show_expiry, list_expiry, opts):

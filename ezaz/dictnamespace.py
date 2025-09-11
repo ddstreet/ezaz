@@ -111,14 +111,9 @@ class BaseShim(Shim):
                                                           list_test=list_test)
 
         assert self.shim_test_real(), f'Unexpected object type {type(self.real)}'
-        self._setup()
 
     @abstractmethod
     def shim_test_real(self):
-        pass
-
-    @abstractmethod
-    def _setup(self):
         pass
 
     @property
@@ -160,10 +155,6 @@ class DictShim(BaseShim, MutableMapping):
     def shim_test_real(self):
         return self.dict_test(self.real)
 
-    def _setup(self):
-        for k, v in self.real.items():
-            self[k] = v
-
     @cached_property
     def shim(self):
         return {}
@@ -185,10 +176,6 @@ class DictShim(BaseShim, MutableMapping):
 class ListShim(BaseShim, MutableSequence):
     def shim_test_real(self):
         return self.list_test(self.real)
-
-    def _setup(self):
-        for k, v in enumerate(self.real):
-            self[k] = v
 
     __marker = object()
 

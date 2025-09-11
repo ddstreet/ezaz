@@ -9,6 +9,7 @@ import subprocess
 from abc import ABC
 from abc import abstractmethod
 from contextlib import contextmanager
+from contextlib import nullcontext
 from contextlib import suppress
 from functools import cache
 from functools import cached_property
@@ -33,10 +34,8 @@ from ..exception import CacheError
 from ..exception import DefaultConfigNotFound
 from ..exception import InvalidAzObjectName
 from ..exception import NoAzObjectExists
-from ..exception import NotCreatable
-from ..exception import NotDeletable
-from ..exception import NotDownloadable
-from ..exception import NotListable
+from ..exception import NoParentClass
+from ..exception import NoParentInstance
 from ..exception import NotLoggedIn
 from ..exception import NullAzObject
 from ..exception import RequiredArgument
@@ -155,7 +154,131 @@ class AzAction(ArgUtil, ABC):
         return cls(j, verbose=self.verbose) if j else []
 
 
-class AzObject(AzAction):
+class TreeObject:
+    @classmethod
+    def get_parent_class(cls):
+        raise NoParentClass()
+
+    @classmethod
+    def get_child_classes(cls):
+        return []
+
+    @classmethod
+    def is_ancestor_class_of(cls, descendant):
+        return descendant in cls.get_descendant_classes()
+
+    @classmethod
+    def get_ancestor_classes(cls):
+        with suppress(NoParentClass):
+            # Returns parent classes ordered nearest-to-farthest
+            return [parentcls, *cls.get_parent_class().get_ancestor_classes()]
+        return []
+
+    @classmethod
+    def _for_each_ancestor_class(cls, callback, opts=None, *, context_manager=None, include_self=False):
+        assert callable(callback)
+        if include_self:
+            try:
+                yield callback(cls, opts)
+            except StopIteration:
+                # This ends the iteration up the ancestor tree
+                return
+        with suppress(NoParentClass):
+            parentcls = cls.get_parent_class()
+            with (context_manager or nullcontext)():
+                for result in parentcls.for_each_ancestor_class(callback, opts, context_manager=context_manager, include_self=True):
+                    yield result
+
+    @classmethod
+    def for_each_ancestor_class(cls, *args, **kwargs):
+        # Required because the generator function won't run the callbacks unless iterated
+        return [*cls._for_each_ancestor_class(*args, **kwargs)]
+
+    @classmethod
+    def get_child_class(cls, name):
+        for c in cls.get_child_classes():
+            if c.azobject_name() == name:
+                return c
+        raise InvalidAzObjectName(f'AzObject {cls.__name__} does not contain AzObjects with name {name}')
+
+    @classmethod
+    def is_descendant_class_of(cls, ancestor):
+        return ancestor in cls.get_ancestor_classes()
+
+    @classmethod
+    def get_descendant_classes(cls, include_self=False):
+        return [*cls.for_each_descendant_class(lambda c, o: c, None, include_self=include_self)]
+
+    @classmethod
+    def get_descendant_classmap(cls, include_self=False):
+        return {c.azobject_name(): c for c in cls.get_descendant_classes(include_self=include_self)}
+
+    @classmethod
+    def _for_each_descendant_class(cls, callback, opts=None, *, context_manager=None, include_self=False):
+        assert callable(callback)
+        if include_self:
+            try:
+                yield callback(cls, opts)
+            except StopIteration:
+                # This skips iterating this instance's children, it
+                # doesn't end the recursive iteration
+                return
+        for childcls in cls.get_child_classes():
+            with (context_manager or nullcontext)():
+                for result in childcls.for_each_descendant_class(callback, opts, context_manager=context_manager, include_self=True):
+                    yield result
+
+    @classmethod
+    def for_each_descendant_class(cls, *args, **kwargs):
+        # Required because the generator function won't run the callbacks unless iterated
+        return [*cls._for_each_descendant_class(*args, **kwargs)]
+
+    @property
+    def parent(self):
+        raise NoParentInstance()
+
+    def _for_each_ancestor_instance(self, callback, opts=None, *, context_manager=None, include_self=False):
+        assert callable(callback)
+        if include_self:
+            try:
+                yield callback(self, opts)
+            except StopIteration:
+                # This ends the iteration up the ancestor tree
+                return
+        with suppress(NoParentInstance):
+            parent = self.parent
+            with (context_manager or nullcontext)():
+                for result in parent.for_each_ancestor_instance(callback, opts, context_manager=context_manager, include_self=True):
+                    yield result
+
+    def for_each_ancestor_instance(self, *args, **kwargs):
+        # Required because the generator function won't run the callbacks unless iterated
+        return [*self._for_each_ancestor_instance(*args, **kwargs)]
+
+    def get_children(self, name):
+        return []
+
+    def _for_each_descendant_instance(self, callback, opts=None, *, context_manager=None, include_self=False):
+        assert callable(callback)
+        if include_self:
+            try:
+                yield callback(self, opts)
+            except StopIteration:
+                # This skips iterating this instance's children, it
+                # doesn't end the recursive iteration
+                return
+        for childcls in self.get_child_classes():
+            for child in self.get_children(childcls.azobject_name()):
+                with (context_manager or nullcontext)():
+                    for result in child.for_each_descendant_instance(callback, opts, context_manager=context_manager, include_self=True):
+                        yield result
+
+    def for_each_descendant_instance(self, *args, **kwargs):
+        # Required because the generator function won't run the callbacks unless iterated
+        return [*self._for_each_descendant_instance(*args, **kwargs)]
+
+
+class AzObject(AzAction, TreeObject):
     @classmethod
     @abstractmethod
     def azobject_name_list(cls):
@@ -331,14 +454,6 @@ class AzObject(AzAction):
         return cls.azobject_name_list()
 
     @classmethod
-    def has_child_classes(cls):
-        return False
-
-    @classmethod
-    def has_parent_class(cls):
-        return False
-
-    @classmethod
     def get_azobject_id_from_opts(cls, opts, required=False):
         azobject_id = opts.get(cls.azobject_name())
         if not azobject_id and required:
@@ -454,19 +569,39 @@ class AzObject(AzAction):
         return self.__class__._class_cache
 
     def default_cache_expiry(self):
+        if self.is_null:
+            raise NullAzObject('default_cache_expiry')
         return CacheExpiry(self.config.get_object(self.default_cache_expiry_key()))
 
     def find_cache_expiry(self, name):
-        return self.cache_expiry(name)
+        return self.cache_expiry(name) or self.default_cache_expiry()
 
     def cache_expiry(self, name):
+        if self.is_null:
+            raise NullAzObject('cache_expiry')
         return CacheExpiry(self.config.get_object(self.cache_expiry_key(name)))
+
+    @property
+    @abstractmethod
+    def local_cache(self):
+        pass
+
+    def _local_cache_show_key(self, objid):
+        return ('info', objid)
+
+    @property
+    def local_cache_show_key(self):
+        return self._local_cache_show_key(self.azobject_id)
+
+    @property
+    def local_cache_list_key(cls):
+        return 'infolist'
 
     @cached_property
     def cache(self):
         if self.is_null:
-            return self._cache.class_cache(CacheExpiry({}), self.azobject_name())
-        return self._cache.object_cache(self.cache_expiry(self.azobject_name()), self.azobject_name(), self.azobject_id)
+            return self._cache.class_cache(self.default_cache_expiry(), self.azobject_name())
+        return self._cache.object_cache(self.find_cache_expiry(self.azobject_name()), self.azobject_name(), self.azobject_id)
 
     @cached_property
     def config(self):
@@ -510,27 +645,9 @@ class AzObject(AzAction):
 
 class AzSubObject(AzObject):
     @classmethod
-    def has_parent_class(cls):
-        return True
-
-    @classmethod
     @abstractmethod
     def get_parent_class(cls):
-        pass
-
-    @classmethod
-    def get_parent_ancestor_classes(cls):
-        return (cls.get_parent_class().get_ancestor_classes()
-                if cls.get_parent_class().has_parent_class()
-                else [])
-
-    @classmethod
-    def get_ancestor_classes(cls):
-        return [*cls.get_parent_ancestor_classes(), cls.get_parent_class()]
-
-    @classmethod
-    def is_descendant_class(cls, ancestor):
-        return ancestor in cls.get_ancestor_classes()
+        return super().get_parent_class()
 
     @classmethod
     def get_parent_common_argconfigs(cls):
@@ -559,16 +676,21 @@ class AzSubObject(AzObject):
         return cls.get_parent_class().get_instance(**opts)
 
     @classmethod
-    def instance_cache(cls, **opts):
-        return cls.get_parent_instance(**opts).get_child_instance_cache(cls)
-
-    @classmethod
     def _get_specific_instance(cls, azobject_id, opts):
         return cls(parent=cls.get_parent_instance(**opts), azobject_id=azobject_id, **opts)
 
     @classmethod
     def _get_null_instance(cls, **opts):
         return super()._get_null_instance(parent=cls.get_parent_instance(**opts), **opts)
+
+    @classmethod
+    @cache
+    def __local_cache(cls, parent_id):
+        return {}
+
+    @classmethod
+    def instance_cache(cls, **opts):
+        return cls.__local_cache(cls.get_parent_instance(**opts).azobject_id).setdefault('instance', {})
 
     @classmethod
     def default_key(cls):
@@ -607,9 +729,9 @@ class AzSubObject(AzObject):
         cls.get_parent_instance(**opts).del_child_filter(cls.azobject_name())
 
     def __init__(self, *, parent, **kwargs):
-        super().__init__(**kwargs)
+        assert parent.__class__.is_ancestor_class_of(self.__class__)
         self._parent = parent
-        assert self.parent.has_child_classes()
+        super().__init__(**kwargs)
 
     def get_azobject_id_opts(self, **opts):
         return super().get_azobject_id_opts(**self.parent.get_azobject_id_opts(**opts))
@@ -622,7 +744,7 @@ class AzSubObject(AzObject):
         return self.parent.default_cache_expiry()
 
     def find_cache_expiry(self, name):
-        return self.cache_expiry(name) or self.parent.find_cache_expiry(name) or self.default_cache_expiry()
+        return self.cache_expiry(name) or self.parent.find_cache_expiry(name)
 
     @cached_property
     def cache(self):
@@ -635,6 +757,10 @@ class AzSubObject(AzObject):
         return self.parent.config.get_object(self.azobject_key(self.azobject_id))
 
     @property
+    def local_cache(self):
+        return self.__local_cache(self.parent.azobject_id)
+
+    @property
     def verbose(self):
         return self.parent.verbose
 
@@ -645,39 +771,15 @@ class AzSubObject(AzObject):
 
 class AzObjectContainer(AzObject):
     @classmethod
-    def has_child_classes(cls):
-        return True
-
-    @classmethod
     @abstractmethod
     def get_child_classes(cls):
-        pass
-
-    @classmethod
-    def get_child_class(cls, name):
-        for c in cls.get_child_classes():
-            if c.azobject_name() == name:
-                return c
-        raise InvalidAzObjectName(f'AzObject {cls.__name__} does not contain AzObjects with name {name}')
-
-    @classmethod
-    def get_descendant_classes(cls, include_self=False):
-        return sum([c.get_descendant_classes() for c in cls.get_child_classes() if c.has_child_classes()],
-                   start=([cls] if include_self else []) + cls.get_child_classes())
-
-    @classmethod
-    def is_ancestor_class(cls, descendant):
-        return descendant in cls.get_descendant_classes()
+        return super().get_child_classes()
 
     @classmethod
     def get_descendant_azobject_id_argconfigs(cls, include_self=False, is_parent=True, **kwargs):
         return sum([c.get_self_id_argconfigs(is_parent=is_parent, **kwargs)
                     for c in cls.get_descendant_classes()],
                    start=cls.get_self_id_argconfigs(is_parent=is_parent, **kwargs) if include_self else [])
-
-    @classmethod
-    def get_descendant_classmap(cls, include_self=False):
-        return {c.azobject_name(): c for c in cls.get_descendant_classes(include_self=include_self)}
 
     def has_default_child_id(self, name):
         try:
@@ -706,10 +808,6 @@ class AzObjectContainer(AzObject):
             return None
         return self.get_child(name, obj_id)
 
-    @cache
-    def get_child_instance_cache(self, cls):
-        return {}
-
     def get_child(self, name, obj_id, info=None):
         return self.get_child_class(name).get_instance(**self.get_azobject_id_opts(**{name: obj_id, 'info': info}))
 
@@ -719,11 +817,11 @@ class AzObjectContainer(AzObject):
     def get_default_child(self, name):
         return self.get_child(name, self.get_default_child_id(name))
 
-    def get_children(self, name, opts={}):
+    def get_children(self, name):
         null_instance = self.get_null_child(name)
         assert isinstance(null_instance, AzListable)
         return [self.get_child(name, info._id, info=info)
-                for info in null_instance.list(no_filters=True, **opts)]
+                for info in null_instance.list(no_filters=True)]
 
     def get_child_filter(self, name):
         return Filter(self.config.get_object(self.get_child_class(name).filter_key()))
@@ -777,6 +875,8 @@ class AzShowable(AzObject):
         return self.show()
 
     def show_pre(self, opts):
+        with suppress(KeyError):
+            return self.local_cache[self.local_cache_show_key]
         with suppress(CacheError):
             return self.cache.read_info()
         return None
@@ -790,6 +890,7 @@ class AzShowable(AzObject):
 
     def show_cache(self, info):
         self.cache.write_info(info=info)
+        self.local_cache[self.local_cache_show_key] = info
 
 
 class AzListable(AzObject):
@@ -843,12 +944,18 @@ class AzListable(AzObject):
         return filters
 
     def list_filter(self, infolist, opts):
-        return [info for info in infolist
-                if all([f.check_info(info) for f in self._list_filters(opts)])]
+        try:
+            return [info for info in infolist
+                    if all([f.check_info(info) for f in self._list_filters(opts)])]
+        finally:
+            TIMESTAMP(f'{self.__class__.__name__}.list_filter()')
 
     def id_list_filter(self, idlist, opts):
-        return [i for i in idlist
-                if all([f.check(i) for f in self._list_filters(opts)])]
+        try:
+            return [i for i in idlist
+                    if all([f.check(i) for f in self._list_filters(opts)])]
+        finally:
+            TIMESTAMP(f'{self.__class__.__name__}.id_list_filter()')
 
     @property
     def id_list_supported(self):
@@ -864,15 +971,20 @@ class AzListable(AzObject):
                 return self.id_list_filter(self.cache.read_id_list(), opts)
             return [info._id for info in self.list(**opts)]
         finally:
-            TIMESTAMP('id_list')
+            TIMESTAMP(f'{self.__class__.__name__}.id_list()')
 
     def list_pre(self, opts):
         try:
-            with suppress(CacheError):
-                return self.list_filter(self.cache.read_info_list(), opts)
-            return None
+            try:
+                cached_list = self.local_cache.get(self.local_cache_list_key) or self.cache.read_info_list()
+            except CacheError:
+                cached_list = None
+            if cached_list:
+                return self.list_filter(cached_list, opts)
+            else:
+                return None
         finally:
-            TIMESTAMP('list_pre')
+            TIMESTAMP(f'{self.__class__.__name__}.list_pre()')
 
     def list(self, **opts):
         return self.do_action_config_instance_action('list', opts)
@@ -882,16 +994,18 @@ class AzListable(AzObject):
             self.list_cache(infolist)
             return self.list_filter(infolist, opts)
         finally:
-            TIMESTAMP('list_post')
+            TIMESTAMP(f'{self.__class__.__name__}.list_post()')
 
     def list_cache(self, infolist):
         self.cache.write_info_list(infolist=infolist)
         self.cache.write_id_list(idlist=[info._id for info in infolist])
         self.list_cache_infos(infolist)
+        self.local_cache[self.local_cache_list_key] = infolist
 
     def list_cache_infos(self, infolist):
         for info in infolist:
             self.cache.write_info(objid=info._id, info=info)
+            self.local_cache[self._local_cache_show_key(info._id)] = info
 
 
 class AzCreatable(AzObject):
@@ -930,6 +1044,7 @@ class AzCreatable(AzObject):
 
     def create_post(self, result, opts):
         self.cache.invalidate_info_list()
+        self.local_cache.pop(self.local_cache_list_key, None)
         return result
 
 
@@ -965,6 +1080,8 @@ class AzDeletable(AzObject):
 
     def delete_post(self, result, opts):
         self.cache.invalidate_info()
+        self.local_cache.pop(self.local_cache_list_key, None)
+        self.local_cache.pop(self.local_cache_show_key, None)
         return result
 
 
@@ -1034,10 +1151,8 @@ class AzActionConfig(ActionConfig):
     def do_action(self, **opts):
         if self.handler:
             result = self.handler(self, opts)
-            TIMESTAMP('AzActionConfig handler')
         else:
             result = self._do_action(**opts)
-            TIMESTAMP('AzActionConfig _do_action')
         if isinstance(result, list):
             for r in result:
                 print(r)

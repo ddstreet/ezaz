@@ -10,6 +10,8 @@ from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
+from ..argutil import GroupArgConfig
+from ..cache import CacheExpiry
 from ..dialog import AzObjectChoice
 from ..dialog import YesNo
 from ..exception import ChoiceError
@@ -17,6 +19,20 @@ from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
 from .command import ActionCommand
+
+
+FOREVER = CacheExpiry.FOREVER
+CACHE_EXPIRY_MAP = {
+    'default': dict(show=3600, list=600),
+    'user': dict(show=FOREVER, list=600),
+    'subscription': dict(show=FOREVER, list=86400),
+    'location': dict(show=FOREVER, list=FOREVER),
+    'marketplacepublisher': dict(show=FOREVER, list=600),
+    'sshkey': dict(show=FOREVER, list=600),
+    'roleassignment': dict(show=FOREVER, list=86400),
+    'roledefinition': dict(show=FOREVER, list=86400),
+    'sku': dict(show=FOREVER, list=86400),
+}
 
 
 class SetupCommand(ActionCommand):
@@ -31,6 +47,12 @@ class SetupCommand(ActionCommand):
                 cls.get_create_action_config()]
 
     @classmethod
+    def get_resources_argconfig_group(cls):
+        from ..azobject.user import User
+        return GroupArgConfig(*User.get_descendant_azobject_id_argconfigs(noncmd=True, help='Use {azobject_text}, instead of creating or prompting'),
+                              title='Resource options')
+
+    @classmethod
     def get_prompt_action_config(cls):
         return cls.make_action_config('prompt',
                                       description='Prompt to select the default object, if needed',
@@ -38,9 +60,11 @@ class SetupCommand(ActionCommand):
 
     @classmethod
     def get_prompt_action_argconfigs(cls):
-        return [BoolArgConfig('all', help=f'Prompt for all object types, even ones with a default'),
-                BoolArgConfig('verify_single', help=f'Prompt even if there is only one object choice'),
-                BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions')]
+        return [cls.get_resources_argconfig_group(),
+                GroupArgConfig(BoolArgConfig('all', help=f'Prompt for all object types, even ones with a default'),
+                               BoolArgConfig('verify_single', help=f'Prompt even if there is only one object choice'),
+                               BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions'),
+                               title='Prompting options')]
 
     @classmethod
     def get_create_action_config(cls):
@@ -50,36 +74,14 @@ class SetupCommand(ActionCommand):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        from ..azobject.location import Location
-        from ..azobject.subscription import Subscription
-        return [AzObjectArgConfig('subscription', azclass=Subscription, help='Subscription to use (instead of prompting to choose)'),
-                AzObjectArgConfig('location', azclass=Location, help='Location to use (instead of prompting to choose)'),
-                BoolArgConfig('all', help=f'Create all object types, even ones with a default'),
-                BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions')]
+        return [cls.get_resources_argconfig_group(),
+                GroupArgConfig(BoolArgConfig('all', help=f'Create all object types, even ones with a default'),
+                               BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions'),
+                               title='Creation options')]
 
     @classmethod
     def get_default_action(cls):
         return None
-
-    @property
-    def yes(self):
-        return getattr(self.options, 'yes', False)
-
-    @property
-    def all(self):
-        return getattr(self.options, 'all', False)
-
-    @property
-    def verify_single(self):
-        return getattr(self.options, 'verify_single', False)
-
-    @property
-    def subscription(self):
-        return getattr(self.options, 'subscription', False)
-
-    @property
-    def location(self):
-        return getattr(self.options, 'location', False)
 
     def randomhex(self, n):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
@@ -100,23 +102,23 @@ class SetupCommand(ActionCommand):
             print(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
         return None
 
-    def choose_child(self, container, name, *, cmdline_arg_id=None, **kwargs):
+    def choose_child(self, container, name, *, hint_fn=None, verify_single=False, **opts):
         objtype = container.get_child_class(name).azobject_text()
         default = self.get_default_child(container, name)
-        if self.all or default is None:
+        if opts.get('all') or default is None:
             if default is None:
                 print('no default, checking available...')
             else:
                 print(default.azobject_id)
             default = None
-            if cmdline_arg_id:
-                default = container.get_child(name, cmdline_arg_id)
+            if opts.get(name):
+                default = container.get_child(name, opts.get(name))
                 if not default.exists:
-                    print('Provided {objtype} {cmdline_arg_id} does not exist, please choose another...')
+                    print('Provided {objtype} {opts.get(name)} does not exist, please choose another...')
                     default = None
             if not default:
                 try:
-                    default = AzObjectChoice(container.get_children(name), default, verify_single=self.verify_single, **kwargs)
+                    default = AzObjectChoice(container.get_children(name), default, verify_single=verify_single, hint_fn=hint_fn)
                 except NoChoices:
                     print(f'No {objtype} found, please create at least one; skipping')
                     raise
@@ -130,94 +132,18 @@ class SetupCommand(ActionCommand):
 
         return default
 
-    def prompt(self, **opts):
-        self.choose_subscription()
-        print('All done.')
-
-    def choose_subscription(self):
-        with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_child(self.user, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().id)
-
-            self.add_resource_group_filter(subscription)
-            self.choose_location(subscription)
-            self.choose_resource_group(subscription)
-
-    def choose_location(self, subscription):
-        return self.choose_child(subscription, 'location', cmdline_arg_id=self.location)
-
-    def add_resource_group_filter(self, subscription):
-        rgfilter = subscription.get_child_filter('resource_group')
-        if not rgfilter:
-            if self.yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
-                username = getpass.getuser()
-                accountname = self.user.info().userPrincipalName.split('@')[0]
-                if self.yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
-                    rgfilter.prefix = username
-                elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
-                    rgfilter.prefix = accountname
-                elif YesNo(f'Do you want to use a custom prefix?'):
-                    prefix = input('What prefix do you want to use? ')
-                    rgfilter.prefix = prefix
-                else:
-                    print('Skipping the resource group prefix filter')
-        else:
-            if rgfilter.prefix:
-                print(f"Existing resource group prefix filter: '{rgfilter.prefix}'")
-        self.prefix = rgfilter.prefix or getpass.getuser()
-
-    def choose_resource_group(self, subscription):
-        with suppress(ChoiceError):
-            rg = self.choose_child(subscription, 'resource_group')
-
-            self.choose_storage_account(rg)
-            self.choose_image_gallery(rg)
-            self.choose_ssh_key(rg)
-            self.choose_vm(rg)
-
-    def choose_storage_account(self, rg):
-        with suppress(ChoiceError):
-            sa = self.choose_child(rg, 'storage_account')
-            self.choose_storage_key(sa)
-            self.choose_storage_container(sa)
-
-    def choose_storage_key(self, sa):
-        if sa.allow_shared_key_access:
-            with suppress(ChoiceError):
-                self.choose_child(sa, 'storage_key', cmdline_arg_id='key1')
-
-    def choose_storage_container(self, sa):
-        with suppress(ChoiceError):
-            self.choose_child(sa, 'storage_container')
-
-    def choose_image_gallery(self, rg):
-        with suppress(ChoiceError):
-            ig = self.choose_child(rg, 'image_gallery')
-            self.choose_image_definition(ig)
-
-    def choose_image_definition(self, ig):
-        with suppress(ChoiceError):
-            self.choose_child(ig, 'image_definition')
-
-    def choose_ssh_key(self, rg):
-        with suppress(ChoiceError):
-            self.choose_child(rg, 'ssh_key')
-
-    def choose_vm(self, rg):
-        with suppress(ChoiceError):
-            self.choose_child(rg, 'vm')
-
-    def create_child(self, container, name, **kwargs):
+    def create_child(self, container, name, **opts):
         objtype = container.get_child_class(name).azobject_text()
         default = self.get_default_child(container, name)
-        if self.all or default is None:
+        if opts.get('all') or default is None:
             if default is None:
                 print('no default, creating one...')
             else:
                 print(default.azobject_id)
             default_id = f'{self.prefix}{self.randomhex(8)}'
             default = container.get_child(name, default_id)
-            kwargs[name] = default_id
-            default.create(**kwargs)
+            opts[name] = default_id
+            default.create(**opts)
             print(f'Created {objtype} {default.azobject_id}')
             default.parent.set_default_child_id(name, default.azobject_id)
             print(f'Default {objtype} is {default.azobject_id}')
@@ -226,42 +152,146 @@ class SetupCommand(ActionCommand):
 
         return default
 
-    def create(self, **opts):
-        self.create_subscription()
+    def add_cache_config(self, yes=False, **opts):
+        if not self.user.default_cache_expiry():
+            if yes or YesNo('Do you want to set up cache expiration times using the default values?'):
+                self.set_cache_config_defaults(**opts)
+                print('Created cache expiration configuration with default values')
+            else:
+                print('Skipping the cache expiration time configuration')
+        else:
+            print('Existing default cache expiry; assuming all cache expiration times are already configured')
+
+    def set_cache_config_defaults(self, **opts):
+        self.set_cache_expiry_values(self.user.default_cache_expiry(), CACHE_EXPIRY_MAP['default'])
+        self.user.for_each_descendant_class(self.set_cache_expiry_values_from_azclass, None, include_self=True)
+
+    def set_cache_expiry_values_from_azclass(self, azclass, opts):
+        name = azclass.azobject_name()
+        defaults = CACHE_EXPIRY_MAP.get(name)
+        if defaults:
+            self.set_cache_expiry_values(self.user.cache_expiry(name), defaults)
+
+    def set_cache_expiry_values(self, expiry, defaults):
+        expiry.show_expiry = defaults['show']
+        expiry.list_expiry = defaults['list']
+
+    def add_resource_group_filter(self, sub, *, yes=False, **opts):
+        rgfilter = sub.get_child_filter('resource_group')
+        if not rgfilter:
+            if yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
+                username = getpass.getuser()
+                accountname = self.user.info().userPrincipalName.split('@')[0]
+                prefix = None
+                if yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
+                    prefix = username
+                elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
+                    prefix = accountname
+                elif YesNo(f'Do you want to use a custom prefix?'):
+                    prefix = input('What prefix do you want to use? ')
+                if prefix:
+                    rgfilter.prefix = prefix
+                    print(f'Added resource group filter with prefix {rgfilter.prefix}')
+                else:
+                    print('Skipping the resource group prefix filter')
+            else:
+                print('Skipping the resource group prefix filter')
+        else:
+            if rgfilter.prefix:
+                print(f"Existing resource group prefix filter: '{rgfilter.prefix}'")
+        self.prefix = rgfilter.prefix or getpass.getuser()
+
+    def prompt(self, **opts):
+        self.add_cache_config(**opts)
+        self.choose_subscription(**opts)
         print('All done.')
 
-    def create_subscription(self):
+    def choose_subscription(self, **opts):
         with suppress(NoneOfTheAboveChoice):
-            subscription = self.choose_child(self.user, 'subscription', cmdline_arg_id=self.subscription, hint_fn=lambda o: o.info().id)
-            self.add_resource_group_filter(subscription)
-            location = self.choose_location(subscription)
-            self.create_resource_group(subscription, location)
+            sub = self.choose_child(self.user, 'subscription', hint_fn=lambda o: o.info().id, **opts)
+            self.add_resource_group_filter(sub, **opts)
+            self.choose_location(sub, **opts)
+            self.choose_resource_group(sub, **opts)
 
-    def create_resource_group(self, subscription, location):
-        rg = self.create_child(subscription, 'resource_group', location=location.azobject_id)
+    def choose_location(self, sub, **opts):
+        return self.choose_child(sub, 'location', **opts)
 
-        self.create_storage_account(rg)
-        self.create_image_gallery(rg)
-        self.create_ssh_key(rg)
+    def choose_resource_group(self, sub, **opts):
+        with suppress(ChoiceError):
+            rg = self.choose_child(sub, 'resource_group', **opts)
+            self.choose_storage_account(rg, **opts)
+            self.choose_image_gallery(rg, **opts)
+            self.choose_ssh_key(rg, **opts)
+            self.choose_vm(rg, **opts)
 
-    def create_storage_account(self, rg):
-        sa = self.create_child(rg, 'storage_account')
-        self.choose_storage_key(sa)
-        self.create_storage_container(sa)
+    def choose_storage_account(self, rg, **opts):
+        with suppress(ChoiceError):
+            sa = self.choose_child(rg, 'storage_account', **opts)
+            self.choose_storage_key(sa, **opts)
+            self.choose_storage_container(sa, **opts)
 
-    def create_storage_container(self, sa):
-        self.create_child(sa, 'storage_container')
+    def choose_storage_key(self, sa, **opts):
+        if sa.allow_shared_key_access:
+            with suppress(ChoiceError):
+                self.choose_child(sa, 'storage_key', **opts)
 
-    def create_image_gallery(self, rg):
-        ig = self.create_child(rg, 'image_gallery')
-        self.create_image_definition(ig)
+    def choose_storage_container(self, sa, **opts):
+        with suppress(ChoiceError):
+            self.choose_child(sa, 'storage_container', **opts)
 
-    def create_image_definition(self, ig):
-        self.create_child(ig, 'image_definition',
-                          offer=f'{self.prefix}offer{self.randomhex(8)}',
-                          publisher=f'{self.prefix}publisher{self.randomhex(8)}',
-                          sku=f'{self.prefix}sku{self.randomhex(8)}',
-                          os_type='Linux')
+    def choose_image_gallery(self, rg, **opts):
+        with suppress(ChoiceError):
+            ig = self.choose_child(rg, 'image_gallery', **opts)
+            self.choose_image_definition(ig, **opts)
 
-    def create_ssh_key(self, rg):
-        self.create_child(rg, 'ssh_key')
+    def choose_image_definition(self, ig, **opts):
+        with suppress(ChoiceError):
+            self.choose_child(ig, 'image_definition', **opts)
+
+    def choose_ssh_key(self, rg, **opts):
+        with suppress(ChoiceError):
+            self.choose_child(rg, 'ssh_key', **opts)
+
+    def choose_vm(self, rg, **opts):
+        with suppress(ChoiceError):
+            self.choose_child(rg, 'vm', **opts)
+
+    def create(self, **opts):
+        self.add_cache_config(**opts)
+        self.create_subscription(**opts)
+        print('All done.')
+
+    def create_subscription(self, **opts):
+        with suppress(NoneOfTheAboveChoice):
+            sub = self.choose_child(self.user, 'subscription', hint_fn=lambda o: o.info().id, **opts)
+            self.add_resource_group_filter(sub, **opts)
+            location = self.choose_location(sub, **opts)
+            self.create_resource_group(sub, **opts)
+
+    def create_resource_group(self, sub, **opts):
+        rg = self.create_child(sub, 'resource_group', **opts)
+        self.create_storage_account(rg, **opts)
+        self.create_image_gallery(rg, **opts)
+        self.create_ssh_key(rg, **opts)
+
+    def create_storage_account(self, rg, **opts):
+        sa = self.create_child(rg, 'storage_account', **opts)
+        self.choose_storage_key(sa, **opts)
+        self.create_storage_container(sa, **opts)
+
+    def create_storage_container(self, sa, **opts):
+        self.create_child(sa, 'storage_container', **opts)
+
+    def create_image_gallery(self, rg, **opts):
+        ig = self.create_child(rg, 'image_gallery', **opts)
+        self.create_image_definition(ig, **opts)
+
+    def create_image_definition(self, ig, **opts):
+        opts |= dict(offer=f'{self.prefix}offer{self.randomhex(8)}',
+                     publisher=f'{self.prefix}publisher{self.randomhex(8)}',
+                     sku=f'{self.prefix}sku{self.randomhex(8)}',
+                     os_type='Linux')
+        self.create_child(ig, 'image_definition', **opts)
+
+    def create_ssh_key(self, rg, **opts):
+        self.create_child(rg, 'ssh_key', **opts)

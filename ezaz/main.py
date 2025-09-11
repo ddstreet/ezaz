@@ -21,35 +21,20 @@ class Main:
         self.shared_args = shared_args or []
         self._options = None
 
-    def setup_logging(self, options):
+    def setup_logging(self, *, verbose, debug_az=0, debug_importclasses=False, **kwargs):
         import logging
-        logging.basicConfig(level={0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}.get(options.verbose, logging.DEBUG),
+        logging.basicConfig(level={0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}.get(verbose, logging.DEBUG),
                             format='{message}', style='{')
 
         from . import IMPORTCLASSES_LOGGER
-        IMPORTCLASSES_LOGGER.propagate = options.debug_importclasses
+        IMPORTCLASSES_LOGGER.propagate = debug_importclasses
         IMPORTCLASSES_LOGGER.setLevel(logging.NOTSET)
 
         from . import AZ_LOGGER
-        AZ_LOGGER.setLevel({0: logging.CRITICAL, 1: logging.INFO, 2: logging.DEBUG}.get(options.debug_az, logging.DEBUG))
+        AZ_LOGGER.setLevel({0: logging.CRITICAL, 1: logging.INFO, 2: logging.DEBUG}.get(debug_az, logging.DEBUG))
 
         from . import LOGGER
         LOGGER.setLevel(logging.NOTSET)
-
-    @cached_property
-    def shared_argument_parser(self):
-        parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
-        group = parser.add_shared_argument_group(title='Global options')
-        group.add_argument('--debug-parser', action='store_true', help=argparse.SUPPRESS)
-        group.add_argument('--debug-importclasses', action='store_true', help=argparse.SUPPRESS)
-        group.add_argument('--debug-az', action='count', default=0, help='Enable debug of az commands')
-        group.add_argument('--no-cache', action='store_true', help='Use no cached data (do update the cache)')
-        group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
-        group.add_argument('--configfile', metavar='PATH', help='Path to config file')
-        group.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
-        group.add_argument('-n', '--dry-run', action='store_true',
-                           help='For commands other than show/list, only print what would be done, do not run commands')
-        return parser
 
     def get_command(self, args):
         parser = argparse.ArgumentParser(add_help=False)
@@ -66,8 +51,26 @@ class Main:
             import argcomplete
             argcomplete.autocomplete(parser)
 
+    def parser_add_general_arguments(self, parser, add_help=False):
+        group = parser.add_shared_argument_group(title='General options')
+        if add_help:
+            group.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
+        group.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
+        group.add_argument('-n', '--dry-run', action='store_true', help='For commands other than show/list, do not run commands')
+        group.add_argument('--debug-parser', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+        group.add_argument('--debug-importclasses', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+        group.add_argument('--debug-az', action='count', default=argparse.SUPPRESS, help='Enable debug of az commands (once to show cmds, twice to show response)')
+        group.add_argument('--no-cache', action='store_true', help='Use no cached data (but still update the cache)')
+        group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
+        group.add_argument('--configfile', metavar='PATH', help='Path to config file')
+
     def parse_args(self, args):
-        self.setup_logging(self.shared_argument_parser.parse_known_args(self.args)[0])
+        logging_parser = SharedArgumentParser(add_help=False)
+        self.parser_add_general_arguments(logging_parser)
+        self.setup_logging(**vars(logging_parser.parse_known_args(self.args)[0]))
+
+        general_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
+        self.parser_add_general_arguments(general_parser, add_help=True)
 
         # Speed up; just add the command arguments we need
         # Helps especially with argcomplete
@@ -83,8 +86,9 @@ class Main:
                                                  [c.get_command_action_config() for c in self.cmds]))
 
         parser = SharedArgumentParser(prog='ezaz',
+                                      add_help=False,
                                       formatter_class=argparse.RawTextHelpFormatter,
-                                      shared_args=self.shared_argument_parser.shared_args)
+                                      shared_args=general_parser.shared_args)
         group.add_to_parser(parser)
 
         self.autocomplete(parser)
@@ -92,7 +96,7 @@ class Main:
         options = parser.parse_args(args)
         options.full_args = args
 
-        if options.debug_parser:
+        if getattr(options, 'debug_parser', False):
             for k, v in vars(options).items():
                 print(f'{k}: {v}')
             sys.exit(1)
@@ -118,14 +122,18 @@ class Main:
 def main():
     TIMESTAMP('start main()')
     parser = SharedArgumentParser(all_shared=True, add_help=False)
-    parser.add_argument('--debug-timing', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--debug-venv', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--no-venv', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--refresh-venv', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--debug-timing', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    parser.add_argument('--debug-venv', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    parser.add_argument('--no-venv', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    parser.add_argument('--refresh-venv', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
     options = parser.parse_known_args(sys.argv[1:])[0]
+    debug_venv = getattr(options, 'debug_venv', False)
+    refresh_venv = getattr(options, 'refresh_venv', False)
+    no_venv = getattr(options, 'no_venv', False)
+    debug_timing = getattr(options, 'debug_timing', False)
 
     from .importvenv import ImportVenv
-    with ImportVenv(debug=options.debug_venv, refresh=options.refresh_venv, no_venv=options.no_venv) as venv:
+    with ImportVenv(debug=debug_venv, refresh=refresh_venv, no_venv=no_venv) as venv:
         from . import LOGGER
         from .command import COMMAND_CLASSES
         from .exception import DefaultConfigNotFound
@@ -142,7 +150,7 @@ def main():
         except KeyboardInterrupt:
             LOGGER.error('Aborting.')
         finally:
-            if options.debug_timing:
+            if debug_timing:
                 TIMESTAMP.show()
 
         return -1

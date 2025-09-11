@@ -1,11 +1,14 @@
 
 - update setup command
   allow creating from prompt command
-  create cache expiries
+
+- add cache clear command
 
 - update config param to allow simple strings which default to a filename in normal config dir
 
 LATER/CLEANUP:
+
+- add spinner to az calls
 
 - command actionconfigs should pass opts and also cmd_opts to command handler functions
 

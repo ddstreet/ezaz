@@ -57,6 +57,14 @@ class InvalidFilterRegex(InvalidFilter):
         super().__init__(f"Invalid regex: '{regex}'")
 
 
+class NoParentClass(EzazException):
+    pass
+
+
+class NoParentInstance(EzazException):
+    pass
+
+
 class AzCommandError(EzazException):
     def __init__(self, cmd, stdout=None, stderr=None):
         super().__init__(f'az command failed: {" ".join(cmd)}\n{stderr}')
@@ -123,30 +131,6 @@ class UnsupportedAction(EzazException):
     @property
     def _actionable(self):
         return None
-
-
-class NotCreatable(UnsupportedAction):
-    @property
-    def _actionable(self):
-        return 'creatable'
-
-
-class NotDeletable(UnsupportedAction):
-    @property
-    def _actionable(self):
-        return 'deletable'
-
-
-class NotListable(UnsupportedAction):
-    @property
-    def _actionable(self):
-        return 'listable'
-
-
-class NotDownloadable(UnsupportedAction):
-    @property
-    def _actionable(self):
-        return 'downloadable'
 
 
 class ArgumentError(EzazException):

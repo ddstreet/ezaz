@@ -63,9 +63,6 @@ class DefaultsCommand(AzObjectActionCommand):
 
         print(f'{self.tab}{azclass.__name__}: {default_id}{exists}')
 
-        if not azclass.has_child_classes():
-            return
-
         for subcls in azclass.get_child_classes():
             with self.indent():
                 self.show_azclass(subcls, check)
@@ -84,7 +81,7 @@ class DefaultsCommand(AzObjectActionCommand):
         if new_id:
             current_id = self.set_azclass_default_id(azclass, current_id, new_id, check, force, opts)
 
-        if not current_id or not azclass.has_child_classes():
+        if not current_id:
             return
 
         for child_class in azclass.get_child_classes():
@@ -127,9 +124,8 @@ class DefaultsCommand(AzObjectActionCommand):
                 print(f'Already no {text} default id')
             return
 
-        if azclass.has_child_classes():
-            for child_class in azclass.get_child_classes():
-                self.unset_azclass(child_class, opts)
+        for child_class in azclass.get_child_classes():
+            self.unset_azclass(child_class, opts)
 
         if opts.get(name):
             azclass.del_default_azobject_id()

@@ -9,6 +9,7 @@ from copy import deepcopy
 from ..dictnamespace import DictNamespace
 from ..exception import InvalidInfo
 from ..schema import *
+from ..timing import TIMESTAMP
 
 
 class Info(DictNamespace):
@@ -47,7 +48,10 @@ class Info(DictNamespace):
             raise InvalidInfo(f'Failed to decode info list: {content}') from jde
         if not isinstance(objs, list):
             raise InvalidInfo(f'Info list is not a list: {content}')
-        return [cls._load(obj, verbose) for obj in objs]
+        try:
+            return [cls._load(obj, verbose) for obj in objs]
+        finally:
+            TIMESTAMP('Info.load_list()')
 
     @classmethod
     def save_list(cls, infos):
@@ -299,11 +303,16 @@ class NicInfo(Info):
         id=STR,
         name=STR,
         location=STR,
-        macAddress=STR,
-        primary=BOOL,
         resourceGroup=STR,
         resourceGuid=STR,
     )
+
+    @property
+    def primary(self):
+        # Seems like it's simply missing when it's not True
+        with suppress(AttributeError):
+            return self.__getattr__('primary')
+        return False
 
 
 class PublicIpInfo(Info):
@@ -426,13 +435,6 @@ class VmInfo(Info):
         name=STR,
         location=STR,
         resourceGroup=STR,
-        securityProfile=OBJ(
-            securityType=STR,
-            uefiSettings=OBJ(
-                secureBootEnabled=BOOL,
-                vTpmEnabled=BOOL,
-            ),
-        ),
         timeCreated=STR,
         vmId=STR,
         tags=ANY(
@@ -456,13 +458,6 @@ class VmInstanceInfo(Info):
         ),
         provisioningState=STR,
         resourceGroup=STR,
-        securityProfile=OBJ(
-            securityType=STR,
-            uefiSettings=OBJ(
-                secureBootEnabled=BOOL,
-                vTpmEnabled=BOOL,
-            ),
-        ),
         storageProfile=OBJ(
             diskControllerType=STR,
             imageReference=OBJ(),

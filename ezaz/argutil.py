@@ -738,7 +738,11 @@ class ExclusiveGroupArgConfig(GroupArgConfig):
         return super().required and not any([callable(a._default) for a in self.argconfigs])
 
     def group(self, parser):
-        return super().group(parser).add_mutually_exclusive_group(required=self.required)
+        if self.title:
+            group = super().group(parser)
+        else:
+            group = parser
+        return group.add_mutually_exclusive_group(required=self.required)
 
     def cmd_arg_value(self, **opts):
         for argconfig in self.argconfigs:

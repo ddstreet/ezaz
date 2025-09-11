@@ -45,17 +45,17 @@ class ResourceGroup(AzCommonActionable, AzSubObjectContainer):
         return [AzObjectArgConfig('location', azclass=Location, help='Location'),
                 BoolArgConfig('no_rbac', noncmd=True, help='Do not add RBAC owner/contributor roles for the signed in user')]
 
-    def create(self, no_rbac=False, **opts):
-        super().create(**opts)
-        if no_rbac:
-            return
+    def create_post(self, result, opts):
+        result = super().create_post(result, opts)
 
-        # Add owner and contributor RBAC for the signed-in user
-        roleassignment = self.parent.get_null_child('role_assignment')
-        opts['resource_group'] = self.azobject_id
-        roleassignment.create(role='Owner', **opts)
-        roleassignment.create(role='Contributor', **opts)
-        roleassignment.create(role='Storage Blob Data Owner', **opts)
+        if not opts.get('no_rbac'):
+            # Add owner and contributor RBAC for the signed-in user
+            roleassignment = self.parent.get_null_child('role_assignment')
+            roleassignment.create(role='Owner', resource_group=self.azobject_id)
+            roleassignment.create(role='Contributor', resource_group=self.azobject_id)
+            roleassignment.create(role='Storage Blob Data Owner', resource_group=self.azobject_id)
+
+        return result
 
     @classmethod
     def get_delete_action_argconfigs(cls):

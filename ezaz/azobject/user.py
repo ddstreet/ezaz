@@ -6,12 +6,14 @@ from functools import cached_property
 
 from .. import LOGGER
 from ..argutil import FlagArgConfig
+from ..cache import CacheExpiry
 from ..exception import AlreadyLoggedIn
 from ..exception import AlreadyLoggedOut
 from ..exception import AzCommandError
 from ..exception import CacheError
 from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
+from ..exception import NullAzObject
 from .azobject import AzListable
 from .azobject import AzShowable
 from .azobject import AzObjectContainer
@@ -33,16 +35,17 @@ class User(AzShowable, AzListable, AzObjectContainer):
 
     @classmethod
     def get_signed_in_user_instance(cls, user=None, **opts):
+        # This will get the default, which is the signed-in-user
         return cls.get_instance(**opts)
 
     @classmethod
     @cache
-    def _instance_cache(cls):
+    def __local_cache(cls):
         return {}
 
     @classmethod
     def instance_cache(cls, **opts):
-        return cls._instance_cache()
+        return cls.__local_cache().setdefault('instance', {})
 
     @classmethod
     def _get_specific_instance(cls, azobject_id, opts):
@@ -83,17 +86,31 @@ class User(AzShowable, AzListable, AzObjectContainer):
                                        dry_runnable=True,
                                        description='Show signed-in user'),
                 cls.make_action_config('login',
-                                       get_instance=cls.get_null_instance,
+                                       get_instance=cls.get_signed_in_user_instance,
                                        cmd=['login'],
                                        azobject_id_argconfigs=[],
                                        description='Login',
                                        argconfigs=[FlagArgConfig('use_device_code',
                                                                  help='Instead of opening a browser window, show the URL and code')]),
                 cls.make_action_config('logout',
-                                       get_instance=cls.get_null_instance,
+                                       get_instance=cls.get_signed_in_user_instance,
                                        cmd=['logout'],
                                        azobject_id_argconfigs=[],
                                        description='Logout')]
+
+    @classmethod
+    def get_list_action_get_instance(cls):
+        return cls.get_signed_in_user_instance
+
+    def default_cache_expiry(self):
+        with suppress(NullAzObject):
+            return super().default_cache_expiry()
+        # We only use the null instance to get the signed-in-user info
+        return CacheExpiry(dict(show_expiry=CacheExpiry.FOREVER))
+
+    @property
+    def local_cache(self):
+        return self.__local_cache()
 
     def signed_in_user_pre(self, opts):
         with suppress(CacheError):
@@ -127,6 +144,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
             raise AlreadyLoggedIn(self.signed_in_user(**opts))
         # Clear the cache before we login
         self.cache.clear()
+        self.__local_cache.cache_clear()
 
     def login(self, **opts):
         self.do_action_config_instance_action('login', opts)
@@ -150,6 +168,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
 
     def logout_post(self, result, opts):
         self.cache.clear()
+        self.__local_cache.cache_clear()
         return result
 
     @property

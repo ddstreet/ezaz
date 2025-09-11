@@ -25,7 +25,7 @@ class SubConfig(MutableMapping):
 
     def __copy__(self):
         # Copy everything except empty dicts and None values
-        return {k: copy(v) for k, v in self.items() if v not in (None, {})} or None
+        return {k: c for k, v in self.items() for c in [copy(v)] if c is not None} or None
 
     def __equals__(self, other):
         if isinstance(other, Mapping):
