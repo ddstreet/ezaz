@@ -565,7 +565,7 @@ class AzObject(AzAction, TreeObject):
                                                 verbose=self.verbose,
                                                 dry_run=self.dry_run,
                                                 no_cache_read=self._no_cache,
-                                                no_cache_write=IS_ARGCOMPLETE)
+                                                no_cache_write=False)
         return self.__class__._class_cache
 
     def default_cache_expiry(self):
@@ -933,27 +933,25 @@ class AzListable(AzObject):
         return f'List {cls.azobject_text()}s'
 
     def _list_filters(self, opts):
-        filters = []
-
         if any((opts.get('prefix'), opts.get('suffix'), opts.get('regex'))):
-            filters.append(Filter(opts))
+            yield Filter(opts)
 
         if not opts.get('no_filters') and self.has_filter():
-            filters.append(self.get_filter(**opts))
-
-        return filters
+            yield self.get_filter(**opts)
 
     def list_filter(self, infolist, opts):
         try:
+            filters = list(self._list_filters(opts))
             return [info for info in infolist
-                    if all([f.check_info(info) for f in self._list_filters(opts)])]
+                    if all((f.check_info(info) for f in filters))]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.list_filter()')
 
     def id_list_filter(self, idlist, opts):
         try:
+            filters = list(self._list_filters(opts))
             return [i for i in idlist
-                    if all([f.check(i) for f in self._list_filters(opts)])]
+                    if all((f.check(i) for f in filters))]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.id_list_filter()')
 
@@ -963,12 +961,10 @@ class AzListable(AzObject):
         return True
 
     def id_list(self, **opts):
-        if not self.id_list_supported:
-            return [info._id for info in self.list(**opts)]
-
         try:
-            with suppress(CacheError):
-                return self.id_list_filter(self.cache.read_id_list(), opts)
+            if self.id_list_supported:
+                with suppress(CacheError):
+                    return self.id_list_filter(self.cache.read_id_list(), opts)
             return [info._id for info in self.list(**opts)]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.id_list()')

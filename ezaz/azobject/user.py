@@ -14,6 +14,7 @@ from ..exception import CacheError
 from ..exception import DefaultConfigNotFound
 from ..exception import NotLoggedIn
 from ..exception import NullAzObject
+from ..timing import TIMESTAMP
 from .azobject import AzListable
 from .azobject import AzShowable
 from .azobject import AzObjectContainer

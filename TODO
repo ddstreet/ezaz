@@ -1,9 +1,4 @@
 
-- update setup command
-  allow creating from prompt command
-
-- add cache clear command
-
 - update config param to allow simple strings which default to a filename in normal config dir
 
 LATER/CLEANUP:
@@ -18,6 +13,8 @@ LATER/CLEANUP:
 - add config/params to debug per-module/per-class, e.g. debug-cache
 
 - review use of 'opts' vs '**opts' in methods; should try to be consistent
+
+- update setup command to allow creating from prompt command
 
 DOCS:
 

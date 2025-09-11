@@ -1,4 +1,6 @@
 
+import os
+
 from contextlib import suppress
 from datetime import datetime
 from datetime import timedelta
@@ -41,6 +43,12 @@ class BaseCache:
     @property
     def no_cache_write(self):
         return self.cachecfg.no_cache_write
+
+    @property
+    def size(self):
+        return sum([Path(dirpath).joinpath(filename).stat().st_size
+                    for dirpath, dirnames, filenames in os.walk(str(self.cachepath))
+                    for filename in filenames])
 
     def clear(self):
         if self.dry_run:

@@ -38,7 +38,7 @@ class MarketplaceImageVersion(AzEmulateShowable, AzListable, AzSubObject):
         # We manually filter for architecture, so we can cache the full list
         architecture = opts.get('architecture')
         if architecture:
-            return [info for info in infolist if info.architecture == architecture]
+            infolist = (info for info in infolist if info.architecture == architecture)
         return super().list_filter(infolist, opts)
 
     def list_post(self, infolist, opts):

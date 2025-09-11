@@ -4,9 +4,11 @@ import argparse
 from abc import ABC
 from abc import abstractmethod
 
+from . import IS_ARGCOMPLETE
 from .argutil import ArgMap
 from .argutil import ArgUtil
 from .exception import ArgumentError
+from .timing import TIMESTAMP
 
 
 class ActionConfig(ArgUtil, ABC):
@@ -104,6 +106,9 @@ class ActionConfigGroup(ActionConfig):
                                       metavar='')
         for actionconfig in self.actionconfigs:
             actionconfig.add_to_group(group)
+            if IS_ARGCOMPLETE:
+                # This timing is really only useful for argcomplete
+                TIMESTAMP(f'{self.__class__.__name__}.add_to_group: {actionconfig.action}')
 
     def do_action(self, **opts):
         if self.default_actionconfig:

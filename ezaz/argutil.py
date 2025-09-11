@@ -1,5 +1,6 @@
 
 import argparse
+import io
 
 from abc import ABC
 from abc import abstractmethod
@@ -23,6 +24,7 @@ from .exception import InvalidDateTimeArgumentValue
 from .exception import InvalidX509DERArgumentValue
 from .exception import RequiredArgument
 from .exception import RequiredArgumentGroup
+from .timing import TIMESTAMP
 
 
 class ArgMap(UserDict):
@@ -557,6 +559,12 @@ class AzObjectCompleter(AzObjectInfoHelper):
                     import traceback
                     argcomplete.warn(traceback.format_exc())
             raise
+        finally:
+            if opts.get('debug_timing'):
+                strbuf = io.StringIO()
+                TIMESTAMP.show(dest=strbuf)
+                import argcomplete
+                argcomplete.warn(strbuf.getvalue())
 
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         return self.get_azobject_completer_choices(**vars(parsed_args))

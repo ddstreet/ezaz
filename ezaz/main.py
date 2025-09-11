@@ -8,6 +8,8 @@ import traceback
 from contextlib import suppress
 from functools import cached_property
 
+from . import IS_ARGCOMPLETE
+from . import ARGCOMPLETE_ARGS
 from .actionutil import ActionConfigGroup
 from .argutil import SharedArgumentParser
 from .timing import TIMESTAMP
@@ -21,7 +23,17 @@ class Main:
         self.shared_args = shared_args or []
         self._options = None
 
-    def setup_logging(self, *, verbose, debug_az=0, debug_importclasses=False, **kwargs):
+    def setup_logging(self):
+        if IS_ARGCOMPLETE:
+            return
+
+        logging_parser = SharedArgumentParser(add_help=False)
+        self.parser_add_general_arguments(logging_parser)
+        options = logging_parser.parse_known_args(self.args)[0]
+        verbose = options.verbose
+        debug_importclasses = getattr(options, 'debug_importclasses', False)
+        debug_az = getattr(options, 'debug_az', 0)
+
         import logging
         logging.basicConfig(level={0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}.get(verbose, logging.DEBUG),
                             format='{message}', style='{')
@@ -36,7 +48,19 @@ class Main:
         from . import LOGGER
         LOGGER.setLevel(logging.NOTSET)
 
-    def get_command(self, args):
+    @property
+    def general_parser(self):
+        general_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
+        self.parser_add_general_arguments(general_parser, add_help=True)
+        TIMESTAMP('general_parser')
+        return general_parser
+
+    def get_command(self):
+        if IS_ARGCOMPLETE:
+            args = ARGCOMPLETE_ARGS[1:]
+        else:
+            args = self.args
+
         parser = argparse.ArgumentParser(add_help=False)
         parser.add_argument('command', nargs='?')
         command = parser.parse_known_args(args)[0].command
@@ -64,32 +88,27 @@ class Main:
         group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
         group.add_argument('--configfile', metavar='PATH', help='Path to config file')
 
-    def parse_args(self, args):
-        logging_parser = SharedArgumentParser(add_help=False)
-        self.parser_add_general_arguments(logging_parser)
-        self.setup_logging(**vars(logging_parser.parse_known_args(self.args)[0]))
+    def parse_args(self):
+        self.setup_logging()
 
-        general_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
-        self.parser_add_general_arguments(general_parser, add_help=True)
-
-        # Speed up; just add the command arguments we need
-        # Helps especially with argcomplete
-        command = self.get_command(args)
+        # Speed up: add only the command arguments we need. Can save
+        # ~0.5 second, which is especially important for argcomplete,
+        # but also speeds up fully cached operations
+        command = self.get_command()
         if command:
-            args = command.command_preparse_args(args)
+            args = command.command_preparse_args(self.args)
+            actionconfigs=[command.get_command_action_config()]
+        else:
+            args = self.args
+            actionconfigs=[c.get_command_action_config() for c in self.cmds]
 
-        group = ActionConfigGroup(action='command',
-                                  description='Commands',
-                                  required=True,
-                                  actionconfigs=([command.get_command_action_config()]
-                                                 if command else
-                                                 [c.get_command_action_config() for c in self.cmds]))
-
+        group = ActionConfigGroup(action='command', description='Commands', required=True, actionconfigs=actionconfigs)
         parser = SharedArgumentParser(prog='ezaz',
                                       add_help=False,
                                       formatter_class=argparse.RawTextHelpFormatter,
-                                      shared_args=general_parser.shared_args)
+                                      shared_args=self.general_parser.shared_args)
         group.add_to_parser(parser)
+        TIMESTAMP('parser')
 
         self.autocomplete(parser)
 
@@ -107,7 +126,7 @@ class Main:
     @property
     def options(self):
         if not self._options:
-            self._options = self.parse_args(self.args)
+            self._options = self.parse_args()
         return self._options
 
     def run(self):

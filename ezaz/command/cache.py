@@ -33,7 +33,11 @@ class CacheCommand(AzObjectActionCommand):
                 cls.make_action_config('set-expiry',
                                        func='set_expiry',
                                        description='Set cache expiry duration',
-                                       argconfigs=cls.get_set_action_argconfigs())]
+                                       argconfigs=cls.get_set_action_argconfigs()),
+                cls.make_action_config('size',
+                                       description='Show the cache size'),
+                cls.make_action_config('clear',
+                                       description='Clear the cache')]
 
     @classmethod
     def get_show_action_argconfigs(cls):
@@ -148,3 +152,10 @@ class CacheCommand(AzObjectActionCommand):
 
     def expirystr(self, expiry, none='No configuration'):
         return expiry._jsonstr() if expiry else none
+
+    def size(self, **opts):
+        print(f'Cache is {self.azobject.cache.size} bytes')
+
+    def clear(self, **opts):
+        self.azobject.cache.clear()
+        print('Cleared the cache')

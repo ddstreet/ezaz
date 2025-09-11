@@ -8,7 +8,8 @@ from pathlib import Path
 from .requiredpackage import RequiredPackage
 
 
-IS_ARGCOMPLETE = '_ARGCOMPLETE' in os.environ.keys() or '_TEST_ARGCOMPLETE' in os.environ.keys()
+IS_ARGCOMPLETE = '_ARGCOMPLETE' in os.environ.keys()
+ARGCOMPLETE_ARGS = (os.environ.get('COMP_LINE') or '').split()
 
 LOGGER = logging.getLogger(__name__)
 AZ_LOGGER = logging.getLogger(f'{__name__}.AZ')
