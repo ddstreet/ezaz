@@ -23,6 +23,26 @@ class Main:
         self.shared_args = shared_args or []
         self._options = None
 
+    def get_command(self):
+        if IS_ARGCOMPLETE:
+            args = ARGCOMPLETE_ARGS[1:]
+        else:
+            args = self.args
+
+        parser = argparse.ArgumentParser(add_help=False)
+        parser.add_argument('command', nargs='?')
+        command = parser.parse_known_args(args)[0].command
+        if command:
+            for cmd in self.cmds:
+                if cmd.is_command(command):
+                    return cmd
+        return None
+
+    def autocomplete(self, parser):
+        with suppress(ImportError):
+            import argcomplete
+            argcomplete.autocomplete(parser, print_suppressed=True)
+
     def setup_logging(self):
         if IS_ARGCOMPLETE:
             return
@@ -48,33 +68,6 @@ class Main:
         from . import LOGGER
         LOGGER.setLevel(logging.NOTSET)
 
-    @property
-    def general_parser(self):
-        general_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
-        self.parser_add_general_arguments(general_parser, add_help=True)
-        TIMESTAMP('general_parser')
-        return general_parser
-
-    def get_command(self):
-        if IS_ARGCOMPLETE:
-            args = ARGCOMPLETE_ARGS[1:]
-        else:
-            args = self.args
-
-        parser = argparse.ArgumentParser(add_help=False)
-        parser.add_argument('command', nargs='?')
-        command = parser.parse_known_args(args)[0].command
-        if command:
-            for cmd in self.cmds:
-                if cmd.is_command(command):
-                    return cmd
-        return None
-
-    def autocomplete(self, parser):
-        with suppress(ImportError):
-            import argcomplete
-            argcomplete.autocomplete(parser)
-
     def parser_add_general_arguments(self, parser, add_help=False):
         group = parser.add_shared_argument_group(title='General options')
         if add_help:
@@ -86,7 +79,16 @@ class Main:
         group.add_argument('--debug-az', action='count', default=argparse.SUPPRESS, help='Enable debug of az commands (once to show cmds, twice to show response)')
         group.add_argument('--no-cache', action='store_true', help='Use no cached data (but still update the cache)')
         group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
-        group.add_argument('--configfile', metavar='PATH', help='Path to config file')
+
+        from .config import Config
+        Config.add_argument_to_parser(group, '--configfile', metavar='PATH')
+
+    @property
+    def general_parser(self):
+        general_parser = SharedArgumentParser(all_shared=True, shared_args=self.shared_args, add_help=False)
+        self.parser_add_general_arguments(general_parser, add_help=True)
+        TIMESTAMP('general_parser')
+        return general_parser
 
     def parse_args(self):
         self.setup_logging()

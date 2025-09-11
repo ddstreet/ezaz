@@ -12,7 +12,6 @@ from . import DEFAULT_CONFIGPATH
 
 
 DEFAULT_FILENAME = 'config.json'
-DEFAULT_CONFIGFILE = DEFAULT_CONFIGPATH / DEFAULT_FILENAME
 
 
 class SubConfig(MutableMapping):
@@ -77,8 +76,43 @@ class SubConfig(MutableMapping):
 
 
 class Config(SubConfig):
+    @classmethod
+    def add_argument_to_parser(cls, parser, *args, **kwargs):
+        if 'help' not in kwargs:
+            kwargs['help'] = 'Path to the config file, or filename in standard config dir'
+        parser.add_argument(*args, **kwargs).completer = cls.completer
+
+    @classmethod
+    def completer(cls, *, prefix, **kwargs):
+        path = Path(prefix).expanduser()
+
+        if not path.is_absolute():
+            return [m.removeprefix(str(DEFAULT_CONFIGPATH) + '/')
+                    for m in cls.completer(prefix=str(DEFAULT_CONFIGPATH / prefix))]
+
+        for p in (path, path.parent):
+            if p.is_dir():
+                return [str(f) + ('/' if f.is_dir() else '')
+                        for f in p.iterdir()
+                        if str(f).startswith(str(path))]
+
+        return []
+
+    @classmethod
+    def get_configfile_path(cls, configfile):
+        configpath = Path(configfile).expanduser().resolve()
+        if configpath.is_absolute():
+            return configpath
+
+        configpath = DEFAULT_CONFIGPATH.joinpath(configfile).expanduser().resolve()
+        try:
+            configpath.relative_to(DEFAULT_CONFIGPATH)
+        except ValueError as ve:
+            raise InvalidArgumentValue(f'Invalid path for configfile: {configfile}') from ve
+        return configpath
+
     def __init__(self, configfile=None):
-        self._configfile = Path(configfile or DEFAULT_CONFIGFILE).expanduser().resolve()
+        self._configfile = self.get_configfile_path(configfile or DEFAULT_FILENAME)
         super().__init__(self, self._read_config())
         self._file_config = copy(self)
         # TODO - check with jsonschema

@@ -8,13 +8,13 @@ import venv
 from functools import cached_property
 from pathlib import Path
 
-from . import DEFAULT_CONFIGPATH
+from . import DEFAULT_CACHEPATH
 from . import IS_ARGCOMPLETE
 from . import REQUIRED_PACKAGES
 from .timing import TIMESTAMP
 
 
-DEFAULT_VENVDIR = DEFAULT_CONFIGPATH / 'venv'
+DEFAULT_VENVDIR = DEFAULT_CACHEPATH / 'venv'
 
 
 class ImportVenv:

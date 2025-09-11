@@ -873,8 +873,9 @@ class SharedArgumentParser(argparse.ArgumentParser):
         return []
 
     def add_shared_argument(self, *args, **kwargs):
-        self.shared_args.append(SharedArgument(*args, **kwargs))
-        return super().add_argument(*args, **kwargs)
+        argument = super().add_argument(*args, **kwargs)
+        self.shared_args.append(SharedArgument(argument, *args, **kwargs))
+        return argument
 
     def add_shared_argument_group(self, title=None, description=None):
         group = super().add_argument_group(title=title, description=description)
@@ -902,17 +903,17 @@ class SharedArgumentParser(argparse.ArgumentParser):
 
 
 class SharedArgument:
-    def __init__(self, *args, shared=True, **kwargs):
+    def __init__(self, argument, *args, shared=True, **kwargs):
+        self.argument = argument
         self.args = args
         self.kwargs = kwargs
 
-    def __repr__(self):
-        args_str = ', '.join(self.args)
-        kwargs_str = ', '.join([f'{k}={v}' for k, v in self.kwargs.items()])
-        return f'{self.__class__.__name__}({", ".join([args_str, kwargs_str])})'
+    @property
+    def completer(self):
+        return getattr(self.argument, 'completer', None)
 
     def add_to_parser(self, parser):
-        parser.add_shared_argument(*self.args, **self.kwargs)
+        parser.add_shared_argument(*self.args, **self.kwargs).completer = self.completer
 
     def parse_shared_arg(self, args, namespace):
         import string
@@ -934,17 +935,15 @@ class SharedArgumentGroup:
         self.group.add_argument = partial(self._group_add_argument, group.add_argument)
         self.shared_args = []
 
-    def __repr__(self):
-        return f'{self.__class__.__name__}(title={self.title}, description={self.description})'
-
     def _group_add_argument(self, add_argument, *args, **kwargs):
-        self.shared_args.append(SharedArgument(*args, **kwargs))
-        return add_argument(*args, **kwargs)
+        argument = add_argument(*args, **kwargs)
+        self.shared_args.append(SharedArgument(argument, *args, **kwargs))
+        return argument
 
     def add_to_parser(self, parser):
         group = parser.add_shared_argument_group(title=self.group.title, description=self.group.description)
         for arg in self.shared_args:
-            group.add_argument(*arg.args, **arg.kwargs)
+            group.add_argument(*arg.args, **arg.kwargs).completer = arg.completer
 
     def parse_shared_arg(self, args, namespace):
         for p in self.shared_args:
