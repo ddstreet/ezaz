@@ -289,6 +289,10 @@ class AzObject(AzAction, TreeObject):
         return sep.join(cls.azobject_name_list())
 
     @classmethod
+    def azobject_short_name(cls):
+        return cls.azobject_name('')
+
+    @classmethod
     def azobject_text(cls):
         return cls.azobject_name(' ')
 
@@ -382,12 +386,12 @@ class AzObject(AzAction, TreeObject):
                            azobject_id_argconfigs_title=None,
                            az=None,
                            cmd=None,
+                           do_action_pre=None,
+                           do_action_post=None,
                            pre=None,
                            post=None,
                            context_manager=None,
                            get_instance=None,
-                           handler=None,
-                           instance_handler=None,
                            dry_runnable=None,
                            azaction_class=None,
                            **kwargs):
@@ -421,16 +425,16 @@ class AzObject(AzAction, TreeObject):
             az = getattr(cls, f'get_{action}_action_az', lambda: None)()
         if cmd is None:
             cmd = getattr(cls, f'get_{action}_action_cmd', lambda: None)()
+        if do_action_pre is None:
+            do_action_pre = getattr(cls, f'do_{action}_action_pre', None)
+        if do_action_post is None:
+            do_action_post = getattr(cls, f'do_{action}_action_post', None)
         if pre is None:
             pre = getattr(cls, f'{action}_pre', None)
         if post is None:
             post = getattr(cls, f'{action}_post', None)
         if context_manager is None:
             context_manager = getattr(cls, f'{action}_context_manager', None)
-        if handler is None:
-            handler = getattr(cls, f'{action}_handler', None)
-        if instance_handler is None:
-            instance_handler = getattr(cls, f'{action}_instance_handler', None)
         if not azaction_class:
             azaction_class = AzActionConfig
         return azaction_class(action,
@@ -444,8 +448,6 @@ class AzObject(AzAction, TreeObject):
                               post=post,
                               context_manager=context_manager,
                               get_instance=get_instance,
-                              handler=handler,
-                              instance_handler=instance_handler,
                               dry_runnable=dry_runnable,
                               **kwargs)
 
@@ -505,6 +507,11 @@ class AzObject(AzAction, TreeObject):
 
         instance_cache[azobject_id] = cls._get_specific_instance(azobject_id, opts)
         return instance_cache[azobject_id]
+
+    @classmethod
+    @cache
+    def _instance_cache(cls, cache_id):
+        return {}
 
     @classmethod
     @abstractmethod
@@ -580,22 +587,6 @@ class AzObject(AzAction, TreeObject):
         if self.is_null:
             raise NullAzObject('cache_expiry')
         return CacheExpiry(self.config.get_object(self.cache_expiry_key(name)))
-
-    @property
-    @abstractmethod
-    def local_cache(self):
-        pass
-
-    def _local_cache_show_key(self, objid):
-        return ('info', objid)
-
-    @property
-    def local_cache_show_key(self):
-        return self._local_cache_show_key(self.azobject_id)
-
-    @property
-    def local_cache_list_key(cls):
-        return 'infolist'
 
     @cached_property
     def cache(self):
@@ -684,13 +675,8 @@ class AzSubObject(AzObject):
         return super()._get_null_instance(parent=cls.get_parent_instance(**opts), **opts)
 
     @classmethod
-    @cache
-    def __local_cache(cls, parent_id):
-        return {}
-
-    @classmethod
     def instance_cache(cls, **opts):
-        return cls.__local_cache(cls.get_parent_instance(**opts).azobject_id).setdefault('instance', {})
+        return cls._instance_cache(cls.get_parent_instance(**opts).azobject_id)
 
     @classmethod
     def default_key(cls):
@@ -757,10 +743,6 @@ class AzSubObject(AzObject):
         return self.parent.config.get_object(self.azobject_key(self.azobject_id))
 
     @property
-    def local_cache(self):
-        return self.__local_cache(self.parent.azobject_id)
-
-    @property
     def verbose(self):
         return self.parent.verbose
 
@@ -780,13 +762,6 @@ class AzObjectContainer(AzObject):
         return sum([c.get_self_id_argconfigs(is_parent=is_parent, **kwargs)
                     for c in cls.get_descendant_classes()],
                    start=cls.get_self_id_argconfigs(is_parent=is_parent, **kwargs) if include_self else [])
-
-    def has_default_child_id(self, name):
-        try:
-            self.get_default_child_id(name)
-            return True
-        except DefaultConfigNotFound:
-            return False
 
     def get_default_child_id(self, name):
         cls = self.get_child_class(name)
@@ -875,8 +850,6 @@ class AzShowable(AzObject):
         return self.show()
 
     def show_pre(self, opts):
-        with suppress(KeyError):
-            return self.local_cache[self.local_cache_show_key]
         with suppress(CacheError):
             return self.cache.read_info()
         return None
@@ -885,12 +858,11 @@ class AzShowable(AzObject):
         return self.do_action_config_instance_action('show', opts)
 
     def show_post(self, result, opts):
-        self.show_cache(result)
+        self.show_write_cache(result)
         return result
 
-    def show_cache(self, info):
+    def show_write_cache(self, info):
         self.cache.write_info(info=info)
-        self.local_cache[self.local_cache_show_key] = info
 
 
 class AzListable(AzObject):
@@ -932,7 +904,10 @@ class AzListable(AzObject):
     def get_list_action_description(cls):
         return f'List {cls.azobject_text()}s'
 
-    def _list_filters(self, opts):
+    def list_filters(self, opts):
+        # Subclasses can override to add/replace filters, but all the
+        # filters must provide check(id) and check_info(info) methods
+
         if any((opts.get('prefix'), opts.get('suffix'), opts.get('regex'))):
             yield Filter(opts)
 
@@ -941,7 +916,7 @@ class AzListable(AzObject):
 
     def list_filter(self, infolist, opts):
         try:
-            filters = list(self._list_filters(opts))
+            filters = list(self.list_filters(opts))
             return [info for info in infolist
                     if all((f.check_info(info) for f in filters))]
         finally:
@@ -949,36 +924,36 @@ class AzListable(AzObject):
 
     def id_list_filter(self, idlist, opts):
         try:
-            filters = list(self._list_filters(opts))
+            filters = list(self.list_filters(opts))
             return [i for i in idlist
                     if all((f.check(i) for f in filters))]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.id_list_filter()')
 
-    @property
-    def id_list_supported(self):
+    def id_list_supported(self, **opts):
         # Override and return False if subclass needs to perform full-info filtering
         return True
 
+    def id_list_read_cache(self, opts, tag=None):
+        return self.cache.read_id_list(tag=tag)
+
     def id_list(self, **opts):
         try:
-            if self.id_list_supported:
+            if self.id_list_supported(**opts):
                 with suppress(CacheError):
-                    return self.id_list_filter(self.cache.read_id_list(), opts)
+                    return self.id_list_filter(self.id_list_read_cache(opts), opts)
             return [info._id for info in self.list(**opts)]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.id_list()')
 
+    def list_read_cache(self, opts, tag=None):
+        return self.cache.read_info_list(tag=tag)
+
     def list_pre(self, opts):
         try:
-            try:
-                cached_list = self.local_cache.get(self.local_cache_list_key) or self.cache.read_info_list()
-            except CacheError:
-                cached_list = None
-            if cached_list:
-                return self.list_filter(cached_list, opts)
-            else:
-                return None
+            with suppress(CacheError):
+                return self.list_filter(self.list_read_cache(opts), opts)
+            return None
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.list_pre()')
 
@@ -987,21 +962,31 @@ class AzListable(AzObject):
 
     def list_post(self, infolist, opts):
         try:
-            self.list_cache(infolist)
+            self.list_write_cache(infolist)
             return self.list_filter(infolist, opts)
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.list_post()')
 
-    def list_cache(self, infolist):
-        self.cache.write_info_list(infolist=infolist)
-        self.cache.write_id_list(idlist=[info._id for info in infolist])
-        self.list_cache_infos(infolist)
-        self.local_cache[self.local_cache_list_key] = infolist
+    def list_write_cache(self, infolist, tag=None):
+        # Invalidate all existing show caches, as they may have been
+        # removed and our list should include all still valid
+        self.cache.invalidate_show_all()
 
-    def list_cache_infos(self, infolist):
+        # Write the info list cache
+        self.cache.write_info_list(infolist=infolist, tag=tag)
+
+        # Write the id list cache
+        self.id_list_write_cache([info._id for info in infolist], tag=tag)
+
+        # Write the show caches
+        self.list_infos_write_cache(infolist)
+
+    def id_list_write_cache(self, idlist, tag=None):
+        self.cache.write_id_list(idlist=idlist, tag=tag)
+
+    def list_infos_write_cache(self, infolist):
         for info in infolist:
             self.cache.write_info(objid=info._id, info=info)
-            self.local_cache[self._local_cache_show_key(info._id)] = info
 
 
 class AzCreatable(AzObject):
@@ -1039,9 +1024,12 @@ class AzCreatable(AzObject):
         return self.do_action_config_instance_action('create', opts, include_self=False)
 
     def create_post(self, result, opts):
-        self.cache.invalidate_info_list()
-        self.local_cache.pop(self.local_cache_list_key, None)
+        self.create_invalidate_cache()
         return result
+
+    def create_invalidate_cache(self, tag=None):
+        self.cache.invalidate_info_list(tag=tag)
+        self.cache.invalidate_info()
 
 
 class AzDeletable(AzObject):
@@ -1075,10 +1063,12 @@ class AzDeletable(AzObject):
         return self.do_action_config_instance_action('delete', opts, include_self=False)
 
     def delete_post(self, result, opts):
-        self.cache.invalidate_info()
-        self.local_cache.pop(self.local_cache_list_key, None)
-        self.local_cache.pop(self.local_cache_show_key, None)
+        self.delete_invalidate_cache()
         return result
+
+    def delete_invalidate_cache(self, tag=None):
+        self.cache.invalidate_info_list(tag=tag)
+        self.cache.invalidate_info()
 
 
 # Do not ever actually call the show command, always use the list
@@ -1087,9 +1077,15 @@ class AzDeletable(AzObject):
 # where list is slow.
 class AzEmulateShowable(AzShowable, AzListable):
     def show_pre(self, opts):
-        self.list(**opts)
-        with suppress(CacheError):
-            return self.cache.read_info()
+        result = super().show_pre(opts)
+        if result:
+            return result
+
+        opts['no_filters'] = True
+        for info in self.list(**opts):
+            if info._id == self.azobject_id:
+                return info
+
         raise NoAzObjectExists(self.azobject_text(), self.azobject_id)
 
 
@@ -1115,12 +1111,12 @@ class AzActionConfig(ActionConfig):
                  az=None,
                  dry_runnable=False,
                  parse_opts=None,
+                 do_action_pre=None,
+                 do_action_post=None,
                  pre=None,
                  instance_opts=None,
                  post=None,
                  context_manager=None,
-                 handler=None,
-                 instance_handler=None,
                  **kwargs):
         super().__init__(action, **kwargs)
         self.azclass = azclass
@@ -1128,39 +1124,19 @@ class AzActionConfig(ActionConfig):
         self.cmd = cmd or azclass.get_cmd_base() + [action]
         self.az = az or 'none'
         self.dry_runnable = dry_runnable
-        self.pre = pre or self._noop_pre
-        self.post = post or self._noop_post
-        self.context_manager = context_manager or self._noop_context_manager
-        self.handler = handler
-        self.instance_handler = instance_handler
-
-    def _noop_pre(self, azobject, opts):
-        return None
-
-    def _noop_post(self, azobject, result, opts):
-        return result
-
-    @contextmanager
-    def _noop_context_manager(self, *args):
-        yield
+        self.do_action_pre = do_action_pre or (lambda opts: opts)
+        self.do_action_post = do_action_post or (lambda result: result)
+        self.pre = pre or (lambda azobject, opts: None)
+        self.post = post or (lambda azobject, result, opts: result)
+        self.context_manager = context_manager or nullcontext
 
     def do_action(self, **opts):
-        if self.handler:
-            result = self.handler(self, opts)
-        else:
-            result = self._do_action(**opts)
-        if isinstance(result, list):
-            for r in result:
-                print(r)
-        elif result:
-            print(result)
+        return self.do_action_post(self._do_action(**self.do_action_pre(opts)))
 
     def _do_action(self, **opts):
         return self.do_instance_action(self.get_instance(**opts), opts)
 
     def do_instance_action(self, azobject, opts):
-        if self.instance_handler:
-            return self.instance_handler(self, azobject, opts)
         return self._do_instance_action(azobject, opts)
 
     def _do_instance_action(self, azobject, opts):

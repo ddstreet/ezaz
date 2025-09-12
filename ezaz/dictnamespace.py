@@ -30,6 +30,9 @@ class Shim(ABC):
     def __str__(self):
         return self._jsonstr(2)
 
+    def __repr__(self):
+        return str(self)
+
     def _jsonstr(self, indent=None):
         return json.dumps(copy(self._shim_real_value), indent=indent)
 

@@ -4,6 +4,7 @@ import random
 import string
 
 from contextlib import suppress
+from functools import cache
 from functools import cached_property
 
 from ..argutil import ArgConfig
@@ -21,21 +22,43 @@ from ..exception import NoneOfTheAboveChoice
 from .command import ActionCommand
 
 
-FOREVER = CacheExpiry.FOREVER
-CACHE_EXPIRY_MAP = {
-    'default': dict(show=3600, list=600),
-    'user': dict(show=FOREVER, list=600),
-    'subscription': dict(show=FOREVER, list=86400),
-    'location': dict(show=FOREVER, list=FOREVER),
-    'marketplacepublisher': dict(show=FOREVER, list=600),
-    'sshkey': dict(show=FOREVER, list=600),
-    'roleassignment': dict(show=FOREVER, list=86400),
-    'roledefinition': dict(show=FOREVER, list=86400),
-    'sku': dict(show=FOREVER, list=86400),
-}
-
-
 class SetupCommand(ActionCommand):
+    @classmethod
+    @cache
+    def cache_expiry_defaults(cls):
+        from ..azobject.location import Location
+        from ..azobject.marketplaceimage import MarketplaceImage
+        from ..azobject.marketplaceoffer import MarketplaceOffer
+        from ..azobject.marketplacepublisher import MarketplacePublisher
+        from ..azobject.roleassignment import RoleAssignment
+        from ..azobject.roledefinition import RoleDefinition
+        from ..azobject.sshkey import SshKey
+        from ..azobject.subscription import Subscription
+        from ..azobject.vmdisktype import VmDiskType
+        from ..azobject.vmhosttype import VmHostType
+        from ..azobject.vminstancetype import VmInstanceType
+        from ..azobject.vmsnapshottype import VmSnapshotType
+        from ..azobject.user import User
+
+        FOREVER = CacheExpiry.FOREVER
+
+        return {
+            'default': dict(show=3600, list=600),
+            Location.azobject_name(): dict(show=FOREVER, list=FOREVER),
+            MarketplaceImage.azobject_name(): dict(show=FOREVER, list=600),
+            MarketplaceOffer.azobject_name(): dict(show=FOREVER, list=600),
+            MarketplacePublisher.azobject_name(): dict(show=FOREVER, list=600),
+            RoleAssignment.azobject_name(): dict(show=FOREVER, list=86400),
+            RoleDefinition.azobject_name(): dict(show=FOREVER, list=86400),
+            SshKey.azobject_name(): dict(show=FOREVER, list=600),
+            Subscription.azobject_name(): dict(show=FOREVER, list=86400),
+            VmDiskType.azobject_name(): dict(show=FOREVER, list=FOREVER),
+            VmHostType.azobject_name(): dict(show=FOREVER, list=FOREVER),
+            VmInstanceType.azobject_name(): dict(show=FOREVER, list=FOREVER),
+            VmSnapshotType.azobject_name(): dict(show=FOREVER, list=FOREVER),
+            User.azobject_name(): dict(show=FOREVER, list=600),
+        }
+
     @classmethod
     def command_name_list(cls):
         return ['setup']
@@ -83,6 +106,9 @@ class SetupCommand(ActionCommand):
     def get_default_action(cls):
         return None
 
+    def get_cache_expiry_builtin_default(self, key):
+        return self.cache_expiry_defaults().get(key)
+
     def randomhex(self, n):
         return ''.join(random.choices(string.hexdigits.lower(), k=n))
 
@@ -114,7 +140,7 @@ class SetupCommand(ActionCommand):
             if opts.get(name):
                 default = container.get_child(name, opts.get(name))
                 if not default.exists:
-                    print('Provided {objtype} {opts.get(name)} does not exist, please choose another...')
+                    print(f'Provided {objtype} {opts.get(name)} does not exist, please choose another...')
                     default = None
             if not default:
                 try:
@@ -163,12 +189,12 @@ class SetupCommand(ActionCommand):
             print('Existing default cache expiry; assuming all cache expiration times are already configured')
 
     def set_cache_config_defaults(self, **opts):
-        self.set_cache_expiry_values(self.user.default_cache_expiry(), CACHE_EXPIRY_MAP['default'])
+        self.set_cache_expiry_values(self.user.default_cache_expiry(), self.get_cache_expiry_builtin_default('default'))
         self.user.for_each_descendant_class(self.set_cache_expiry_values_from_azclass, None, include_self=True)
 
     def set_cache_expiry_values_from_azclass(self, azclass, opts):
         name = azclass.azobject_name()
-        defaults = CACHE_EXPIRY_MAP.get(name)
+        defaults = self.get_cache_expiry_builtin_default(name)
         if defaults:
             self.set_cache_expiry_values(self.user.cache_expiry(name), defaults)
 

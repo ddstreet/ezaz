@@ -14,6 +14,14 @@ LATER/CLEANUP:
 
 - update setup command to allow creating from prompt command
 
+- create commands could swallow the returned json and update info cache
+
+- global enable/disable caching configuration setting
+
+- change --no-cache option to disable both r/w caching, add
+  --update-cache (w only) and --read-cache (read only) or some names
+  like that
+
 DOCS:
 
 - filtering

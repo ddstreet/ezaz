@@ -29,6 +29,10 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
                 if argconfig.cmddest != cls.get_self_id_argconfig_cmddest(is_parent=False)]
 
     @classmethod
+    def get_create_action_get_instance(cls):
+        return cls.get_null_instance
+
+    @classmethod
     def get_create_action_argconfigs(cls):
         from .resourcegroup import ResourceGroup
         from .roledefinition import RoleDefinition
@@ -56,3 +60,6 @@ class RoleAssignment(AzEmulateShowable, AzCreatable, AzSubObject):
 
     def create_pre(self, opts):
         return None
+
+    def create_invalidate_cache(self, tag=None):
+        self.cache.invalidate_info_list(tag=tag)

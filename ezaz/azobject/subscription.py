@@ -26,8 +26,7 @@ class Subscription(AzShowable, AzListable, AzSubObjectContainer):
         from .resourcegroup import ResourceGroup
         from .roleassignment import RoleAssignment
         from .roledefinition import RoleDefinition
-        from .sku import Sku
-        return [Location, ResourceGroup, RoleAssignment, RoleDefinition, Sku]
+        return [Location, ResourceGroup, RoleAssignment, RoleDefinition]
 
     @classmethod
     def get_action_configs(cls):

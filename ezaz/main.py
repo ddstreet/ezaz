@@ -131,9 +131,16 @@ class Main:
             self._options = self.parse_args()
         return self._options
 
+    def print_result(self, result):
+        if isinstance(result, list) and self.options.verbose < 3:
+            for r in result:
+                print(r)
+        elif result:
+            print(result)
+
     def run(self):
         try:
-            self.options.action_function(**vars(self.options))
+            self.print_result(self.options.action_function(**vars(self.options)))
         except Exception:
             if not self._options or self.options.verbose > 1:
                 traceback.print_exc()
@@ -159,10 +166,14 @@ def main():
         from .command import COMMAND_CLASSES
         from .exception import DefaultConfigNotFound
         from .exception import EzazException
+        from .exception import TooLongForArgcomplete
 
         try:
             Main(cmds=COMMAND_CLASSES, venv=venv, shared_args=parser.shared_args).run()
             return 0
+        except TooLongForArgcomplete as tlfa:
+            import argcomplete
+            argcomplete.warn(str(tlfa))
         except DefaultConfigNotFound as dcnf:
             LOGGER.error(f'ERROR: {dcnf}')
             LOGGER.error("You can set up defaults with 'ezaz setup'")

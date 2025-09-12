@@ -67,7 +67,7 @@ class Vm(AzCommonActionable, AzSubObjectContainer):
         from .marketplaceimage import MarketplaceImage
         from .marketplaceimageversion import MarketplaceImageVersion
         from .marketplaceoffer import MarketplaceOffer
-        from .sku import Sku
+        from .vminstancetype import VmInstanceType
         from .sshkey import SshKey
         from .storageaccount import StorageAccount
         return [AzObjectGroupArgConfig(azclass=ImageDefinition,
@@ -100,7 +100,7 @@ class Vm(AzCommonActionable, AzSubObjectContainer):
                                         required=True,
                                         cmddest='image'),
                 GroupArgConfig(AzObjectArgConfig('instance_type',
-                                                 azclass=Sku,
+                                                 azclass=VmInstanceType,
                                                  dest='size',
                                                  help='Type of instance to deploy (e.g. Standard_A1_v2)'),
                                ArgConfig('username',

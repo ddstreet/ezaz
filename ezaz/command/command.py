@@ -179,13 +179,10 @@ class CommandActionConfig(ActionConfig):
         return do_action(**opts)
 
     def do_action(self, **opts):
-        result = self._do_action(**opts)
-        TIMESTAMP('CommandActionConfig _do_action')
-        if isinstance(result, list):
-            for r in result:
-                print(r)
-        elif result:
-            print(result)
+        try:
+            return self._do_action(**opts)
+        finally:
+            TIMESTAMP('CommandActionConfig _do_action')
 
     def cmd_opts(self, **opts):
         return self._args_to_opts(**self.cmd_args(**opts))

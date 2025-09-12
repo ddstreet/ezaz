@@ -78,7 +78,7 @@ class TopologyCommand(SimpleCommand):
 
     def show_topology_classes(self, cls, opts):
         if cls.azobject_name() in self.ignore:
-            return
+            raise StopIteration()
         print(f'{self.tab}{cls.__name__}')
 
     def show_topology_instances(self, instance, opts):

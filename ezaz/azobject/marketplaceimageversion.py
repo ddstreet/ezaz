@@ -30,8 +30,7 @@ class MarketplaceImageVersion(AzEmulateShowable, AzListable, AzSubObject):
                 ChoicesArgConfig('architecture', choices=['Arm64', 'x64'], noncmd=True, help='Architecture'),
                 FlagArgConfig('all', default=True, hidden=True)]
 
-    @property
-    def id_list_supported(self):
+    def id_list_supported(self, **opts):
         return False
 
     def list_filter(self, infolist, opts):

@@ -21,7 +21,11 @@ class Location(AzEmulateShowable, AzListable, AzSubObjectContainer):
     @classmethod
     def get_child_classes(cls):
         from .marketplacepublisher import MarketplacePublisher
-        return [MarketplacePublisher]
+        from .vmdisktype import VmDiskType
+        from .vmhosttype import VmHostType
+        from .vminstancetype import VmInstanceType
+        from .vmsnapshottype import VmSnapshotType
+        return [MarketplacePublisher, VmDiskType, VmHostType, VmInstanceType, VmSnapshotType]
 
     @classmethod
     def get_list_action_cmd(cls):

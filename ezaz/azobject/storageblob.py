@@ -29,6 +29,12 @@ class StorageBlob(AzCommonActionable, AzSubObject):
         return 'name'
 
     @classmethod
+    def _use_file_as_name(cls, opts):
+        if not opts.get(cls.azobject_name()):
+            opts[cls.azobject_name()] = opts.get('file')
+        return opts
+
+    @classmethod
     def get_action_configs(cls):
         return [*super().get_action_configs(),
                 cls.make_action_config('download',
@@ -67,18 +73,8 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                 FlagArgConfig('overwrite', help='Overwrite an existing blob')]
 
     @classmethod
-    def create_handler(cls, actioncfg, opts):
-        if not opts.get(cls.azobject_name()):
-            opts[cls.azobject_name()] = opts.get('file')
-        return actioncfg._do_action(**opts)
-
-    def create_pre(self, opts):
-        try:
-            return super().create_pre(opts)
-        except AzObjectExists:
-            if opts.get('overwrite'):
-                return None
-            raise
+    def do_create_action_pre(cls, opts):
+        return cls._use_file_as_name(opts)
 
     @classmethod
     def get_download_action_argconfigs(cls):
@@ -86,10 +82,8 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                 FlagArgConfig('no_progress', help='Do not show download progress bar')]
 
     @classmethod
-    def download_handler(cls, actioncfg, opts):
-        if not opts.get(cls.azobject_name()):
-            opts[cls.azobject_name()] = opts.get('file')
-        return actioncfg._do_action(**opts)
+    def do_download_action_pre(cls, opts):
+        return cls._use_file_as_name(opts)
 
     @classmethod
     def get_sas_action_argconfigs(cls):
@@ -103,6 +97,14 @@ class StorageBlob(AzCommonActionable, AzSubObject):
                           help=('Permissions allowed using the SAS URL. Allowed values: (a)dd (c)reate '
                                 '(d)elete (e)xecute (i)set_immutability_policy (m)ove (r)ead (t)ag '
                                 '(w)rite (x)delete_previous_version (y)permanent_delete.'))]
+
+    def create_pre(self, opts):
+        try:
+            return super().create_pre(opts)
+        except AzObjectExists:
+            if opts.get('overwrite'):
+                return None
+            raise
 
     def url(self, **opts):
         return self.do_action_config_instance_action('url', opts).strip().strip('"')

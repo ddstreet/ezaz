@@ -98,23 +98,30 @@ class Info(DictNamespace):
             return getattr(self, f'_str{verbose}')
         return self._str3
 
+    def __get_str_attr(self, attr):
+        try:
+            return operator.attrgetter(attr)(self)
+        except AttributeError as ae:
+            raise RuntimeError(f"Internal error: {self.__class__.__name__} does not have attribute '{attr}'")
+
+    def __get_str_extra_attr(self, attr, extra_attr):
+        if extra_attr and attr != extra_attr:
+            return self.__get_str_attr(extra_attr)
+        return None
+
     @property
     def _str0(self):
         assert self._id0_attr
-        return operator.attrgetter(self._id0_attr)(self)
+        return self.__get_str_attr(self._id0_attr)
 
     @property
     def _str1(self):
-        extra = (operator.attrgetter(self._id1_attr)(self)
-                 if self._id1_attr and self._id0_attr != self._id1_attr
-                 else None)
+        extra = self.__get_str_extra_attr(self._id0_attr, self._id1_attr)
         return f'{self._str0} ({extra})' if extra else self._str0
 
     @property
     def _str2(self):
-        extra = (operator.attrgetter(self._id2_attr)(self)
-                 if self._id2_attr and self._id1_attr != self._id2_attr
-                 else None)
+        extra = self.__get_str_extra_attr(self._id1_attr, self._id2_attr)
         return f'{self._str1} [{extra}]' if extra else self._str1
 
     @property
@@ -499,7 +506,7 @@ class VmNicInfo(Info):
         return self.id.split('/')[-1]
 
 
-class VmSkuInfo(Info):
+class ComputeSkuInfo(Info):
     _schema = OBJ(['name', 'resourceType', 'locations'],
         name=STR,
         resourceType=STR,
@@ -518,6 +525,8 @@ class VmSkuInfo(Info):
             ),
         ),
     )
+
+    _id2_attr = None
 
 
 def IL(info):
@@ -619,7 +628,7 @@ INFOS = DictNamespace({
             'list-skus': IL(MarketplaceSkuInfo),
         },
         'list': IL(VmInfo),
-        'list-skus': IL(VmSkuInfo),
+        'list-skus': IL(ComputeSkuInfo),
         'nic': {
             'list': IL(VmNicInfo),
             'show': NicInfo,

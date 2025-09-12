@@ -40,13 +40,8 @@ class User(AzShowable, AzListable, AzObjectContainer):
         return cls.get_instance(**opts)
 
     @classmethod
-    @cache
-    def __local_cache(cls):
-        return {}
-
-    @classmethod
     def instance_cache(cls, **opts):
-        return cls.__local_cache().setdefault('instance', {})
+        return cls._instance_cache('user')
 
     @classmethod
     def _get_specific_instance(cls, azobject_id, opts):
@@ -109,10 +104,6 @@ class User(AzShowable, AzListable, AzObjectContainer):
         # We only use the null instance to get the signed-in-user info
         return CacheExpiry(dict(show_expiry=CacheExpiry.FOREVER))
 
-    @property
-    def local_cache(self):
-        return self.__local_cache()
-
     def signed_in_user_pre(self, opts):
         with suppress(CacheError):
             # Let's assume there won't actually be a user with the id __signed_in_user__
@@ -145,7 +136,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
             raise AlreadyLoggedIn(self.signed_in_user(**opts))
         # Clear the cache before we login
         self.cache.clear()
-        self.__local_cache.cache_clear()
+        self._instance_cache.cache_clear()
 
     def login(self, **opts):
         self.do_action_config_instance_action('login', opts)
@@ -169,7 +160,7 @@ class User(AzShowable, AzListable, AzObjectContainer):
 
     def logout_post(self, result, opts):
         self.cache.clear()
-        self.__local_cache.cache_clear()
+        self._instance_cache.cache_clear()
         return result
 
     @property

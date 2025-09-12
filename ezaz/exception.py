@@ -185,6 +185,18 @@ class InvalidX509DERArgumentValue(ArgumentError):
         super().__init__(f'The argument {self._arg(arg)} value is not a DER-format X509 certificate')
 
 
+class ArgcompleteError(EzazException):
+    pass
+
+
+class TooLongForArgcomplete(ArgcompleteError):
+    def __init__(self, name, action):
+        super().__init__(self._msg(name, action))
+
+    def _msg(self, name, action):
+        return f"This command takes too long to perform during tab-completion; please cache it first with 'ezaz {name} {action}'"
+
+
 class InfoError(EzazException):
     pass
 
