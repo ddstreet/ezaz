@@ -837,7 +837,7 @@ class AzShowable(AzObject):
     def __init__(self, *, info=None, **kwargs):
         super().__init__(**kwargs)
         if info:
-            self.show_cache(info)
+            self.show_write_cache(info)
 
     @contextmanager
     def show_context_manager(self):
