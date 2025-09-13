@@ -35,14 +35,22 @@ class SubConfig(MutableMapping):
         return self._mapping[key]
 
     def __setitem__(self, key, value):
-        if isinstance(value, Mapping):
+        with suppress(KeyError):
+            if self._mapping[key] == value:
+                return
+        do_save = value not in [None, {}]
+        if isinstance(value, Mapping) and not isinstance(value, SubConfig):
             value = SubConfig(self, value)
         self._mapping[key] = value
-        self.save()
+        if do_save:
+            self.save()
 
     def __delitem__(self, key):
+        with suppress(KeyError):
+            do_save = self._mapping[key] not in [None, {}]
         del self._mapping[key]
-        self.save()
+        if do_save:
+            self.save()
 
     def __iter__(self):
         return iter(self._mapping)

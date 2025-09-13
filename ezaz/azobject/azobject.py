@@ -255,10 +255,10 @@ class TreeObject:
         # Required because the generator function won't run the callbacks unless iterated
         return [*self._for_each_ancestor_instance(*args, **kwargs)]
 
-    def get_children(self, name):
+    def get_children(self, name, no_filters=True):
         return []
 
-    def _for_each_descendant_instance(self, callback, opts=None, *, context_manager=None, include_self=False):
+    def _for_each_descendant_instance(self, callback, opts=None, *, context_manager=None, include_self=False, no_filters=False):
         assert callable(callback)
         if include_self:
             try:
@@ -268,9 +268,9 @@ class TreeObject:
                 # doesn't end the recursive iteration
                 return
         for childcls in self.get_child_classes():
-            for child in self.get_children(childcls.azobject_name()):
+            for child in self.get_children(childcls.azobject_name(), no_filters=no_filters):
                 with (context_manager or nullcontext)():
-                    for result in child.for_each_descendant_instance(callback, opts, context_manager=context_manager, include_self=True):
+                    for result in child.for_each_descendant_instance(callback, opts, context_manager=context_manager, include_self=True, no_filters=no_filters):
                         yield result
 
     def for_each_descendant_instance(self, *args, **kwargs):
@@ -622,8 +622,8 @@ class AzObject(AzAction, TreeObject):
 
     @property
     def is_default(self):
-        with suppress(DefaultConfigNotFound, NullAzOnbject):
-            return self.get_default_azobject_id(self.get_azobject_id_opts()) == self.azobject_id
+        with suppress(DefaultConfigNotFound, NullAzObject):
+            return self.get_default_azobject_id(**self.get_azobject_id_opts()) == self.azobject_id
         return False
 
     @property
@@ -792,11 +792,11 @@ class AzObjectContainer(AzObject):
     def get_default_child(self, name):
         return self.get_child(name, self.get_default_child_id(name))
 
-    def get_children(self, name):
+    def get_children(self, name, no_filters=True):
         null_instance = self.get_null_child(name)
         assert isinstance(null_instance, AzListable)
         return [self.get_child(name, info._id, info=info)
-                for info in null_instance.list(no_filters=True)]
+                for info in null_instance.list(no_filters=no_filters)]
 
     def get_child_filter(self, name):
         return Filter(self.config.get_object(self.get_child_class(name).filter_key()))

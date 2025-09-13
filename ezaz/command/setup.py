@@ -87,6 +87,7 @@ class SetupCommand(ActionCommand):
                 GroupArgConfig(BoolArgConfig('all', help=f'Prompt for all object types, even ones with a default'),
                                BoolArgConfig('verify_single', help=f'Prompt even if there is only one object choice'),
                                BoolArgConfig('y', 'yes', help=f'Respond yes to all yes/no questions'),
+                               BoolArgConfig('no_filters', help='Do not use any of the configured filters'),
                                title='Prompting options')]
 
     @classmethod
@@ -128,7 +129,7 @@ class SetupCommand(ActionCommand):
             print(f'current default {default.azobject_text()} ({default.azobject_id}) does not exist...', end='\n' if self.verbose else '', flush=True)
         return None
 
-    def choose_child(self, container, name, *, hint_fn=None, verify_single=False, **opts):
+    def choose_child(self, container, name, *, hint_fn=None, verify_single=False, no_filters=False, **opts):
         objtype = container.get_child_class(name).azobject_text()
         default = self.get_default_child(container, name)
         if opts.get('all') or default is None:
@@ -144,7 +145,10 @@ class SetupCommand(ActionCommand):
                     default = None
             if not default:
                 try:
-                    default = AzObjectChoice(container.get_children(name), default, verify_single=verify_single, hint_fn=hint_fn)
+                    default = AzObjectChoice(container.get_children(name, no_filters=no_filters),
+                                             default,
+                                             verify_single=verify_single,
+                                             hint_fn=hint_fn)
                 except NoChoices:
                     print(f'No {objtype} found, please create at least one; skipping')
                     raise

@@ -61,7 +61,7 @@ class TopologyCommand(SimpleCommand):
             return []
         return self.options.ignore or self.options.ignore_also
 
-    def topology(self, object_type_only=False, **opts):
+    def topology(self, object_type_only=False, no_filters=False, **opts):
         self._indent = 0
         rootcls = self.get_root_classmap().get(opts.get('root'))
         if object_type_only:
@@ -74,7 +74,8 @@ class TopologyCommand(SimpleCommand):
             rootinstance.for_each_descendant_instance(self.show_topology_instances,
                                                       opts,
                                                       context_manager=self.indent,
-                                                      include_self=True)
+                                                      include_self=True,
+                                                      no_filters=no_filters)
 
     def show_topology_classes(self, cls, opts):
         if cls.azobject_name() in self.ignore:
