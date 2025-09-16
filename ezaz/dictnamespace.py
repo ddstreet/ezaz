@@ -1,6 +1,7 @@
 
 import json
 import jsonschema
+import operator
 
 from abc import ABC
 from abc import abstractmethod
@@ -42,6 +43,14 @@ class DictNamespace(Shim, Iterable):
     _real_value = None
     _shim_dict = None
     _schema = None
+
+    @classmethod
+    def _path_attr_getter(self, path):
+        return PathDictNamespaceAttrGetter(path)
+
+    @classmethod
+    def _jmespath_attr_getter(self, path):
+        return JMESPathDictNamespaceAttrGetter(path)
 
     def __init__(self, obj):
         super().__init__()
@@ -201,3 +210,33 @@ class ListShim(BaseShim, MutableSequence):
     def insert(self, index, value):
         self.shim.insert(index, self.shim_value(value))
         self.real.insert(index, value)
+
+
+class BaseDictNamespaceAttrGetter(ABC):
+    """Get an attribute from a DictNamespace object."""
+    def __init__(self, get_attr, exception):
+        self.get_attr = get_attr
+        self.exception = exception
+
+    def __call__(self, obj):
+        if not obj:
+            return None
+        assert isinstance(obj, DictNamespace)
+        with suppress(self.exception):
+            return self.get_attr(obj)
+        return None
+
+
+class PathDictNamespaceAttrGetter(BaseDictNamespaceAttrGetter):
+    """Get an attribute from a DictNamespace object using normal dot-separated attribute path."""
+    def __init__(self, path):
+        super().__init__(operator.attrgetter(path), AttributeError)
+
+
+class JMESPathDictNamespaceAttrGetter(BaseDictNamespaceAttrGetter):
+    """Get an attribute from a DictNamespace object using JMESPath."""
+    def __init__(self, path):
+        import jmespath
+        self.compiledjmes = jmespath.compile(path)
+        super().__init__(lambda info: self.compiledjmes.search(info._real_value),
+                         jmespath.exceptions.JMESPathError)

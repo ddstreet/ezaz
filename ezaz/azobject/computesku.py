@@ -13,13 +13,6 @@ from .azobject import AzSubObject
 
 
 class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
-    SUBCLASSES = []
-
-    @classmethod
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls.SUBCLASSES.append(cls)
-
     @classmethod
     def get_cmd_base(cls):
         return ['vm']
@@ -73,6 +66,11 @@ class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
             else:
                 infolists['available'].append(info)
         return (infolists['available'], infolists['unavailable'])
+
+    @classmethod
+    def get_capability_infogetter(cls, capability):
+        from .info import Info
+        return Info._jmespath_attr_getter(f"capabilities[?name=='{capability}'].value | [0]")
 
     def id_list_read_cache(self, opts):
         idlist = super().id_list_read_cache(opts, tag='available')

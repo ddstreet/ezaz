@@ -24,7 +24,7 @@ class ImportVenv:
         self.system_packages = []
         self.venv_packages = []
 
-        # Skip everything for argcomplete
+        # Skip checking refresh and/or required packages for argcomplete calls
         if IS_ARGCOMPLETE or no_venv:
             return
 

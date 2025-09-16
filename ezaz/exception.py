@@ -165,6 +165,11 @@ class DuplicateArgument(ArgumentError):
         super().__init__(f'The argument {self._arg(arg)} was added multiple times: {value_a} and {value_b}')
 
 
+class MultipleArgumentValues(ArgumentError):
+    def __init__(self, arg, values):
+        super().__init__(f"The argument {self._arg(arg)} has multiple values: {', '.join(map(str, values))}")
+
+
 class InvalidArgument(ArgumentError):
     def __init__(self, arg):
         super().__init__(f'The argument {self._arg(arg)} is invalid.')

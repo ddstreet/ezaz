@@ -23,6 +23,7 @@ REQUIRED_PACKAGES = [
     RequiredPackage('argcomplete', modules=['argcomplete']),
     RequiredPackage('cryptography', modules=['cryptography']),
     RequiredPackage('dateparser', modules=['dateparser']),
+    RequiredPackage('jmespath', modules=['jmespath']),
     RequiredPackage('jsonschema', modules=['jsonschema']),
 ]
 
