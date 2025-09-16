@@ -664,11 +664,12 @@ class LatestAzObjectArgConfig(AzObjectArgConfig):
 
     def _process_value(self, value, opts):
         if value == 'latest':
-            infos = sorted(self.get_info_list(opts), key=self.get_infoattr, reverse=True)
-            try:
-                value = self.get_infoattr(infos[0])
-            except IndexError:
-                value = None
+            if self.infoattr == '_id':
+                ids = sorted(self.get_id_list(opts), reverse=True)
+                value = ids[0] if ids else None
+            else:
+                infos = sorted(self.get_info_list(opts), key=self.get_infoattr, reverse=True)
+                value = self.get_infoattr(infos[0]) if infos else None
         return super()._process_value(value, opts)
 
 
@@ -881,11 +882,18 @@ class AzObjectMultipleInfoGroupArgConfig(GroupArgConfig):
         outer_get_id_list = self.get_id_list
 
         class InnerCompleter(AzObjectCompleter):
-            def get_id_list(self, opts):
-                return outer_get_id_list(opts)
+            def get_id_list(self, opts, call_super_if_none=True):
+                opts = self.unprefix_opts(opts)
+                idlist = outer_get_id_list(opts)
+                if idlist is None and call_super_if_none:
+                    return super().get_id_list(opts)
+                return idlist
 
             def get_info_list(self, opts):
-                idlist = self.get_id_list(opts)
+                opts = self.unprefix_opts(opts)
+                idlist = self.get_id_list(opts, call_super_if_none=False)
+                if not idlist:
+                    return super().get_info_list(opts) if idlist is None else idlist
                 return filter(lambda info: info._id in idlist, super().get_info_list(opts))
 
         return InnerCompleter(**kwargs)
@@ -899,13 +907,12 @@ class AzObjectMultipleInfoGroupArgConfig(GroupArgConfig):
                    if idlist is not None]
         if not idlists:
             return None
-
         return list(reduce(operator.and_, map(set, idlists)))
 
     def cmd_arg_value(self, **opts):
         idlist = self.get_id_list(opts)
         if not idlist:
-            if self.required or self.conditional_required and idlist == []:
+            if self.required or self.conditional_required and idlist is not None:
                 self.raise_required()
             return idlist
 
@@ -919,7 +926,7 @@ class AzObjectMultipleInfoGroupArgConfig(GroupArgConfig):
         return idlist
 
     def cmd_args(self, **opts):
-        return {self.cmddest: self.cmd_arg_value(**opts)}
+        return self._cmd_args(**opts)
 
 
 class PositionalArgConfig(ArgConfig):

@@ -22,6 +22,8 @@ LATER/CLEANUP:
   --update-cache (w only) and --read-cache (read only) or some names
   like that
 
+- add support for displaying vm usage (az vm usage)
+
 DOCS:
 
 - filtering
