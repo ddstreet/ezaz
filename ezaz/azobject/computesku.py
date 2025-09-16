@@ -69,8 +69,13 @@ class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
 
     @classmethod
     def get_capability_infogetter(cls, capability):
-        from .info import Info
-        return Info._jmespath_attr_getter(f"capabilities[?name=='{capability}'].value | [0]")
+        def get_info_capability(info):
+            for c in info.capabilities:
+                if c.name == capability:
+                    return c.value
+            return None
+
+        return get_info_capability
 
     def id_list_read_cache(self, opts):
         idlist = super().id_list_read_cache(opts, tag='available')
