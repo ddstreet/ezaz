@@ -38,6 +38,7 @@ DISTRO_IMAGES = {
     'ubuntu-25.10': 'Canonical:ubuntu-25_10-daily:server:latest',
     'ubuntu-lts': 'Canonical:ubuntu-24_04-lts-daily:server:latest',
     'opensuse-15.6': 'SUSE:opensuse-leap-15-6:gen2:latest',
+    'sles-15.5': 'SUSE:sles-15-sp5:gen2:latest',
     'sles-15.6': 'SUSE:sles-15-sp6:gen2:latest',
     'sles-15.7': 'SUSE:sles-15-sp7:gen2:latest',
     # Arm
@@ -47,6 +48,7 @@ DISTRO_IMAGES = {
     'ubuntu-25.10-arm64': 'Canonical:ubuntu-25_10-daily:server-arm64:latest',
     'ubuntu-lts-arm64': 'Canonical:ubuntu-24_04-lts-daily-arm64:server:latest',
     'opensuse-15.6-arm64': 'SUSE:opensuse-leap-15-6-arm64:gen2:latest',
+    'sles-15.5-arm64': 'SUSE:sles-15-sp5-arm64:gen2:latest',
     'sles-15.6-arm64': 'SUSE:sles-15-sp6-arm64:gen2:latest',
     'sles-15.7-arm64': 'SUSE:sles-15-sp7-arm64:gen2:latest',
 }

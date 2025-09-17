@@ -25,6 +25,7 @@ from .exception import InvalidArgumentValue
 from .exception import InvalidDateTimeArgumentValue
 from .exception import InvalidX509DERArgumentValue
 from .exception import MultipleArgumentValues
+from .exception import NoMatchingArgumentValue
 from .exception import RequiredArgument
 from .exception import RequiredArgumentGroup
 from .timing import TIMESTAMP
@@ -277,16 +278,18 @@ class BaseArgConfig(ArgUtil, ABC):
             return None
         return self._process_value(value, opts)
 
-    def _cmd_arg_value(self, **opts):
-        value = self._opt_value(self.dest, opts)
+    def _cmd_arg_value_or_default(self, **opts):
+        value = self.optional_arg_value(self.dest, opts)
         if value is None:
             value = self.runtime_default_value(**opts)
+        return value
+
+    def _cmd_arg_value(self, **opts):
+        value = self._cmd_arg_value_or_default(**opts)
         return self.process_value(value, opts)
 
     def _cmd_arg_values(self, **opts):
-        values = self._opt_value(self.dest, opts)
-        if values is None:
-            values = self.runtime_default_value(**opts)
+        values = self._cmd_arg_value_or_default(**opts)
         if values is None:
             return None
         if not isinstance(values, list):
@@ -594,7 +597,6 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
                  azclass,
                  infoattr=None,
                  cmdattr=None,
-                 cmdmultiple=False,
                  completer=None,
                  nocompleter=False,
                  default=None,
@@ -606,15 +608,11 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
                  **kwargs):
         self.cmdattr = cmdattr or '_id'
         self.get_cmdattr = self._attr_getter(self.cmdattr)
-        self.cmdmultiple = cmdmultiple
 
         if destprefix:
             if resourceprefix:
                 raise ArgumentError(f"Cannot set both destprefix '{destprefix}' and resourceprefix '{resourceprefix}'")
             resourceprefix = destprefix
-
-        if self.cmdmultiple and not nodefault:
-            raise ArgumentError(f"The 'cmdmultiple' parameter requires 'nodefault'")
 
         completer=(None if nocompleter else completer or
                    self.completer_class(azclass=azclass, infoattr=infoattr, resourceprefix=resourceprefix))
@@ -637,18 +635,31 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
                          dest=dest,
                          **kwargs)
 
+    def _filter_info_list(self, value, opts):
+        return filter(lambda info: self.get_infoattr(info) == value, self.get_info_list(opts))
+
+    def _convert_info_list(self, infolist, opts):
+        infolist = list(infolist)
+        if len(infolist) > 1:
+            raise MultipleArgumentValues(self.dest, values=infolist)
+        else:
+            return self.get_cmdattr(infolist[0]) if infolist else None
+
     def _process_value(self, value, opts):
         if self.infoattr == self.cmdattr:
             return value
 
-        infolist = list(filter(lambda info: self.get_infoattr(info) == value, self.get_info_list(opts)))
+        return self._convert_info_list(self._filter_info_list(value, opts), opts)
 
-        if self.cmdmultiple:
-            return [self.get_cmdattr(info) for info in infolist]
-        elif len(infolist) > 1:
-            raise MultipleArgumentValues(self.dest, infolist)
-        else:
-            return self.get_cmdattr(infolist[0]) if infolist else None
+class AzObjectListArgConfig(AzObjectArgConfig):
+    def _convert_info_list(self, infolist, opts):
+        return [self.get_cmdattr(info) for info in infolist]
+
+    def _process_value(self, value, opts):
+        if self.infoattr == self.cmdattr:
+            return [value]
+
+        return super()._process_value(value, opts)
 
 
 class LatestAzObjectCompleter(AzObjectCompleter):
@@ -831,99 +842,77 @@ class AzObjectGroupArgConfig(GroupArgConfig):
         return super().__init__(*azclass.get_azobject_id_argconfigs(noncmd=noncmd, **kwargs), title=title, description=description)
 
 
-class AzObjectMultipleInfoGroupArgConfig(GroupArgConfig):
-    # This provides multiple user arguments to filter a list of
-    # AzObjects down to a single selection. The cmddest parameter will
-    # be set to:
-    #
-    # None, if none of the cmdline arguments are provided
-    # [], if at least one cmdline argument is provided but no AzObjects match all arguments
-    # [id], if at least one cmdline argument is provided and only one AzObject matches all arguments
-    # [id, id, ...], if at least one cmdline argument is provided and multiple AzObjects match all arguments
-    #
-    # Note that if choose_one is True (or a callable), the list will never be larger than one entry.
-    #
-    # This raises error if:
-    #
-    # required is True and the result is [] or None
-    # conditional_required is True and the result is []
-    # cmdmultiple is False and the result is a list with more than one entry
-    def __init__(self, infoargs, *, azclass, cmddest, cmdmultiple=True, conditional_required=False, choose_one=False, **kwargs):
-        self.cmdmultiple = cmdmultiple
-        self.conditional_required = conditional_required
-        self.choose_one = choose_one if callable(choose_one) else self.choose_smallest if choose_one else False
-        # The infoargs parameter should be a dict; the keys are the
-        # parameter names and values are the AzObjectArgConfig
-        # kwargs. Only specific AzObjectArgConfig kwargs are allowed.
-        REQUIRED_KEYS = ['infoattr']
-        ALLOWED_KEYS = REQUIRED_KEYS + ['help']
-        for k, v in infoargs.items():
-            if not isinstance(v, Mapping):
-                raise ArgumentError(f"Parameter '{k}' value is not mapping type: {v}")
-            for required_key in REQUIRED_KEYS:
-                if not v.get(required_key):
-                    raise RequiredArgument(required_key)
-            invalid_keys = list(set(v.keys()) - set(ALLOWED_KEYS))
-            if invalid_keys:
-                raise ArgumentError(f"The parameters '{invalid_keys}' are not allowed")
+class AzObjectMultiArgConfig(GroupArgConfig):
+    class ChainLinkArgConfig(AzObjectListArgConfig):
+        class ChainLinkArgCompleter(AzObjectCompleter):
+            def __init__(self, *args, multi_argconfig, **kwargs):
+                self.multi_argconfig = multi_argconfig
+                super().__init__(*args, **kwargs)
 
-            argconfigs = (AzObjectArgConfig(k,
-                                            azclass=azclass,
-                                            cmdmultiple=True,
-                                            nodefault=True,
-                                            completer=self.create_completer(azclass=azclass,
-                                                                            infoattr=v.get('infoattr'),
-                                                                            resourceprefix=v.get('resourceprefix')),
-                                            **v)
-                          for k, v in infoargs.items())
-        super().__init__(*argconfigs, cmddest=cmddest, **kwargs)
-
-    def create_completer(self, **kwargs):
-        outer_get_id_list = self.get_id_list
-
-        class InnerCompleter(AzObjectCompleter):
-            def get_id_list(self, opts, call_super_if_none=True):
-                opts = self.unprefix_opts(opts)
-                idlist = outer_get_id_list(opts)
-                if idlist is None and call_super_if_none:
-                    return super().get_id_list(opts)
-                return idlist
+            def get_id_list(self, opts):
+                return (info._id for info in self.get_info_list(opts))
 
             def get_info_list(self, opts):
-                opts = self.unprefix_opts(opts)
-                idlist = self.get_id_list(opts, call_super_if_none=False)
-                if not idlist:
-                    return super().get_info_list(opts) if idlist is None else idlist
-                return filter(lambda info: info._id in idlist, super().get_info_list(opts))
+                return self.multi_argconfig.get_info_list(opts)
 
-        return InnerCompleter(**kwargs)
+        def __init__(self, arg, *, azclass, infoattr, cmdattr, next_argconfig, multi_argconfig, help=None):
+            self.completer_class = partial(self.ChainLinkArgCompleter, multi_argconfig=multi_argconfig)
+            self.next_argconfig = next_argconfig
+            super().__init__(arg, azclass=azclass, infoattr=infoattr, cmdattr=cmdattr, nodefault=True, help=help)
 
-    def choose_smallest(self, idlist):
-        return min(idlist)
+        def get_info_list(self, opts):
+            if self.next_argconfig:
+                next_info_list = self.next_argconfig.cmd_arg_value(**opts)
+                if next_info_list is not None:
+                    return next_info_list
+            return super().get_info_list(opts)
 
-    def get_id_list(self, opts):
-        idlists = [idlist for argconfig in self.argconfigs
-                   for idlist in [argconfig.cmd_arg_value(**opts)]
-                   if idlist is not None]
-        if not idlists:
-            return None
-        return list(reduce(operator.and_, map(set, idlists)))
+        def process_value(self, value, opts):
+            if value is None and self.next_argconfig:
+                next_info_list = self.next_argconfig.cmd_arg_value(**opts)
+                if next_info_list is not None:
+                    return self._convert_info_list(next_info_list, opts)
+            return super().process_value(value, opts)
+
+    def __init__(self, configs, *, azclass, cmddest, cmdattr=None, conditional_required=False, choose=None, **kwargs):
+        self.conditional_required = conditional_required
+        self.choose = choose
+        super().__init__(*self.create_argconfigs(configs, azclass, cmdattr=cmdattr),
+                         cmddest=cmddest,
+                         **kwargs)
+
+    def create_argconfigs(self, configs, azclass, cmdattr=None):
+        assert configs
+        items = list(configs.items())
+        last_arg = items[-1][0]
+        argconfigs = []
+        for link_arg, link_kwargs in items:
+            argconfigs.append(self.ChainLinkArgConfig(link_arg,
+                                                      azclass=azclass,
+                                                      infoattr=self.optional_arg_value('infoattr', link_kwargs),
+                                                      cmdattr=cmdattr if link_arg == last_arg else lambda info: info,
+                                                      help=self.optional_arg_value('help', link_kwargs),
+                                                      next_argconfig=argconfigs[-1] if argconfigs else None,
+                                                      multi_argconfig=self))
+        return argconfigs
+
+    def get_info_list(self, opts):
+        return self.argconfigs[-1].get_info_list(opts)
 
     def cmd_arg_value(self, **opts):
-        idlist = self.get_id_list(opts)
-        if not idlist:
-            if self.required or self.conditional_required and idlist is not None:
+        value_list = self.argconfigs[-1].cmd_arg_value(**opts)
+        if not value_list:
+            if self.required:
                 self.raise_required()
-            return idlist
+            if self.conditional_required and value_list is not None:
+                raise NoMatchingArgumentValue(self.opts)
+            return None
 
-        if len(idlist) > 1:
-            if self.choose_one:
-                return [self.choose_one(idlist)]
-            if self.cmdmultiple:
-                return idlist
-            raise MultipleArgumentValues(self.cmddest, idlist)
-
-        return idlist
+        if len(value_list) > 1:
+            if self.choose:
+                return self.choose(value_list, opts)
+            raise MultipleArgumentValues(*self.opts, values=value_list)
+        return self.value_list[0]
 
     def cmd_args(self, **opts):
         return self._cmd_args(**opts)

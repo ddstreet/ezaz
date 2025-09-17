@@ -166,8 +166,14 @@ class DuplicateArgument(ArgumentError):
 
 
 class MultipleArgumentValues(ArgumentError):
-    def __init__(self, arg, values):
-        super().__init__(f"The argument {self._arg(arg)} has multiple values: {', '.join(map(str, values))}")
+    def __init__(self, *args, values):
+        argstr = f'group ({self._args(args)})' if len(args) > 1 else self._arg(*args)
+        super().__init__(f"The argument {argstr} has multiple values: {', '.join(map(str, values))}")
+
+
+class NoMatchingArgumentValue(ArgumentError):
+    def __init__(self, args):
+        super().__init__(f"The arguments ({self._args(args)}) applied together filtered out all possible results.")
 
 
 class InvalidArgument(ArgumentError):
