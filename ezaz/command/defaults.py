@@ -43,7 +43,7 @@ class DefaultsCommand(AzObjectActionCommand):
 
     @classmethod
     def get_unset_action_argconfigs(cls):
-        return [BoolArgConfig(azclass.azobject_name(), help='Unset the {azclass.azobject_text()} default id')
+        return [BoolArgConfig(azclass.azobject_name(), help=f'Unset the {azclass.azobject_text()} default id')
                 for azclass in cls.azclass().get_descendant_classes()]
 
     def show(self, *, check, **opts):

@@ -21,8 +21,6 @@ class VmInstanceType(ComputeSku):
                                            instance_mem_gb=dict(infoattr=cls.get_capability_infogetter('MemoryGB'),
                                                                 help='Use instance type with this many GB of memory'),
                                            instance_architecture=dict(infoattr=cls.get_capability_infogetter('CpuArchitectureType'),
-                                                                      help='Use instance type with this CPU architecture'),
-                                           instance_hyperv_generation=dict(infoattr=cls.get_capability_infogetter('HyperVGenerations'),
-                                                                           help='Use instance type running under this Hyper-V generation')),
+                                                                      help='Use instance type with this CPU architecture')),
                                       azclass=cls,
                                       **kwargs)

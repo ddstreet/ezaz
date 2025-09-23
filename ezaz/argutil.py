@@ -555,17 +555,19 @@ class AzObjectInfoHelper:
 
 
 class AzObjectCompleter(AzObjectInfoHelper):
+    def get_azobject_completer_choices(self, opts):
+        if self.infoattr == '_id':
+            return set(self.get_id_list(opts))
+        else:
+            return set(filter(None, map(self.get_infoattr, self.get_info_list(opts))))
+
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         opts = vars(parsed_args)
         try:
-            if self.infoattr == '_id':
-                return set(self.get_id_list(opts))
-            else:
-                return set(filter(None, map(self.get_infoattr, self.get_info_list(opts))))
+            return self.get_azobject_completer_choices(opts)
         except Exception as e:
             if opts.get('verbose', 0) > 2:
                 import argcomplete
-                argcomplete.warn(f'argcomplete error: {e}')
                 if opts.get('verbose', 0) > 3:
                     import traceback
                     argcomplete.warn(traceback.format_exc())
@@ -663,8 +665,8 @@ class AzObjectListArgConfig(AzObjectArgConfig):
 
 
 class LatestAzObjectCompleter(AzObjectCompleter):
-    def get_azobject_completer_choices(self, **opts):
-        choices = list(super().get_azobject_completer_choices(**opts))
+    def get_azobject_completer_choices(self, opts):
+        choices = list(super().get_azobject_completer_choices(opts))
         if choices:
             choices.append('latest')
         return choices
@@ -912,7 +914,7 @@ class AzObjectMultiArgConfig(GroupArgConfig):
             if self.choose:
                 return self.choose(value_list, opts)
             raise MultipleArgumentValues(*self.opts, values=value_list)
-        return self.value_list[0]
+        return value_list[0]
 
     def cmd_args(self, **opts):
         return self._cmd_args(**opts)

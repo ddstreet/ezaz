@@ -41,7 +41,7 @@ class Main:
     def autocomplete(self, parser):
         with suppress(ImportError):
             import argcomplete
-            argcomplete.autocomplete(parser, print_suppressed=True)
+            argcomplete.autocomplete(parser, print_suppressed=True, default_completer=None)
 
     def setup_logging(self):
         if IS_ARGCOMPLETE:

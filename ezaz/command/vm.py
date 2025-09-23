@@ -28,7 +28,7 @@ class VmCommand(AzObjectActionCommand):
 
     @classmethod
     def get_ssh_action_config_argconfigs(cls):
-        return []
+        return cls.azclass().get_azobject_id_argconfigs()
 
     def primary_ip_addr(self, **opts):
         vm = self.azclass().get_instance(**opts)
