@@ -60,8 +60,9 @@ class BaseCache:
         if self.dry_run:
             return
 
-        import shutil
-        shutil.rmtree(self.cachepath)
+        if self.cachepath.exists():
+            import shutil
+            shutil.rmtree(self.cachepath)
 
     def _is_expired(self, *, cachetype, path):
         if cachetype == 'show':
