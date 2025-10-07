@@ -18,6 +18,7 @@ from itertools import chain
 from .. import AZ_LOGGER
 from .. import IS_ARGCOMPLETE
 from .. import LOGGER
+from .. import LOGIN_REQUIRED_MESSAGES
 from ..actionutil import ActionConfig
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
@@ -98,9 +99,7 @@ class AzAction(ArgUtil, ABC):
         if process.returncode == 0:
             return
 
-        if any(s in stderr for s in ["Please run 'az login' to setup account",
-                                     "Interactive authentication is needed",
-                                     "InteractionRequired"]):
+        if any((s in stderr for s in LOGIN_REQUIRED_MESSAGES)):
             raise NotLoggedIn()
         raise AzCommandError(process.args, stdout, stderr)
 

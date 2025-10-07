@@ -27,6 +27,13 @@ REQUIRED_PACKAGES = [
     RequiredPackage('jsonschema', modules=['jsonschema']),
 ]
 
+LOGIN_REQUIRED_MESSAGES = [
+    "az login",
+    "has expired due to inactivity",
+    "Interactive authentication is needed",
+    "InteractionRequired",
+]
+
 DISTRO_IMAGES = {
     # x86
     'azl3': 'MicrosoftCBLMariner:azure-linux-3:azure-linux-3-gen2:latest',
