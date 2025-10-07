@@ -97,7 +97,7 @@ class ImportVenv:
         self.oldsyspath = sys.path
 
         os.environ['PATH'] = f"{self.bindir}:{os.environ['PATH']}"
-        sys.path.append(str(self.sitepackagesdir))
+        sys.path = [str(self.sitepackagesdir)] + sys.path
 
         missing_packages = []
         for p in self.venv_packages:
