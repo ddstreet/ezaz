@@ -106,7 +106,7 @@ class AzAction(ArgUtil, ABC):
     def _exec(self, *args, cmd_args={}, dry_runnable=True, text=True, capture_output=False):
         cmd = self._args_to_cmd(*args, cmd_args=cmd_args)
 
-        AZ_LOGGER.info(' '.join(cmd))
+        AZ_LOGGER.info('$ ' + ' '.join(cmd))
 
         if self.dry_run and not dry_runnable:
             LOGGER.warning(f'DRY-RUN (not running): {" ".join(cmd)}')
