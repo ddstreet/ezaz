@@ -166,5 +166,5 @@ class User(AzShowable, AzListable, AzObjectContainer):
     @property
     def is_logged_in(self):
         with suppress(NotLoggedIn):
-            return self.signed_in_user() is not None
+            return self.signed_in_user(no_cache=True) is not None
         return False

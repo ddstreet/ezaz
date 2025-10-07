@@ -1,6 +1,7 @@
 
 import os
 
+from contextlib import contextmanager
 from contextlib import suppress
 from datetime import datetime
 from datetime import timedelta
@@ -19,6 +20,7 @@ from .timing import TIMESTAMP
 
 DEFAULT_CACHENAME = 'cache'
 DEFAULT_CACHE = DEFAULT_CACHEPATH / DEFAULT_CACHENAME
+TEMPORARY_NO_CACHE = '_temporary_no_cache'
 
 
 class BaseCache:
@@ -42,11 +44,23 @@ class BaseCache:
 
     @property
     def no_cache_read(self):
+        with suppress(KeyError):
+            if os.environ[TEMPORARY_NO_CACHE] == 'true':
+                return True
         return self.parent.no_cache_read if self._no_cache_read is None else self._no_cache_read
 
     @property
     def no_cache_write(self):
         return self.parent.no_cache_write if self._no_cache_write is None else self._no_cache_write
+
+    @contextmanager
+    def temporary_no_cache(self):
+        os.environ[TEMPORARY_NO_CACHE] = 'true'
+        try:
+            yield
+        finally:
+            with suppress(KeyError):
+                del os.environ[TEMPORARY_NO_CACHE]
 
     @property
     def size(self):

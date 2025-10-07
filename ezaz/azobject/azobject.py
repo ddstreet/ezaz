@@ -1136,7 +1136,8 @@ class AzActionConfig(ActionConfig):
         return self.do_instance_action(self.get_instance(**opts), opts)
 
     def do_instance_action(self, azobject, opts):
-        return self._do_instance_action(azobject, opts)
+        with azobject.cache.temporary_no_cache() if opts.get('no_cache') else nullcontext():
+            return self._do_instance_action(azobject, opts)
 
     def _do_instance_action(self, azobject, opts):
         result = self.pre(azobject, opts)
