@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from .requiredpackage import RequiredPackage
+from .requiredpackage import VersionedModule
 
 
 IS_ARGCOMPLETE = '_ARGCOMPLETE' in os.environ.keys()
@@ -20,7 +21,7 @@ DEFAULT_CACHEPATH = Path(os.environ.get('XDG_CACHE_HOME', '~/.cache')).joinpath(
 
 REQUIRED_PACKAGES = [
     RequiredPackage('azure-cli', programs=['az']),
-    RequiredPackage('argcomplete', modules=['argcomplete']),
+    RequiredPackage('argcomplete', modules=[VersionedModule('argcomplete', '3')]),
     RequiredPackage('cryptography', modules=['cryptography']),
     RequiredPackage('dateparser', modules=['dateparser']),
     RequiredPackage('jmespath', modules=['jmespath']),

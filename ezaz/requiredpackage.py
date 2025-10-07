@@ -3,6 +3,12 @@ import importlib
 import shutil
 
 
+class VersionedModule:
+    def __init__(self, name, version):
+        self.name = name
+        self.version = version
+
+
 class RequiredPackage:
     def __init__(self, name, *, programs=[], modules=[]):
         self.name = name
@@ -15,11 +21,21 @@ class RequiredPackage:
 
     @property
     def are_modules_available(self):
+        return all((self.check_module(m) for m in self.modules))
+
+    def check_module(self, module):
+        if isinstance(module, VersionedModule):
+            return self._check_module(module.name, module.version)
+        return self._check_module(module)
+
+    def _check_module(self, module, minversion=None):
         try:
-            for m in self.modules:
-                importlib.import_module(m)
+            importlib.import_module(module)
         except ImportError:
             return False
+        if minversion:
+            from importlib import metadata
+            return metadata.version(module) >= minversion
         return True
 
     @property
