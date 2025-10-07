@@ -108,9 +108,9 @@ class Config(SubConfig):
 
     @classmethod
     def get_configfile_path(cls, configfile):
-        configpath = Path(configfile).expanduser().resolve()
+        configpath = Path(configfile).expanduser()
         if configpath.is_absolute():
-            return configpath
+            return configpath.resolve()
 
         configpath = DEFAULT_CONFIGPATH.joinpath(configfile).expanduser().resolve()
         try:
