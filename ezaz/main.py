@@ -150,6 +150,7 @@ class Main:
 def main():
     TIMESTAMP('start main()')
     parser = SharedArgumentParser(all_shared=True, add_help=False)
+    parser.add_argument('--debug-argcomplete', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
     parser.add_argument('--debug-timing', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
     parser.add_argument('--debug-venv', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
     parser.add_argument('--no-venv', action='store_true', default=argparse.SUPPRESS, help=argparse.SUPPRESS)
