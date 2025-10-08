@@ -648,21 +648,15 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
         else:
             return self.get_cmdattr(infolist[0]) if infolist else None
 
+    @property
+    def is_infoattr_eq_cmdattr(self):
+        return self.infoattr == self.cmdattr
+
     def _process_value(self, value, opts):
-        if self.infoattr == self.cmdattr:
+        if self.is_infoattr_eq_cmdattr:
             return value
 
         return self.converted_info_list(self.filtered_info_list(value, opts), opts)
-
-class AzObjectListArgConfig(AzObjectArgConfig):
-    def converted_info_list(self, infolist, opts):
-        return [self.get_cmdattr(info) for info in infolist]
-
-    def _process_value(self, value, opts):
-        if self.infoattr == self.cmdattr:
-            return [value]
-
-        return super()._process_value(value, opts)
 
 
 class LatestAzObjectCompleter(AzObjectCompleter):
@@ -845,65 +839,84 @@ class AzObjectGroupArgConfig(GroupArgConfig):
         return super().__init__(*azclass.get_azobject_id_argconfigs(noncmd=noncmd, **kwargs), title=title, description=description)
 
 
+class AzObjectMultiArgConfigCompleter(AzObjectCompleter):
+    def __init__(self, *args, multi_argconfig, **kwargs):
+        self.multi_argconfig = multi_argconfig
+        super().__init__(*args, **kwargs)
+
+    def get_id_list(self, opts):
+        return (info._id for info in self.get_info_list(opts))
+
+    def get_info_list(self, opts):
+        return self.multi_argconfig.get_info_list(opts)
+
+
+class BaseAzObjectMultiArgConfigEntry(AzObjectArgConfig):
+    def __init__(self, *args, next_entry, **kwargs):
+        self.next_entry = next_entry
+        super().__init__(*args, **kwargs)
+
+    @property
+    def is_infoattr_eq_cmdattr(self):
+        return False
+
+    def get_info_list(self, opts):
+        info_list = self.next_entry.cmd_arg_value(**opts)
+        if info_list is None:
+            return self.next_entry.get_info_list(opts)
+        return info_list
+
+
+class AzObjectMultiArgConfigEntry(BaseAzObjectMultiArgConfigEntry):
+    def __init__(self, arg, *, azclass, infoattr, next_entry, multi_argconfig, help=None, cmdattr=None):
+        self.completer_class = partial(AzObjectMultiArgConfigCompleter, multi_argconfig=multi_argconfig)
+        super().__init__(arg, next_entry=next_entry, azclass=azclass, infoattr=infoattr, cmdattr=cmdattr, nodefault=True, help=help)
+
+    def converted_info_list(self, infolist, opts):
+        return infolist
+
+
+class AzObjectMultiArgConfigHeadEntry(BaseAzObjectMultiArgConfigEntry):
+    def __init__(self, *, azclass, next_entry, cmdattr=None):
+        super().__init__(next_entry=next_entry, azclass=azclass, cmdattr=cmdattr, nodefault=True, nocompleter=True)
+
+
+class AzObjectMultiArgConfigTailEntry(AzObjectArgConfig):
+    def __init__(self, *, azclass):
+        super().__init__(azclass=azclass, nodefault=True, nocompleter=True)
+
+    def cmd_arg_value(self, **opts):
+        return self.get_info_list(opts)
+
+
 class AzObjectMultiArgConfig(GroupArgConfig):
-    class ChainLinkArgConfig(AzObjectListArgConfig):
-        class ChainLinkArgCompleter(AzObjectCompleter):
-            def __init__(self, *args, multi_argconfig, **kwargs):
-                self.multi_argconfig = multi_argconfig
-                super().__init__(*args, **kwargs)
-
-            def get_id_list(self, opts):
-                return (info._id for info in self.get_info_list(opts))
-
-            def get_info_list(self, opts):
-                return self.multi_argconfig.get_info_list(opts)
-
-        def __init__(self, arg, *, azclass, infoattr, cmdattr, next_argconfig, multi_argconfig, help=None):
-            self.completer_class = partial(self.ChainLinkArgCompleter, multi_argconfig=multi_argconfig)
-            self.next_argconfig = next_argconfig
-            super().__init__(arg, azclass=azclass, infoattr=infoattr, cmdattr=cmdattr, nodefault=True, help=help)
-
-        def get_info_list(self, opts):
-            if self.next_argconfig:
-                next_info_list = self.next_argconfig.cmd_arg_value(**opts)
-                if next_info_list is not None:
-                    return next_info_list
-            return super().get_info_list(opts)
-
-        def process_value(self, value, opts):
-            if value is None and self.next_argconfig:
-                next_info_list = self.next_argconfig.cmd_arg_value(**opts)
-                if next_info_list is not None:
-                    return self.converted_info_list(next_info_list, opts)
-            return super().process_value(value, opts)
-
     def __init__(self, configs, *, azclass, cmddest, cmdattr=None, conditional_required=False, choose=None, **kwargs):
         self.conditional_required = conditional_required
         self.choose = choose
-        super().__init__(*self.create_argconfigs(configs, azclass, cmdattr=cmdattr),
-                         cmddest=cmddest,
-                         **kwargs)
 
-    def create_argconfigs(self, configs, azclass, cmdattr=None):
+        next_entry = AzObjectMultiArgConfigTailEntry(azclass=azclass)
+
         assert configs
-        items = list(configs.items())
-        last_arg = items[-1][0]
         argconfigs = []
-        for link_arg, link_kwargs in items:
-            argconfigs.append(self.ChainLinkArgConfig(link_arg,
-                                                      azclass=azclass,
-                                                      infoattr=self.optional_arg_value('infoattr', link_kwargs),
-                                                      cmdattr=cmdattr if link_arg == last_arg else lambda info: info,
-                                                      help=self.optional_arg_value('help', link_kwargs),
-                                                      next_argconfig=argconfigs[-1] if argconfigs else None,
-                                                      multi_argconfig=self))
-        return argconfigs
+        for entry_arg, entry_kwargs in configs.items():
+            entry = AzObjectMultiArgConfigEntry(entry_arg,
+                                                azclass=azclass,
+                                                infoattr=self.optional_arg_value('infoattr', entry_kwargs),
+                                                help=self.optional_arg_value('help', entry_kwargs),
+                                                next_entry=next_entry,
+                                                multi_argconfig=self)
+            next_entry = entry
+            argconfigs.append(entry)
+
+        self.head_entry = AzObjectMultiArgConfigHeadEntry(azclass=azclass, cmdattr=cmdattr, next_entry=next_entry)
+
+        super().__init__(*argconfigs, cmddest=cmddest, **kwargs)
 
     def get_info_list(self, opts):
-        return self.argconfigs[-1].get_info_list(opts)
+        return self.head_entry.get_info_list(opts)
 
     def cmd_arg_value(self, **opts):
-        value_list = self.argconfigs[-1].cmd_arg_value(**opts)
+        value_list = self.head_entry.cmd_arg_value(**opts)
         if not value_list:
             if self.required:
                 self.raise_required()
@@ -911,11 +924,13 @@ class AzObjectMultiArgConfig(GroupArgConfig):
                 raise NoMatchingArgumentValue(self.opts)
             return None
 
-        if len(value_list) > 1:
-            if self.choose:
-                return self.choose(value_list, opts)
+        if len(value_list) == 1:
+            return value_list[0]
+
+        if not self.choose:
             raise MultipleArgumentValues(*self.opts, values=value_list)
-        return value_list[0]
+
+        return self.choose(value_list, opts)
 
     def cmd_args(self, **opts):
         return self._cmd_args(**opts)
