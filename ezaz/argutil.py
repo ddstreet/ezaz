@@ -568,7 +568,7 @@ class AzObjectCompleter(AzObjectInfoHelper):
         except Exception as e:
             if opts.get('debug_argcomplete'):
                 import argcomplete
-                argcomplete.warn(str(e))
+                argcomplete.warn(f'argcomplete error: {e}')
                 if opts.get('verbose', 0) > 3:
                     import traceback
                     argcomplete.warn(traceback.format_exc())
