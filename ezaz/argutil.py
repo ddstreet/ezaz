@@ -278,8 +278,11 @@ class BaseArgConfig(ArgUtil, ABC):
             return None
         return self._process_value(value, opts)
 
+    def _value_from_opts(self, **opts):
+        return self.optional_arg_value(self.dest, opts)
+
     def _cmd_arg_value_or_default(self, **opts):
-        value = self.optional_arg_value(self.dest, opts)
+        value = self._value_from_opts(**opts)
         if value is None:
             value = self.runtime_default_value(**opts)
         return value
