@@ -641,15 +641,15 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
                          dest=dest,
                          **kwargs)
 
-    def filtered_info_list(self, value, opts):
-        return filter(lambda info: self.get_infoattr(info) == value, self.get_info_list(opts))
+    def filter_info_list(self, value, info_list, opts):
+        return filter(lambda info: self.get_infoattr(info) == value, info_list)
 
-    def converted_info_list(self, infolist, opts):
-        infolist = list(infolist)
-        if len(infolist) > 1:
-            raise MultipleArgumentValues(self.dest, values=infolist)
+    def convert_info_list(self, info_list, opts):
+        info_list = list(info_list)
+        if len(info_list) > 1:
+            raise MultipleArgumentValues(self.dest, values=info_list)
         else:
-            return self.get_cmdattr(infolist[0]) if infolist else None
+            return self.get_cmdattr(info_list[0]) if info_list else None
 
     @property
     def is_infoattr_eq_cmdattr(self):
@@ -659,7 +659,7 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
         if self.is_infoattr_eq_cmdattr:
             return value
 
-        return self.converted_info_list(self.filtered_info_list(value, opts), opts)
+        return self.convert_info_list(self.filter_info_list(value, self.get_info_list(opts), opts), opts)
 
 
 class LatestAzObjectCompleter(AzObjectCompleter):
