@@ -638,10 +638,10 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
                          dest=dest,
                          **kwargs)
 
-    def _filter_info_list(self, value, opts):
+    def filtered_info_list(self, value, opts):
         return filter(lambda info: self.get_infoattr(info) == value, self.get_info_list(opts))
 
-    def _convert_info_list(self, infolist, opts):
+    def converted_info_list(self, infolist, opts):
         infolist = list(infolist)
         if len(infolist) > 1:
             raise MultipleArgumentValues(self.dest, values=infolist)
@@ -652,10 +652,10 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
         if self.infoattr == self.cmdattr:
             return value
 
-        return self._convert_info_list(self._filter_info_list(value, opts), opts)
+        return self.converted_info_list(self.filtered_info_list(value, opts), opts)
 
 class AzObjectListArgConfig(AzObjectArgConfig):
-    def _convert_info_list(self, infolist, opts):
+    def converted_info_list(self, infolist, opts):
         return [self.get_cmdattr(info) for info in infolist]
 
     def _process_value(self, value, opts):
@@ -874,7 +874,7 @@ class AzObjectMultiArgConfig(GroupArgConfig):
             if value is None and self.next_argconfig:
                 next_info_list = self.next_argconfig.cmd_arg_value(**opts)
                 if next_info_list is not None:
-                    return self._convert_info_list(next_info_list, opts)
+                    return self.converted_info_list(next_info_list, opts)
             return super().process_value(value, opts)
 
     def __init__(self, configs, *, azclass, cmddest, cmdattr=None, conditional_required=False, choose=None, **kwargs):
