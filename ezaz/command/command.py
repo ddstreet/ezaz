@@ -4,9 +4,11 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from types import SimpleNamespace
 
+from .. import LOGGER
 from ..actionutil import ActionConfig
 from ..actionutil import ActionConfigGroup
 from ..argutil import ArgUtil
+from ..argutil import BoolArgConfig
 from ..timing import TIMESTAMP
 
 
@@ -159,12 +161,55 @@ class AzObjectActionCommand(AzObjectCommand, ActionCommand):
 
     @classmethod
     def get_action_configs(cls):
-        return super().get_action_configs() + cls.get_azobject_action_configs()
+        return [*super().get_action_configs(),
+                *cls.get_azobject_action_configs(),
+                *cls.get_portal_url_action_configs()]
+
+    @classmethod
+    def has_portal_url(cls):
+        return True
+
+    @classmethod
+    def get_portal_url_action_configs(cls):
+        if not cls.has_portal_url():
+            return []
+        return [cls.make_action_config('portal_url',
+                                       description='Show the Azure portal URL to manage this object',
+                                       argconfigs=cls.get_portal_url_action_argconfigs())]
+
+    @classmethod
+    def get_portal_url_action_argconfigs(cls):
+        return [*cls.azclass().get_azobject_id_argconfigs(),
+                BoolArgConfig('open', help='Also open the URL in a local browser (if possible)')]
 
     @classmethod
     def make_azaction_config(cls, azactioncfg, **kwargs):
         return AzObjectCommandActionConfig(azactioncfg.action, cls, azactioncfg, **kwargs)
 
+    @property
+    def _base_portal_url(self):
+        from ..azobject.subscription import Subscription
+        sub = self.azobject if self.azclass() == Subscription else self.azobject.get_ancestor(Subscription.azobject_name())
+        return f'https://portal.azure.com/#@{sub.info().tenantDefaultDomain}'
+
+    @property
+    def _portal_url(self):
+        from ..azobject.subscription import Subscription
+        if self.azclass() == Subscription:
+            urlpath = f'/resource/subscriptions/{self.azobject.info().id}'
+        else:
+            urlpath = f'/resource{self.azobject.info().id}'
+        return f'{self._base_portal_url}{urlpath}'
+
+    def portal_url(self, open=False, **opts):
+        url = self._portal_url
+        if open:
+            import webbrowser
+            if webbrowser.open_new_tab(url):
+                LOGGER.info('Opened URL in browser')
+            else:
+                LOGGER.error('Could not open URL in browser')
+        return url
 
 
 class CommandActionConfig(ActionConfig):

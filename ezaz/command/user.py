@@ -17,6 +17,14 @@ class UserCommand(AzObjectActionCommand):
     def get_default_action(cls):
         return 'signed_in_user'
 
+    @property
+    def _base_portal_url(self):
+        return f'https://portal.azure.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview'
+
+    @property
+    def _portal_url(self):
+        return f'{self._base_portal_url}/userId/{self.azobject.azobject_id}'
+
 
 # Since we are the top-level azobject, automatically create command
 # classes (if needed) for all our azobject subclasses; but let's not
