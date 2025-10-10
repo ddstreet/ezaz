@@ -65,6 +65,10 @@ class NoParentInstance(EzazException):
     pass
 
 
+class NoAncestorInstance(EzazException):
+    pass
+
+
 class AzCommandError(EzazException):
     def __init__(self, cmd, stdout=None, stderr=None):
         super().__init__(f'az command failed: {" ".join(cmd)}\n{stderr}')
