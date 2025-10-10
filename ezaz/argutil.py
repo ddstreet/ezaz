@@ -875,6 +875,8 @@ class AzObjectMultiArgConfigProxy(AzObjectArgConfig):
                 continue
             info_list = argconfig.filter_info_list(value, info_list, opts)
             is_none = False
+        if is_none:
+            return None
         return info_list
 
     def _process_value(self, value, opts):
