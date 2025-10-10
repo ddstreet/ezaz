@@ -34,6 +34,7 @@ from ..exception import AzObjectExists
 from ..exception import CacheError
 from ..exception import DefaultConfigNotFound
 from ..exception import InvalidAzObjectName
+from ..exception import NoAncestorInstance
 from ..exception import NoAzObjectExists
 from ..exception import NoParentClass
 from ..exception import NoParentInstance
@@ -235,6 +236,12 @@ class TreeObject:
     @property
     def parent(self):
         raise NoParentInstance()
+
+    def get_ancestor(self, name):
+        try:
+            return self.parent if self.parent.azobject_name() == name else self.parent.get_ancestor(name)
+        except NoParentInstance:
+            raise NoAncestorInstance()
 
     def _for_each_ancestor_instance(self, callback, opts=None, *, context_manager=None, include_self=False):
         assert callable(callback)
