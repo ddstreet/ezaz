@@ -250,7 +250,7 @@ class TreeObject:
                 yield callback(self, opts)
             except StopIteration:
                 # This ends the iteration up the ancestor tree
-                return
+                return self
         with suppress(NoParentInstance):
             parent = self.parent
             with (context_manager or nullcontext)():
