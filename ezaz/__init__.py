@@ -50,6 +50,7 @@ DISTRO_IMAGES = {
     'sles-15.6': 'SUSE:sles-15-sp6:gen2:latest',
     'sles-15.7': 'SUSE:sles-15-sp7:gen2:latest',
     # Arm
+    'azl3-arm': 'MicrosoftCBLMariner:azure-linux-3:azure-linux-3-arm64:latest',
     'ubuntu-22.04-arm64': 'Canonical:ubuntu-22_04-lts-daily:server-arm64:latest',
     'ubuntu-24.04-arm64': 'Canonical:ubuntu-24_04-lts-daily:server-arm64:latest',
     'ubuntu-25.04-arm64': 'Canonical:ubuntu-25_04-daily:server-arm64:latest',
