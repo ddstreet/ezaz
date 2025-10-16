@@ -868,7 +868,6 @@ class AzObjectMultiArgConfigProxy(AzObjectArgConfig):
     def _value_from_opts(self, **opts):
         is_none = True
         info_list = self.get_info_list(opts)
-        import argcomplete
         for argconfig in self.argconfigs:
             value = argconfig._value_from_opts(**opts)
             if value is None:
@@ -905,7 +904,7 @@ class AzObjectMultiArgConfig(GroupArgConfig):
         super().__init__(*argconfigs, **kwargs)
 
     def get_info_list(self, opts):
-        return self.proxy_argconfig._value_from_opts(**opts)
+        return self.proxy_argconfig._value_from_opts(**opts) or self.proxy_argconfig.get_info_list(opts)
 
     def cmd_args(self, **opts):
         return self._cmd_args(**opts)
