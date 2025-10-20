@@ -1,7 +1,6 @@
 
 import argparse
 import io
-import operator
 
 from abc import ABC
 from abc import abstractmethod

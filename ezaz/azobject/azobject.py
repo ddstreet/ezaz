@@ -2,7 +2,6 @@
 import importlib
 import inspect
 import json
-import operator
 import os
 import subprocess
 
