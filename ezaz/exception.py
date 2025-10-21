@@ -52,6 +52,11 @@ class FilterRequiresInfo(FilterError):
     pass
 
 
+class InvalidFilterType(FilterError):
+    def __init__(self, filter_type):
+        super().__init__(f"Invalid filter type '{filter_type}'")
+
+
 class InvalidFilter(FilterError):
     pass
 

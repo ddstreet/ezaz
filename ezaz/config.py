@@ -1,62 +1,44 @@
 
 import json
 
-from collections.abc import Mapping
-from collections.abc import MutableMapping
+from abc import ABC
+from abc import abstractmethod
 from contextlib import suppress
 from copy import copy
 from functools import partial
 from pathlib import Path
 
 from . import DEFAULT_CONFIGPATH
+from .objproxy import BaseProxy
+from .objproxy import DictProxy
+from .objproxy import ListProxy
 
 
 DEFAULT_FILENAME = 'config.json'
 
 
-class SubConfig(MutableMapping):
-    def __init__(self, parent, mapping):
+class BaseSubConfig(BaseProxy, ABC):
+    __missing = object()
+    _ignore_values = ([], {}, None, __missing)
+    _missing_values = (None, __missing)
+
+    @classmethod
+    def _clean_value(cls, value):
+        if value in cls._ignore_values:
+            return None
+        if isinstance(value, BaseSubConfig):
+            return value.clean()
+        return value
+
+    def __init__(self, parent, target):
         self._parent = parent
-        self._mapping = mapping
+        super().__init__(target,
+                         dict_proxy_class=partial(DictSubConfig, self),
+                         list_proxy_class=partial(ListSubConfig, self))
 
-    def __repr__(self):
-        return json.dumps(copy(self), indent=2, sort_keys=True)
-
-    def __copy__(self):
-        # Copy everything except empty dicts and None values
-        return {k: c for k, v in self.items() for c in [copy(v)] if c is not None} or None
-
-    def __equals__(self, other):
-        if isinstance(other, Mapping):
-            return other == self._mapping
-        return super().__equals__(other)
-
-    def __getitem__(self, key):
-        return self._mapping[key]
-
-    def __setitem__(self, key, value):
-        with suppress(KeyError):
-            if self._mapping[key] == value:
-                return
-        do_save = value not in [None, {}]
-        if isinstance(value, Mapping) and not isinstance(value, SubConfig):
-            value = SubConfig(self, value)
-        self._mapping[key] = value
-        if do_save:
-            self.save()
-
-    def __delitem__(self, key):
-        with suppress(KeyError):
-            do_save = self._mapping[key] not in [None, {}]
-        del self._mapping[key]
-        if do_save:
-            self.save()
-
-    def __iter__(self):
-        return iter(self._mapping)
-
-    def __len__(self):
-        return len(self._mapping)
+    @abstractmethod
+    def clean(self):
+        pass
 
     @property
     def parent(self):
@@ -66,24 +48,84 @@ class SubConfig(MutableMapping):
     def configfile(self):
         return self.parent.configfile
 
+    @property
+    @abstractmethod
+    def _exception(self):
+        pass
+
+    def _value_or_missing(self, key):
+        with suppress(self._exception):
+            return self._target[key]
+        return self.__missing
+
+    def should_save(self, old_value, new_value):
+        # Assumes old_value != new_value
+        return old_value not in self._ignore_values or new_value not in self._ignore_values
+
     def save(self):
         return self.parent.save()
 
+
+class DictSubConfig(BaseSubConfig, DictProxy):
+    def clean(self):
+        return {k: c for k, v in self.items() for c in [self._clean_value(v)] if c is not None} or None
+
+    @property
+    def _exception(self):
+        return KeyError
+
+    def __setitem__(self, key, value):
+        old_value = self._value_or_missing(key)
+        if old_value == value:
+            return
+        super().__setitem__(key, value)
+        if self.should_save(old_value, value):
+            self.save()
+
+    def __delitem__(self, key):
+        old_value = self._value_or_missing(key)
+        super().__delitem__(key)
+        if self.should_save(old_value, None):
+            self.save()
+
     def setdefault(self, key, value):
-        with suppress(KeyError):
-            v = self[key]
+        if self._value_or_missing(key) in self._missing_values:
             # We consider None value == missing key
-            if v is not None:
-                return v
-        self[key] = value
+            self[key] = value
         return self[key]
 
     def get_object(self, key):
         # get the specified object, or insert and return a new empty one
         return self.setdefault(key, {})
 
+    def get_list(self, key):
+        # get the specified list, or insert and return a new empty one
+        return self.setdefault(key, [])
 
-class Config(SubConfig):
+
+class ListSubConfig(BaseSubConfig, ListProxy):
+    def clean(self):
+        return [c for v in self for c in [self._clean_value(v)] if c is not None] or None
+
+    @property
+    def _exception(self):
+        return IndexError
+
+    def __setitem__(self, index, value):
+        old_value = self._value_or_missing(index)
+        if old_value == value:
+            return
+        super().__setitem__(index, value)
+        if self.should_save(old_value, value):
+            self.save()
+
+    def __delitem__(self, index):
+        super().__delitem__(index)
+        # Will not reach here if the index is invalid, so always save
+        self.save()
+
+
+class Config(DictSubConfig):
     @classmethod
     def add_argument_to_parser(cls, parser, *args, **kwargs):
         if 'help' not in kwargs:
@@ -121,35 +163,29 @@ class Config(SubConfig):
 
     def __init__(self, configfile=None):
         self._configfile = self.get_configfile_path(configfile or DEFAULT_FILENAME)
-        super().__init__(self, self._read_config())
-        self._file_config = copy(self)
+        self._file_content = self._read_config()
+        super().__init__(self, self._file_content)
         # TODO - check with jsonschema
-
-    def __copy__(self):
-        return super().__copy__() or {}
 
     def _read_config(self):
         try:
-            return json.loads(self.configfile.read_text(), object_hook=partial(SubConfig, self))
+            return json.loads(self.configfile.read_text())
         except FileNotFoundError:
-            return SubConfig(self, {})
-
-    @property
-    def parent(self):
-        return self
+            return {}
 
     @property
     def configfile(self):
         return self._configfile
 
     def save(self):
-        file_config = copy(self)
-        if file_config == self._file_config:
+        content = self.clean() or {}
+        if content == self._file_content:
+            # No need to save
             return
 
-        self._file_config = file_config
+        self._file_content = content
         self.configfile.parent.mkdir(parents=True, exist_ok=True)
-        self.configfile.write_text(str(self) + '\n')
+        self.configfile.write_text(json.dumps(self._file_content) + '\n')
 
     def remove(self):
         self.configfile.unlink(missing_ok=True)

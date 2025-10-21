@@ -1,90 +1,117 @@
 
 import re
 
+from abc import ABC
+from abc import abstractmethod
+
 from .dictnamespace import DictNamespace
+from .exception import FilterRequiresInfo
+from .exception import InvalidFilter
 from .exception import InvalidFilterRegex
+from .exception import InvalidFilterType
 
 
-class Filter(DictNamespace):
-    def __init__(self, config, *, prefix=None, suffix=None, regex=None):
-        super().__init__(config)
+FILTER_TYPES = ['prefix', 'suffix', 'regex']
 
-        # The direct params override the config
-        # Also, ensure all 3 fields exist
-        self.prefix = prefix or getattr(self, 'prefix', None)
-        self.suffix = suffix or getattr(self, 'suffix', None)
-        self.regex = regex or getattr(self, 'regex', None)
 
-    def __bool__(self):
-        return any((self.prefix, self.suffix, self.regex))
+class Filter(DictNamespace, ABC):
+    @classmethod
+    def create_filter(cls, config=None, *, filter_type=None, filter_field=None, filter_value=None):
+        filter_type = filter_type or (config or {}).get('type')
+        if not filter_type:
+            raise InvalidFilterType(filter_type)
+        filter_cls = {
+            'prefix': PrefixFilter,
+            'suffix': SuffixFilter,
+            'regex': RegexFilter,
+        }.get(filter_type)
+        if not filter_cls:
+            raise InvalidFilterType(filter_type)
+        return filter_cls(config, filter_field=filter_field, filter_value=filter_value)
 
-    def _validate_regex_patterns(self, patterns):
-        for pattern in patterns:
-            try:
-                re.compile(pattern)
-            except re.PatternError as pe:
-                raise InvalidFilterRegex(pattern) from pe
+    def __init__(self, config=None, *, filter_type=None, filter_field=None, filter_value=None):
+        super().__init__(config or {})
+
+        self.type = filter_type or getattr(self, 'type', None)
+        self.field = filter_field or getattr(self, 'field', None)
+        self.value = filter_value or getattr(self, 'value', None)
+
+    def __repr__(self):
+        return f"{self.type}({(self.field + '=') if self.field else ''}{self.value})"
 
     def __setattr__(self, attr, value):
-        if value and attr in ['prefix', 'suffix', 'regex']:
-            if isinstance(value, str):
-                value = [value]
-            if attr == 'regex':
-                self._validate_regex_patterns(value)
+        if attr == 'value':
+            self._check_filter_value(value)
         super().__setattr__(attr, value)
+
+    def _check_filter_value(self, value):
+        if not isinstance(value, str):
+            raise InvalidFilter(f"Invalid value type '{type(value)}': '{value}'")
+
+    def check(self, info):
+        return self._check_value(self._get_field_value(info))
+
+    def check_id(self, info_id):
+        if self.field:
+            raise FilterRequiresInfo()
+        return self._check_value(info_id)
+
+    @abstractmethod
+    def _check_value(self, value):
+        pass
 
     @property
     def requires_info(self):
-        for l in (self.prefix, self.suffix, self.regex):
-            if any(('=' in f for f in l or [])):
-                # If any filter specifies a field, we need the entire info
-                return True
-        return False
+        return bool(self.field)
 
-    def check(self, info):
-        return all((self.check_prefix(info), self.check_suffix(info), self.check_regex(info)))
+    def _get_field_value(self, info):
+        if self.field:
+            return info._path_attr_getter(self.field)(info) or ''
+        else:
+            return info._id
 
-    def check_prefix(self, info):
-        return self._check_filters(info, None, self.prefix, self._check_prefix)
 
-    def check_suffix(self, info):
-        return self._check_filters(info, None, self.suffix, self._check_suffix)
+class PrefixFilter(Filter):
+    def __init__(self, config=None, *, filter_field=None, filter_value=None):
+        super().__init__(config, filter_type='prefix', filter_field=filter_field, filter_value=filter_value)
 
-    def check_regex(self, info):
-        return self._check_filters(info, None, self.regex, self._check_regex)
+    def _check_filter_value(self, value):
+        # Prefix filter with no value is invalid since it would match everything
+        if not value:
+            raise InvalidFilter(f'Prefix filter requires a prefix value')
+        super()._check_filter_value(value)
 
-    def check_id(self, value):
-        return all((self.check_id_prefix(info), self.check_id_suffix(info), self.check_id_regex(info)))
+    def _check_value(self, value):
+        return value.startswith(self.value)
 
-    def check_id_prefix(self, info_id):
-        return self._check_filters(None, info_id, self.prefix, self._check_prefix)
 
-    def check_id_suffix(self, info_id):
-        return self._check_filters(None, info_id, self.suffix, self._check_suffix)
+class SuffixFilter(Filter):
+    def __init__(self, config=None, *, filter_field=None, filter_value=None):
+        super().__init__(config, filter_type='suffix', filter_field=filter_field, filter_value=filter_value)
 
-    def check_id_regex(self, info_id):
-        return self._check_filters(None, info_id, self.regex, self._check_regex)
+    def _check_filter_value(self, value):
+        # Suffix filter with no value is invalid since it would match everything
+        if not value:
+            raise InvalidFilter(f'Suffix filter requires a suffix value')
+        super()._check_filter_value(value)
 
-    def _check_filters(self, info, info_id, filters, check_fn):
-        for f in filters or []:
-            if '=' not in f:
-                f = '=' + f
-            field, _, check_value = f.partition('=')
-            if field:
-                if not info:
-                    raise FilterRequiresInfo()
-                value = info._path_attr_getter(field)(info) or ''
-            else:
-                value = info._id if info else info_id
-            if not check_fn(value, check_value):
-                return False
-        return True
+    def _check_value(self, value):
+        return value.endswith(self.value)
 
-    def _check_prefix(self, value, prefix):
-        return value.startswith(prefix)
 
-    def _check_suffix(self, value, suffix):
-        return value.endswith(suffix)
+class RegexFilter(Filter):
+    def __init__(self, config=None, *, filter_field=None, filter_value=None):
+        super().__init__(config, filter_type='regex', filter_field=filter_field, filter_value=filter_value)
 
-    def _check_regex(self, value, regex):
-        return re.search(regex, value)
+    def _check_filter_value(self, value):
+        # Regex filter value can be the empty string, but cannot be None
+        if value is None:
+            raise InvalidFilter(f'Regex filter requires a regex value (or empty string)')
+        try:
+            re.compile(value)
+        except re.PatternError as pe:
+            raise InvalidFilterRegex(value) from pe
+        super()._check_filter_value(value)
+
+    def _check_value(self, value):
+        return re.search(self.value, value)

@@ -65,7 +65,7 @@ class Info(DictNamespace):
         self._verbose = verbose
 
     def _save(self):
-        return deepcopy(self) | {self.SAVE_KEY: self.__class__.__name__}
+        return self._to_object() | {self.SAVE_KEY: self.__class__.__name__}
 
     def save(self):
         return json.dumps(self._save())
@@ -127,7 +127,7 @@ class Info(DictNamespace):
     @property
     def _str3(self):
         # At verbose=3 or higher, the full info is provided (as a json string)
-        return self._jsonstr(2)
+        return self._to_json(2)
 
 
 class AccountInfo(Info):

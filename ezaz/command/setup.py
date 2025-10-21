@@ -19,6 +19,7 @@ from ..exception import ChoiceError
 from ..exception import DefaultConfigNotFound
 from ..exception import NoChoices
 from ..exception import NoneOfTheAboveChoice
+from ..filter import PrefixFilter
 from .command import ActionCommand
 
 
@@ -207,29 +208,32 @@ class SetupCommand(ActionCommand):
         expiry.list_expiry = defaults['list']
 
     def add_resource_group_filter(self, sub, *, yes=False, **opts):
-        rgfilter = sub.get_child_filter('resource_group')
-        if not rgfilter:
+        self.prefix = None
+
+        rgfilters = sub.get_child_filters('resource_group')
+        rgprefixfilters = [f for f in rgfilters if f.type == 'prefix']
+        self.prefix = rgprefixfilters[0].value if rgprefixfilters else None
+        if len(rgprefixfilters) > 1:
+            print(f"Multiple existing resource group prefix filters, using first prefix '{self.prefix}'")
+        elif rgprefixfilters:
+            print(f"Existing resource group prefix '{self.prefix}'")
+
+        if not self.prefix:
             if yes or YesNo('Do you want to set up a resource group prefix filter (recommended for shared subscriptions)?'):
                 username = getpass.getuser()
                 accountname = self.user.info().userPrincipalName.split('@')[0]
-                prefix = None
                 if yes or YesNo(f"Do you want to use prefix matching with your username '{username}'?"):
-                    prefix = username
+                    self.prefix = username
                 elif YesNo(f"Do you want to use prefix matching with your account name '{accountname}'?"):
-                    prefix = accountname
+                    self.prefix = accountname
                 elif YesNo(f'Do you want to use a custom prefix?'):
-                    prefix = input('What prefix do you want to use? ')
-                if prefix:
-                    rgfilter.prefix = prefix
-                    print(f'Added resource group filter with prefix {rgfilter.prefix}')
-                else:
-                    print('Skipping the resource group prefix filter')
+                    self.prefix = input('What prefix do you want to use? ')
+            if self.prefix:
+                sub.set_child_filters('resource_group', rgfilters + [PrefixFilter(filter_value=self.prefix)])
+                print(f'Added resource group filter with prefix {self.prefix}')
             else:
+                self.prefix = getpass.getuser()
                 print('Skipping the resource group prefix filter')
-        else:
-            if rgfilter.prefix:
-                print(f"Existing resource group prefix filter: '{rgfilter.prefix}'")
-        self.prefix = rgfilter.prefix or getpass.getuser()
 
     def prompt(self, **opts):
         self.add_cache_config(**opts)

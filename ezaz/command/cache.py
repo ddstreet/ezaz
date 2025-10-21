@@ -151,7 +151,7 @@ class CacheCommand(AzObjectActionCommand):
         return expiry
 
     def expirystr(self, expiry, none='No configuration'):
-        return expiry._jsonstr() if expiry else none
+        return expiry._to_json() if expiry else none
 
     def size(self, **opts):
         print(f'Cache is {self.azobject.cache.size} bytes')

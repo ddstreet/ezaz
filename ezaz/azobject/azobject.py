@@ -10,6 +10,7 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from contextlib import nullcontext
 from contextlib import suppress
+from copy import copy
 from functools import cache
 from functools import cached_property
 from itertools import chain
@@ -42,6 +43,7 @@ from ..exception import NullAzObject
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
 from ..exception import UnsupportedAction
+from ..filter import FILTER_TYPES
 from ..filter import Filter
 from ..timing import TIMESTAMP
 from .info import Info
@@ -540,7 +542,7 @@ class AzObject(AzAction, TreeObject):
         return cls(azobject_id=None, is_null=True, **opts)
 
     @classmethod
-    def has_filter(cls):
+    def has_filters(cls):
         return False
 
     @classmethod
@@ -700,24 +702,32 @@ class AzSubObject(AzObject):
         cls.get_parent_instance(**opts).del_default_child_id(cls.azobject_name())
 
     @classmethod
-    def filter_key(cls):
-        return f'filter_{cls.azobject_name()}'
+    def filters_key(cls):
+        return f'filters_{cls.azobject_name()}'
 
     @classmethod
-    def has_filter(cls):
+    def has_filters(cls):
         return True
 
     @classmethod
-    def get_filter(cls, **opts):
-        return cls.get_parent_instance(**opts).get_child_filter(cls.azobject_name())
+    def get_filters(cls, **opts):
+        return cls.get_parent_instance(**opts).get_child_filters(cls.azobject_name())
 
     @classmethod
-    def set_filter(cls, new_filter, opts):
-        cls.get_parent_instance(**opts).set_child_filter(cls.azobject_name(), new_filter)
+    def set_filters(cls, new_filters, opts):
+        cls.get_parent_instance(**opts).set_child_filters(cls.azobject_name(), new_filters)
 
     @classmethod
-    def del_filter(cls, **opts):
-        cls.get_parent_instance(**opts).del_child_filter(cls.azobject_name())
+    def add_filter(cls, new_filter, opts):
+        cls.get_parent_instance(**opts).add_child_filters(cls.azobject_name(), new_filter)
+
+    @classmethod
+    def remove_filter(cls, old_filter, opts):
+        cls.get_parent_instance(**opts).remove_child_filters(cls.azobject_name(), old_filter)
+
+    @classmethod
+    def del_filters(cls, **opts):
+        cls.get_parent_instance(**opts).del_child_filters(cls.azobject_name())
 
     def __init__(self, *, parent, **kwargs):
         assert parent.__class__.is_ancestor_class_of(self.__class__)
@@ -803,15 +813,26 @@ class AzObjectContainer(AzObject):
         return [self.get_child(name, info._id, info=info)
                 for info in null_instance.list(no_filters=no_filters)]
 
-    def get_child_filter(self, name):
-        return Filter(self.config.get_object(self.get_child_class(name).filter_key()))
+    def get_child_filters(self, name):
+        return [Filter.create_filter(f) for f in self.config.get_list(self.get_child_class(name).filters_key())]
 
-    def set_child_filter(self, name, value):
-        self.config[self.get_child_class(name).filter_key()] = value
+    def set_child_filters(self, name, filters):
+        assert isinstance(filters, list)
+        assert all((isinstance(f, Filter) for f in filters))
+        self.config[self.get_child_class(name).filters_key()] = [f._to_object() for f in set(filters)]
 
-    def del_child_filter(self, name):
+    def add_child_filter(self, name, f):
+        self.set_child_filters(name, self.get_child_filters(name) + [f])
+
+    def remove_child_filter(self, name, f):
+        filters = self.get_child_filters(name)
+        with suppress(ValueError):
+            filters.remove(f)
+            self.set_child_filters(name, filters)
+
+    def del_child_filters(self, name):
         with suppress(KeyError):
-            del self.config[self.get_child_class(name).filter_key()]
+            del self.config[self.get_child_class(name).filters_key()]
 
 
 class AzSubObjectContainer(AzObjectContainer, AzSubObject):
@@ -928,10 +949,14 @@ class AzListable(AzObject):
 
     def list_filters(self, opts):
         filters = []
-        if any((opts.get('prefix'), opts.get('suffix'), opts.get('regex'))):
-            filters.append(Filter(opts))
-        if not opts.get('no_filters') and self.has_filter():
-            filters.append(self.get_filter(**opts))
+        for filter_type in FILTER_TYPES:
+            for value in opts.get(filter_type) or []:
+                if '=' not in value:
+                    value = '=' + value
+                filter_field, _, filter_value = value.partition('=')
+                filters.append(Filter.create_filter(filter_type=filter_type, filter_field=filter_field, filter_value=filter_value))
+        if not opts.get('no_filters') and self.has_filters():
+            filters.extend(self.get_filters(**opts))
         return filters
 
     def list_filter(self, infolist, filters, opts):
