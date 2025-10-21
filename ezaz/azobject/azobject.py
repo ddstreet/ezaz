@@ -893,11 +893,28 @@ class AzListable(AzObject):
 
     @classmethod
     def get_list_action_argconfigs(cls):
-        return [GroupArgConfig(ArgConfig('prefix', noncmd=True, help=f'List only {cls.azobject_text()}s that start with the prefix'),
-                               ArgConfig('suffix', noncmd=True, help=f'List only {cls.azobject_text()}s that end with the suffix'),
-                               ArgConfig('regex', noncmd=True, help=f'List only {cls.azobject_text()}s that match the regular expression'),
-                               BoolArgConfig('-N', '--no-filters', noncmd=True, help=f'Do not use any configured filters (only use the CLI parameters)'),
-                               title='Filter options')]
+        return [GroupArgConfig(ArgConfig('prefix',
+                                         multiple=True,
+                                         noncmd=True,
+                                         help=f'List only {cls.azobject_text()}s that start with the prefix'),
+                               ArgConfig('suffix',
+                                         multiple=True,
+                                         noncmd=True,
+                                         help=f'List only {cls.azobject_text()}s that end with the suffix'),
+                               ArgConfig('regex',
+                                         multiple=True,
+                                         noncmd=True,
+                                         help=f'List only {cls.azobject_text()}s that match the regular expression'),
+                               BoolArgConfig('--no-filters',
+                                             noncmd=True,
+                                             help=f'Do not use any configured filters (only use the CLI parameters)'),
+                               title='Filter options',
+                               description=("The format is '[field=]value', where 'field' is a dot-separated path of the object info\n"
+                                            "(as returned by 'show -vvv'). If 'field=' is not provided, it will use the object 'id'\n"
+                                            "(which usually, but not always, corresponds to the info field 'name'). Objects whose\n"
+                                            "info does not contain the specified field are treated as if the field was the empty string.\n"
+                                            "The parameters may be provided multiple times to perform multiple filtering operations;\n"
+                                            "only objects that pass all filters will be shown."))]
 
     @classmethod
     def get_list_action_azobject_id_argconfigs(cls):
@@ -910,43 +927,38 @@ class AzListable(AzObject):
         return f'List {cls.azobject_text()}s'
 
     def list_filters(self, opts):
-        # Subclasses can override to add/replace filters, but all the
-        # filters must provide check(id) and check_info(info) methods
-
+        filters = []
         if any((opts.get('prefix'), opts.get('suffix'), opts.get('regex'))):
-            yield Filter(opts)
-
+            filters.append(Filter(opts))
         if not opts.get('no_filters') and self.has_filter():
-            yield self.get_filter(**opts)
+            filters.append(self.get_filter(**opts))
+        return filters
 
-    def list_filter(self, infolist, opts):
+    def list_filter(self, infolist, filters, opts):
         try:
-            filters = list(self.list_filters(opts))
-            return [info for info in infolist
-                    if all((f.check_info(info) for f in filters))]
+            return [info for info in infolist if all((f.check(info) for f in filters))]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.list_filter()')
 
-    def id_list_filter(self, idlist, opts):
+    def id_list_filter(self, idlist, filters, opts):
         try:
-            filters = list(self.list_filters(opts))
-            return [i for i in idlist
-                    if all((f.check(i) for f in filters))]
+            return [i for i in idlist if all((f.check_id(i) for f in filters))]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.id_list_filter()')
 
-    def id_list_supported(self, **opts):
+    def id_list_supported(self, filters, opts):
         # Override and return False if subclass needs to perform full-info filtering
-        return True
+        return not any((f.require_info for f in filters))
 
     def id_list_read_cache(self, opts, tag=None):
         return self.cache.read_id_list(tag=tag)
 
     def id_list(self, **opts):
         try:
-            if self.id_list_supported(**opts):
+            filters = self.list_filters(opts)
+            if self.id_list_supported(filters, opts):
                 with suppress(CacheError):
-                    return self.id_list_filter(self.id_list_read_cache(opts), opts)
+                    return self.id_list_filter(self.id_list_read_cache(opts), filters, opts)
             return [info._id for info in self.list(**opts)]
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.id_list()')
@@ -956,8 +968,9 @@ class AzListable(AzObject):
 
     def list_pre(self, opts):
         try:
+            filters = self.list_filters(opts)
             with suppress(CacheError):
-                return self.list_filter(self.list_read_cache(opts), opts)
+                return self.list_filter(self.list_read_cache(opts), filters, opts)
             return None
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.list_pre()')
@@ -968,7 +981,8 @@ class AzListable(AzObject):
     def list_post(self, infolist, opts):
         try:
             self.list_write_cache(infolist)
-            return self.list_filter(infolist, opts)
+            filters = self.list_filters(opts)
+            return self.list_filter(infolist, filters, opts)
         finally:
             TIMESTAMP(f'{self.__class__.__name__}.list_post()')
 

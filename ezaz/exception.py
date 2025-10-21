@@ -48,6 +48,10 @@ class FilterError(EzazException):
     pass
 
 
+class FilterRequiresInfo(FilterError):
+    pass
+
+
 class InvalidFilter(FilterError):
     pass
 
