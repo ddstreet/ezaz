@@ -1,4 +1,5 @@
 
+import importlib
 import json
 import jsonschema
 import operator
@@ -14,7 +15,8 @@ from ..timing import TIMESTAMP
 
 class Info(DictNamespace):
     __slots__ = ('_verbose',)
-    SAVE_KEY = 'ezaz_info_class'
+    SAVE_MODULE_KEY = 'ezaz_info_module'
+    SAVE_CLASS_KEY = 'ezaz_info_class'
 
     @classmethod
     def load(cls, content, verbose):
@@ -28,12 +30,14 @@ class Info(DictNamespace):
 
     @classmethod
     def _load(cls, obj, verbose):
-        infoclsname = obj.pop(cls.SAVE_KEY, None)
+        infomodname = obj.pop(cls.SAVE_MODULE_KEY, None) or cls.__module__
+        infoclsname = obj.pop(cls.SAVE_CLASS_KEY, None)
         if not infoclsname:
             raise InvalidInfo('Info does not contain its class name')
-        infocls = globals().get(infoclsname)
+        infomod = importlib.import_module(infomodname)
+        infocls = getattr(infomod, infoclsname, None)
         if not infocls:
-            raise InvalidInfo(f'No Info class found: {infoclsname}')
+            raise InvalidInfo(f'No Info class found: {infomodname}.{infoclsname}')
         try:
             return infocls(obj, verbose=verbose)
         except jsonschema.exceptions.ValidationError as ve:
@@ -64,7 +68,10 @@ class Info(DictNamespace):
         self._verbose = verbose
 
     def _save(self):
-        return self._to_object() | {self.SAVE_KEY: self.__class__.__name__}
+        return self._to_object() | {
+            self.SAVE_MODULE_KEY: self.__class__.__module__,
+            self.SAVE_CLASS_KEY: self.__class__.__name__,
+        }
 
     def save(self):
         return json.dumps(self._save())
