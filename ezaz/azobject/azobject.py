@@ -914,28 +914,37 @@ class AzListable(AzObject):
 
     @classmethod
     def get_list_action_argconfigs(cls):
-        return [GroupArgConfig(ArgConfig('prefix',
-                                         multiple=True,
-                                         noncmd=True,
-                                         help=f'List only {cls.azobject_text()}s that start with the prefix'),
-                               ArgConfig('suffix',
-                                         multiple=True,
-                                         noncmd=True,
-                                         help=f'List only {cls.azobject_text()}s that end with the suffix'),
-                               ArgConfig('regex',
-                                         multiple=True,
-                                         noncmd=True,
-                                         help=f'List only {cls.azobject_text()}s that match the regular expression'),
-                               BoolArgConfig('--no-filters',
-                                             noncmd=True,
-                                             help=f'Do not use any configured filters (only use the command line filters)'),
+        description = ["For the '--filter-*' options, the format is '[field=]value', where 'field' is a",
+                       "dot-separated path of the object info (as returned by 'show -vvv'). If 'field='",
+                       "is not provided, it will use the object 'id' (which usually, but not always,",
+                       "corresponds to the info field 'name'). Objects whose info does not contain the",
+                       "specified field are treated as if the field was the empty string. The parameters",
+                       "may be provided multiple times to perform multiple filtering operations; only",
+                       "objects that pass all filters will be shown."]
+        return [GroupArgConfig(*cls.get_list_action_filter_group_argconfigs(),
                                title='Filter options',
-                               description=("The format is '[field=]value', where 'field' is a dot-separated path of the object info\n"
-                                            "(as returned by 'show -vvv'). If 'field=' is not provided, it will use the object 'id'\n"
-                                            "(which usually, but not always, corresponds to the info field 'name'). Objects whose\n"
-                                            "info does not contain the specified field are treated as if the field was the empty string.\n"
-                                            "The parameters may be provided multiple times to perform multiple filtering operations;\n"
-                                            "only objects that pass all filters will be shown."))]
+                               description='\n'.join(description))]
+
+    @classmethod
+    def get_list_action_filter_group_argconfigs(cls):
+        return [BoolArgConfig('no_filters',
+                              noncmd=True,
+                              help=f'Do not use any configured filters (other than the command line filters)'),
+                ArgConfig('filter_prefix',
+                          dest='prefix',
+                          multiple=True,
+                          noncmd=True,
+                          help=f'List only {cls.azobject_text()}s that start with the prefix'),
+                ArgConfig('filter_suffix',
+                          dest='suffix',
+                          multiple=True,
+                          noncmd=True,
+                          help=f'List only {cls.azobject_text()}s that end with the suffix'),
+                ArgConfig('filter_regex',
+                          dest='regex',
+                          multiple=True,
+                          noncmd=True,
+                          help=f'List only {cls.azobject_text()}s that match the regular expression')]
 
     @classmethod
     def get_list_action_azobject_id_argconfigs(cls):
