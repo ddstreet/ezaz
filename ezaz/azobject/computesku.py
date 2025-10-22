@@ -91,7 +91,7 @@ class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
 
     def list_pre(self, opts):
         result = super().list_pre(opts)
-        if not result:
+        if result is None:
             if IS_ARGCOMPLETE:
                 raise TooLongForArgcomplete(self.azobject_short_name(), 'list')
             LOGGER.warning('This command takes a long time, please be patient...')
