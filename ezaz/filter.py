@@ -77,8 +77,8 @@ class Filter(DictNamespace, ABC):
 
 
 class PrefixFilter(Filter):
-    def __init__(self, config=None, *, filter_field=None, filter_value=None):
-        super().__init__(config, filter_type='prefix', filter_field=filter_field, filter_value=filter_value)
+    def __init__(self, config=None, *, filter_type='prefix', filter_field=None, filter_value=None):
+        super().__init__(config, filter_type=filter_type, filter_field=filter_field, filter_value=filter_value)
 
     def _check_filter_value(self, value):
         # Prefix filter with no value is invalid since it would match everything
@@ -91,8 +91,8 @@ class PrefixFilter(Filter):
 
 
 class SuffixFilter(Filter):
-    def __init__(self, config=None, *, filter_field=None, filter_value=None):
-        super().__init__(config, filter_type='suffix', filter_field=filter_field, filter_value=filter_value)
+    def __init__(self, config=None, *, filter_type='suffix', filter_field=None, filter_value=None):
+        super().__init__(config, filter_type=filter_type, filter_field=filter_field, filter_value=filter_value)
 
     def _check_filter_value(self, value):
         # Suffix filter with no value is invalid since it would match everything
@@ -105,8 +105,8 @@ class SuffixFilter(Filter):
 
 
 class RegexFilter(Filter):
-    def __init__(self, config=None, *, filter_field=None, filter_value=None):
-        super().__init__(config, filter_type='regex', filter_field=filter_field, filter_value=filter_value)
+    def __init__(self, config=None, *, filter_type='regex', filter_field=None, filter_value=None):
+        super().__init__(config, filter_type=filter_type, filter_field=filter_field, filter_value=filter_value)
 
     def _check_filter_value(self, value):
         # Regex filter value can be the empty string, but cannot be None
