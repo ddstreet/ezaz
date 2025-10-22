@@ -928,7 +928,7 @@ class AzListable(AzObject):
                                          help=f'List only {cls.azobject_text()}s that match the regular expression'),
                                BoolArgConfig('--no-filters',
                                              noncmd=True,
-                                             help=f'Do not use any configured filters (only use the CLI parameters)'),
+                                             help=f'Do not use any configured filters (only use the command line filters)'),
                                title='Filter options',
                                description=("The format is '[field=]value', where 'field' is a dot-separated path of the object info\n"
                                             "(as returned by 'show -vvv'). If 'field=' is not provided, it will use the object 'id'\n"
