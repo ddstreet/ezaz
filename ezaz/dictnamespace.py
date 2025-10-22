@@ -4,6 +4,8 @@ import jsonschema
 import operator
 
 from contextlib import suppress
+from itertools import chain
+from functools import cache
 
 from .objproxy import DictProxy
 from .objproxy import ObjectProxy
@@ -11,8 +13,13 @@ from .objproxy import ObjectProxy
 
 # Iterable namespace with direct r/w backing by a dict, including contained dicts and lists
 class DictNamespace:
-    __slots__ = ('_dict_proxy')
+    __slots__ = ('_dict_proxy',)
     _schema = None
+
+    @classmethod
+    @cache
+    def __all_slots(cls):
+        return tuple(set(chain(*(getattr(c, '__slots__', ()) for c in cls.__mro__))))
 
     @classmethod
     def _path_attr_getter(self, path):
@@ -57,7 +64,7 @@ class DictNamespace:
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr}'")
 
     def __getattr__(self, attr):
-        if attr in self.__slots__:
+        if attr in self.__all_slots():
             super().__getattr__(attr)
         else:
             with suppress(KeyError):
@@ -65,13 +72,13 @@ class DictNamespace:
             self.__missing__(attr)
 
     def __setattr__(self, attr, value):
-        if attr in self.__slots__:
+        if attr in self.__all_slots():
             super().__setattr__(attr, value)
         else:
             self._dict_proxy[attr] = value
 
     def __delattr__(self, attr):
-        if attr in self.__slots__:
+        if attr in self.__all_slots():
             super().__delattr__(attr)
         else:
             del self._dict_proxy[attr]

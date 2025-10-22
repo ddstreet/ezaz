@@ -13,6 +13,7 @@ from ..timing import TIMESTAMP
 
 
 class Info(DictNamespace):
+    __slots__ = ('_verbose',)
     SAVE_KEY = 'ezaz_info_class'
 
     @classmethod
@@ -57,8 +58,6 @@ class Info(DictNamespace):
     def save_list(cls, infos):
         assert all([isinstance(info, Info) for info in infos])
         return json.dumps([info._save() for info in infos])
-
-    _verbose = 0
 
     def __init__(self, info, *, verbose):
         super().__init__(info)
