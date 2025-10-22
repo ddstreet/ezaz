@@ -36,8 +36,14 @@ class DictNamespace:
     def __init__(self, obj):
         super().__init__()
         self._dict_proxy = DictProxy(obj._target if isinstance(obj, ObjectProxy) else obj,
-                                     dict_proxy_class=self.__class__)
+                                     dict_proxy_class=DictNamespace)
         self._validate()
+
+    def __str__(self):
+        return str(self._dict_proxy)
+
+    def __repr__(self):
+        return str(self)
 
     def __hash__(self):
         return hash(self._dict_proxy)
