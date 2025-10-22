@@ -49,11 +49,16 @@ class Filter(DictNamespace, ABC):
             raise InvalidFilter(f"Invalid value type '{type(value)}': '{value}'")
 
     def check(self, info):
-        return self._check_value(self._get_field_value(info))
+        value = self._get_field_value(info)
+        if value is None:
+            return False
+        return self._check_value(value)
 
     def check_id(self, info_id):
         if self.field:
             raise FilterRequiresInfo()
+        if info_id is None:
+            return False
         return self._check_value(info_id)
 
     @abstractmethod
