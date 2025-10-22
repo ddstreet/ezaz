@@ -29,11 +29,8 @@ class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
     @classmethod
     def get_list_action_argconfigs(cls):
         return [*super().get_list_action_argconfigs(),
-                FlagArgConfig('all',
-                              default=True,
-                              hidden=True),
-                BoolArgConfig('include_unavailable',
-                              noncmd=True,
+                FlagArgConfig('include_unavailable',
+                              cmddest='all',
                               help=f'Include {cls.azobject_text()} that are unavailable in this subscription')]
 
     @classmethod
