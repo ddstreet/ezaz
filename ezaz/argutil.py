@@ -557,7 +557,7 @@ class AzObjectInfoHelper:
 
 
 class AzObjectCompleter(AzObjectInfoHelper):
-    def get_azobject_completer_choices(self, opts):
+    def get_azobject_completer_choices(self, opts, prefix):
         if self.infoattr == '_id':
             return set(self.get_id_list(opts))
         else:
@@ -566,7 +566,7 @@ class AzObjectCompleter(AzObjectInfoHelper):
     def __call__(self, *, prefix, action, parser, parsed_args, **kwargs):
         opts = vars(parsed_args)
         try:
-            return self.get_azobject_completer_choices(opts)
+            return self.get_azobject_completer_choices(opts, prefix)
         except Exception as e:
             if opts.get('debug_argcomplete'):
                 import argcomplete
@@ -662,8 +662,8 @@ class AzObjectArgConfig(AzObjectInfoHelper, ArgConfig):
 
 
 class LatestAzObjectCompleter(AzObjectCompleter):
-    def get_azobject_completer_choices(self, opts):
-        choices = list(super().get_azobject_completer_choices(opts))
+    def get_azobject_completer_choices(self, opts, prefix):
+        choices = list(super().get_azobject_completer_choices(opts, prefix))
         if choices:
             choices.append('latest')
         return choices
