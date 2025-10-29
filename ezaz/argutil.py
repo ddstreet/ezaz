@@ -713,8 +713,11 @@ class BaseGroupArgConfig(BaseArgConfig):
         for argconfig in self.argconfigs:
             argconfig.add_to_parser(group)
 
-    def cmd_args(self, **opts):
+    def _group_cmd_args(self, **opts):
         return ArgMap(*map(lambda argconfig: argconfig.cmd_args(**opts), self.argconfigs))
+
+    def cmd_args(self, **opts):
+        return self._group_cmd_args(**opts)
 
 
 class GroupArgConfig(BaseGroupArgConfig):
@@ -776,7 +779,7 @@ class ExclusiveGroupArgConfig(GroupArgConfig):
                 return value
         return self.runtime_default_value(**opts)
 
-    def cmd_args(self, **opts):
+    def _group_cmd_args(self, **opts):
         if self.cmddest:
             # cmddest means we put the changed child arg value into
             # cmddest, and ignore the rest
@@ -784,7 +787,7 @@ class ExclusiveGroupArgConfig(GroupArgConfig):
         # without cmddest, we pass along all our child args; the only
         # use of group here is exclusivity (argparse enforces that the
         # user can only provide one of our child args)
-        return super().cmd_args(**opts)
+        return super()._group_cmd_args(**opts)
 
 
 class DualExclusiveGroupArgConfig(ExclusiveGroupArgConfig):
@@ -794,17 +797,20 @@ class DualExclusiveGroupArgConfig(ExclusiveGroupArgConfig):
     # respectively, if opt_a or opt_b is provided; or default is
     # neither opt is provided. By default, value_a is (not default)
     # and value_b is (not value_a).
-    def __init__(self, opt_a, opt_b, *, dest=None, default=False, value_a=None, value_b=None, help_a=None, help_b=None, help=None, **kwargs):
+    def __init__(self, opt_a, opt_b, *, dest=None, default=False, value_a=None, value_b=None, help_a=None, help_b=None, help=None, cmddest=None, **kwargs):
         if dest is None:
             dest = opt_a
         if value_a is None:
             value_a = not default
         if value_b is None:
             value_b = not value_a
-        super().__init__(*[ConstArgConfig(opt_a, dest=dest, const=value_a, default=default, help=help_a or help),
+        super().__init__(*[ConstArgConfig(opt_a, dest=dest, const=value_a, default=default, cmddest=cmddest, help=help_a or help),
                            ConstArgConfig(opt_b, dest=dest, const=value_b, help=help_b or help)],
                          default=default,
                          **kwargs)
+
+    def _group_cmd_args(self, **opts):
+        return self.argconfigs[0].cmd_args(**opts)
 
 
 class YesNoGroupArgConfig(DualExclusiveGroupArgConfig):
