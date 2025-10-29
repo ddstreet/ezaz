@@ -2,7 +2,9 @@
 import subprocess
 
 from .. import LOGGER
+from ..argutil import ArgConfig
 from ..argutil import BoolArgConfig
+from ..argutil import DualExclusiveGroupArgConfig
 from ..argutil import PositionalArgConfig
 from ..exception import NoPrimaryNic
 from ..exception import InvalidArgumentValue
@@ -26,7 +28,7 @@ class VmCommand(AzObjectActionCommand):
                                        description='Ssh to the virtual machine',
                                        argconfigs=cls.get_ssh_action_config_argconfigs()),
                 cls.make_action_config('scp',
-                                       description='Scp file(s) to the virtual machine',
+                                       description='Scp file(s) to/from the virtual machine',
                                        argconfigs=cls.get_scp_action_config_argconfigs())]
 
     @classmethod
@@ -42,9 +44,17 @@ class VmCommand(AzObjectActionCommand):
     @classmethod
     def get_scp_action_config_argconfigs(cls):
         return [*cls.get_ssh_action_config_argconfigs(),
+                DualExclusiveGroupArgConfig('from',
+                                            'to',
+                                            dest='copy_to',
+                                            default=True,
+                                            help_a='Copy files from virtual machine',
+                                            help_b='Copy files to virtual machine'),
+                ArgConfig('dest',
+                          help='For copy to, location on vm; for copy from, local location'),
                 PositionalArgConfig('files',
                                     multiple=True,
-                                    help="Files to copy to virtual machine; if last entry is prefixed with literal 'vm:' that is used as destination path in the virtual machine")]
+                                    help='Files to copy to/from virtual machine')]
 
     def primary_ip_addr(self, **opts):
         vm = self.azclass().get_instance(**opts)
@@ -57,21 +67,21 @@ class VmCommand(AzObjectActionCommand):
             cmd += ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
         return self._run_cmd(cmd)
 
-    def scp(self, files, check_host_key=False, **opts):
+    def scp(self, files, copy_to=True, dest=None, check_host_key=False, **opts):
         if not files:
             raise RequiredArgument('files', 'scp')
         if not isinstance(files, list) or not all((isinstance(f, str) for f in files)):
             raise InvalidArgumentValue('files', files)
-        if files[-1].startswith('vm:'):
-            dest = files[-1].removeprefix('vm')
-            files = files[:-1]
-        else:
-            dest = ':'
         cmd = ['scp']
         if not check_host_key:
             cmd += ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
-        cmd += files
-        cmd += [self.primary_ip_addr(**opts) + dest]
+        ipaddr = self.primary_ip_addr(**opts)
+        if copy_to:
+            cmd += files
+            cmd += [f'{ipaddr}:{dest or ""}']
+        else:
+            cmd += [f'{ipaddr}:{f}' for f in files]
+            cmd += dest or '.'
         return self._run_cmd(cmd)
 
     def _run_cmd(self, cmd):

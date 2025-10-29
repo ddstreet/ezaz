@@ -787,53 +787,66 @@ class ExclusiveGroupArgConfig(GroupArgConfig):
         return super().cmd_args(**opts)
 
 
-class BoolGroupArgConfig(ExclusiveGroupArgConfig):
+class DualExclusiveGroupArgConfig(ExclusiveGroupArgConfig):
+    # Create dual args, where only one (or none) may be provided, and
+    # the result is located in a single dest (which defaults to the
+    # first opt). The dest value will be value_a or value_b,
+    # respectively, if opt_a or opt_b is provided; or default is
+    # neither opt is provided. By default, value_a is (not default)
+    # and value_b is (not value_a).
+    def __init__(self, opt_a, opt_b, *, dest=None, default=False, value_a=None, value_b=None, help_a=None, help_b=None, help=None, **kwargs):
+        if dest is None:
+            dest = opt_a
+        if value_a is None:
+            value_a = not default
+        if value_b is None:
+            value_b = not value_a
+        super().__init__(*[ConstArgConfig(opt_a, dest=dest, const=value_a, default=default, help=help_a or help),
+                           ConstArgConfig(opt_b, dest=dest, const=value_b, help=help_b or help)],
+                         default=default,
+                         **kwargs)
+
+
+class YesNoGroupArgConfig(DualExclusiveGroupArgConfig):
     # Create dual XXX and no_XXX args.
-    # The opt param (either XXX or no_XXX) sets the value to True.
+    # The opt param (either XXX or no_XXX) sets the value to True (not default).
     # Examples for use:
     #   opt=prompt
-    #     --prompt -> (prompt=True, help=help_yes)
-    #     --no-prompt -> (prompt=False, help=help_no)
+    #     --prompt -> (prompt=(not default), help=help_yes)
+    #     --no-prompt -> (prompt=default, help=help_no)
     #   opt=no_prompt
-    #     --prompt -> (no_prompt=False, help=help_yes)
-    #     --no-prompt -> (no_prompt=True, help=help_no)
-    def __init__(self, opt, *, cmddest=None, default=False, **kwargs):
-        super().__init__(*self.create_argconfigs(opt, **kwargs), cmddest=cmddest or opt, default=default)
-
-    def create_argconfigs(self, opt, help_yes=None, help_no=None, help=None, **kwargs):
-        inverse = opt.startswith('no_')
-        return self._create_argconfigs(opt_true=opt,
-                                       opt_false=opt.removeprefix('no_') if inverse else f'no_{opt}',
-                                       help_true=(help_no if inverse else help_yes) or help,
-                                       help_false=(help_yes if inverse else help_no) or help,
-                                       **kwargs)
-
-    def _create_argconfigs(self, opt_true, opt_false, help_true, help_false, **kwargs):
-        return [BoolArgConfig(opt_true, default=False, help=help_true, **kwargs),
-                BoolArgConfig(opt_false, default=True, help=help_false, **kwargs)]
+    #     --no-prompt -> (no_prompt=(not default), help=help_no)
+    #     --prompt -> (no_prompt=default, help=help_yes)
+    def __init__(self, opt, *, help_no=None, help_yes=None, **kwargs):
+        if opt.startswith('no_'):
+            super().__init__(opt_a=opt, opt_b=opt.removeprefix('no_'),
+                             help_a=help_no, help_b=help_yes,
+                             **kwargs)
+        else:
+            super().__init__(opt_a=opt, opt_b=f'no_{opt}',
+                             help_a=help_yes, help_b=help_no,
+                             **kwargs)
 
 
-class FlagGroupArgConfig(BoolGroupArgConfig, FlagArgConfig):
-    # Same as BoolGroupArgConfig, but result is a flag instead of bool.
+class YesNoFlagGroupArgConfig(YesNoGroupArgConfig, FlagArgConfig):
+    # Same as YesNoGroupArgConfig, but result is a flag instead of bool.
     pass
 
 
-class EnableDisableGroupArgConfig(BoolGroupArgConfig):
-    # Same as BoolGroupArgConfig, but user-facing params will be enable_XXX and disable_XXX.
+class EnableDisableGroupArgConfig(DualExclusiveGroupArgConfig):
+    # Same as YesNoGroupArgConfig, but user-facing params will be enable_XXX and disable_XXX.
     # The opt should be either enable_XXX or disable_XXX.
-    def create_argconfigs(self, opt, help_enable=None, help_disable=None, help=None, **kwargs):
-        inverse = opt.startswith('disable_')
-        if inverse:
-            opt_false = 'enable_' + opt.removeprefix('disable_')
-        elif opt.startswith('enable_'):
-            opt_false = 'disable_' + opt.removeprefix('enable_')
+    def __init__(self, opt, *, help_enable=None, help_disable=None, **kwargs):
+        if opt.startswith('enable_'):
+            super().__init__(opt_a=opt, opt_b=f"dis{opt.removeprefix('en')}",
+                             help_a=help_enable, help_b=help_disable,
+                             **kwargs)
+        elif opt.startswith('disable_'):
+            super().__init__(opt_a=opt, opt_b=f"en{opt.removeprefix('dis')}",
+                             help_a=help_disable, help_b=help_enable,
+                             **kwargs)
         else:
             raise ArgumentError('opt must start with enable_ or disable_')
-        return self._create_argconfigs(opt_true=opt,
-                                       opt_false=opt_false,
-                                       help_true=(help_disable if inverse else help_enable) or help,
-                                       help_false=(help_enable if inverse else help_disable) or help,
-                                       **kwargs)
 
 
 class AzObjectGroupArgConfig(GroupArgConfig):

@@ -1,6 +1,6 @@
 
 from ..argutil import BoolArgConfig
-from ..argutil import BoolGroupArgConfig
+from ..argutil import YesNoGroupArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import YesFlagArgConfig
 from .azobject import AzCommonActionable
@@ -29,12 +29,10 @@ class StorageAccount(AzCommonActionable, AzSubObjectContainer):
 
     @classmethod
     def get_create_action_argconfigs(cls):
-        return [BoolGroupArgConfig('allow_blob_public_access',
-                                   default=False,
-                                   help='Allow containers/blobs to be configured for public access'),
-                BoolGroupArgConfig('allow_shared_key_access',
-                                   default=False,
-                                   help='Allow access using storage account shared key'),
+        return [YesNoGroupArgConfig('allow_blob_public_access',
+                                    help='Allow containers/blobs to be configured for public access'),
+                YesNoGroupArgConfig('allow_shared_key_access',
+                                    help='Allow access using storage account shared key'),
                 ChoicesArgConfig('kind',
                                  choices=['BlobStorage', 'BlockBlobStorage', 'FileStorage', 'Storage', 'StorageV2'],
                                  help='Type of storage account'),
