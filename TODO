@@ -1,4 +1,10 @@
 
+- add question to initial importvenv to confirm user wants to create it
+- add question to setup to cache vminstancetype list
+
+- add notice telling user to install system argcomplete (if needed) with config option to disable notice
+
+
 LATER/CLEANUP:
 
 - add spinner to az calls
