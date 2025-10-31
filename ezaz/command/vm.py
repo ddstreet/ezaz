@@ -36,14 +36,21 @@ class VmCommand(AzObjectActionCommand):
         return []
 
     @classmethod
+    def get_secure_shell_action_common_config_argconfigs(cls):
+        return [BoolArgConfig('check_host_key',
+                              help='Allow ssh to verify remote host key; by default, we set ssh StrictHostKeyChecking=no'),
+                ArgConfig('jump', 'J',
+                          help='Use this ssh jump box')]
+
+    @classmethod
     def get_ssh_action_config_argconfigs(cls):
         return [*cls.azclass().get_azobject_id_argconfigs(),
-                BoolArgConfig('check_host_key',
-                              help='Allow ssh to verify remote host key; by default, we set ssh StrictHostKeyChecking=no')]
+                *cls.get_secure_shell_action_common_config_argconfigs()]
 
     @classmethod
     def get_scp_action_config_argconfigs(cls):
-        return [*cls.get_ssh_action_config_argconfigs(),
+        return [*cls.azclass().get_azobject_id_argconfigs(),
+                *cls.get_secure_shell_action_common_config_argconfigs(),
                 DualExclusiveGroupArgConfig('from',
                                             'to',
                                             dest='copy_to',
@@ -61,20 +68,27 @@ class VmCommand(AzObjectActionCommand):
         public_ip = vm.get_primary_nic().get_primary_ipaddr().get_public_ip()
         return public_ip.info().ipAddress
 
-    def ssh(self, check_host_key=False, **opts):
-        cmd = ['ssh', self.primary_ip_addr(**opts)]
+    def _get_secure_shell_common_params(self, check_host_key=False, jump=None, **opts):
+        params = []
         if not check_host_key:
-            cmd += ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
+            params += ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
+        if jump:
+            params += ['-J', jump]
+        return params
+
+    def ssh(self, **opts):
+        cmd = ['ssh'] + self._get_secure_shell_common_params(**opts) + [self.primary_ip_addr(**opts)]
+
         return self._run_cmd(cmd)
 
-    def scp(self, files, copy_to=True, dest=None, check_host_key=False, **opts):
+    def scp(self, files, copy_to=True, dest=None, **opts):
         if not files:
             raise RequiredArgument('files', 'scp')
         if not isinstance(files, list) or not all((isinstance(f, str) for f in files)):
             raise InvalidArgumentValue('files', files)
-        cmd = ['scp']
-        if not check_host_key:
-            cmd += ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
+
+        cmd = ['scp'] + self._get_secure_shell_common_params(**opts)
+
         ipaddr = self.primary_ip_addr(**opts)
         if copy_to:
             cmd += files
@@ -82,6 +96,7 @@ class VmCommand(AzObjectActionCommand):
         else:
             cmd += [f'{ipaddr}:{f}' for f in files]
             cmd += dest or '.'
+
         return self._run_cmd(cmd)
 
     def _run_cmd(self, cmd):
