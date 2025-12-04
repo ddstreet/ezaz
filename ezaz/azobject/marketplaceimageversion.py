@@ -33,12 +33,12 @@ class MarketplaceImageVersion(AzEmulateShowable, AzListable, AzSubObject):
     def id_list_supported(self, **opts):
         return False
 
-    def list_filter(self, infolist, opts):
+    def list_filter(self, infolist, filters, opts):
         # We manually filter for architecture, so we can cache the full list
         architecture = opts.get('architecture')
         if architecture:
             infolist = (info for info in infolist if info.architecture == architecture)
-        return super().list_filter(infolist, opts)
+        return super().list_filter(infolist, filters, opts)
 
     def list_post(self, infolist, opts):
         # azcli is broken, and returns partial matches for these
