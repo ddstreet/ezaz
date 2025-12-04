@@ -29,7 +29,10 @@ class VmCommand(AzObjectActionCommand):
                                        argconfigs=cls.get_ssh_action_config_argconfigs()),
                 cls.make_action_config('scp',
                                        description='Scp file(s) to/from the virtual machine',
-                                       argconfigs=cls.get_scp_action_config_argconfigs())]
+                                       argconfigs=cls.get_scp_action_config_argconfigs()),
+                cls.make_action_config('command',
+                                       description='Run command on the virtual machine',
+                                       argconfigs=cls.get_command_action_config_argconfigs())]
 
     @classmethod
     def get_primary_ip_addr_action_config_argconfigs(cls):
@@ -62,6 +65,14 @@ class VmCommand(AzObjectActionCommand):
                 PositionalArgConfig('files',
                                     multiple=True,
                                     help='Files to copy to/from virtual machine')]
+
+    @classmethod
+    def get_command_action_config_argconfigs(cls):
+        return [*cls.azclass().get_azobject_id_argconfigs(),
+                *cls.get_secure_shell_action_common_config_argconfigs(),
+                PositionalArgConfig('commands',
+                                    multiple=True,
+                                    help='Command (and arguments) to run on virtual machine')]
 
     def primary_ip_addr(self, **opts):
         vm = self.azclass().get_instance(**opts)
@@ -96,6 +107,16 @@ class VmCommand(AzObjectActionCommand):
         else:
             cmd += [f'{ipaddr}:{f}' for f in files]
             cmd += dest or '.'
+
+        return self._run_cmd(cmd)
+
+    def command(self, commands, **opts):
+        if not commands:
+            raise RequiredArgument('commands', 'command')
+        if not isinstance(commands, list) or not all((isinstance(c, str) for c in commands)):
+            raise InvalidArgumentValue('commands', commands)
+
+        cmd = ['ssh'] + self._get_secure_shell_common_params(**opts) + [self.primary_ip_addr(**opts)] + commands
 
         return self._run_cmd(cmd)
 
