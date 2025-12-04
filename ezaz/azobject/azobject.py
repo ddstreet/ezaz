@@ -982,7 +982,7 @@ class AzListable(AzObject):
 
     def id_list_supported(self, filters, opts):
         # Override and return False if subclass needs to perform full-info filtering
-        return not any((f.require_info for f in filters))
+        return not any((f.requires_info for f in filters))
 
     def id_list_read_cache(self, opts, tag=None):
         return self.cache.read_id_list(tag=tag)
