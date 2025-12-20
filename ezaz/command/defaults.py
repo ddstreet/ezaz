@@ -76,8 +76,8 @@ class DefaultsCommand(AzObjectActionCommand):
             current_id = None
 
         new_id = azclass.get_azobject_id_from_opts(opts)
-        LOGGER.debug(f'{azclass.__name__}({current_id}) -> ({new_id})')
         if new_id:
+            LOGGER.debug(f'{azclass.__name__}({current_id}) -> ({new_id})')
             current_id = self.set_azclass_default_id(azclass, current_id, new_id, check, force, opts)
 
         if not current_id:
