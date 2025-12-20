@@ -15,8 +15,6 @@ from functools import partial
 from functools import reduce
 from pathlib import Path
 
-from .cache import Cache
-from .config import Config
 from .exception import ArgumentError
 from .exception import DefaultConfigNotFound
 from .exception import DuplicateArgument

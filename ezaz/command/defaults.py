@@ -4,7 +4,6 @@ from functools import cached_property
 
 from .. import LOGGER
 from ..argutil import BoolArgConfig
-from ..config import Config
 from ..exception import DefaultConfigNotFound
 from .command import AzObjectActionCommand
 
