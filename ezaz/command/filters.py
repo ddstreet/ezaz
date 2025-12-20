@@ -8,7 +8,6 @@ from ..argutil import BoolArgConfig
 from ..argutil import ChoicesArgConfig
 from ..argutil import ConstArgConfig
 from ..argutil import ExclusiveGroupArgConfig
-from ..config import Config
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup

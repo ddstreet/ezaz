@@ -16,40 +16,36 @@ from .timing import TIMESTAMP
 
 
 class Main:
-    def __init__(self, *, args=sys.argv[1:], cmds=None, venv=None, shared_args=None):
-        self.args = args
+    def __init__(self, *, cmds=None, venv=None, shared_args=None):
         self.cmds = cmds
         self.venv = venv
         self.shared_args = shared_args or []
         self._options = None
 
-    def get_command(self):
-        if IS_ARGCOMPLETE:
-            args = ARGCOMPLETE_ARGS[1:]
-        else:
-            args = self.args
-
-        parser = argparse.ArgumentParser(add_help=False)
-        parser.add_argument('command', nargs='?')
-        command = parser.parse_known_args(args)[0].command
-        if command:
-            for cmd in self.cmds:
-                if cmd.is_command(command):
-                    return cmd
-        return None
+    @cached_property
+    def args(self):
+        return ARGCOMPLETE_ARGS[1:] if IS_ARGCOMPLETE else sys.argv[1:]
 
     def autocomplete(self, parser):
         with suppress(ImportError):
             import argcomplete
             argcomplete.autocomplete(parser, print_suppressed=True, default_completer=None)
 
-    def setup_logging(self):
+    def parse_early_args(self):
+        parser = SharedArgumentParser(add_help=False)
+        self.parser_add_general_arguments(parser)
+        parser.add_argument('command', nargs='?')
+        options = parser.parse_known_args(self.args)[0]
+
+        self.command = next((cmd for cmd in self.cmds if cmd.is_command(options.command)), None)
+
+        from .config import Config
+        Config.set_global_config(options.configfile)
+
         if IS_ARGCOMPLETE:
+            # argcomplete does not use any logging
             return
 
-        logging_parser = SharedArgumentParser(add_help=False)
-        self.parser_add_general_arguments(logging_parser)
-        options = logging_parser.parse_known_args(self.args)[0]
         verbose = options.verbose
         debug_importclasses = getattr(options, 'debug_importclasses', False)
         debug_az = getattr(options, 'debug_az', 0)
@@ -81,7 +77,7 @@ class Main:
         group.add_argument('--cachedir', metavar='PATH', help='Path to cache directory')
 
         from .config import Config
-        Config.add_argument_to_parser(group, '--configfile', metavar='PATH')
+        Config.add_argument_to_parser(group, '-C', '--configfile', metavar='PATH')
 
     @property
     def general_parser(self):
@@ -91,15 +87,14 @@ class Main:
         return general_parser
 
     def parse_args(self):
-        self.setup_logging()
+        self.parse_early_args()
 
         # Speed up: add only the command arguments we need. Can save
         # ~0.5 second, which is especially important for argcomplete,
         # but also speeds up fully cached operations
-        command = self.get_command()
-        if command:
-            args = command.command_preparse_args(self.args)
-            actionconfigs=[command.get_command_action_config()]
+        if self.command:
+            args = self.command.command_preparse_args(self.args)
+            actionconfigs=[self.command.get_command_action_config()]
         else:
             args = self.args
             actionconfigs=[c.get_command_action_config() for c in self.cmds]

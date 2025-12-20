@@ -17,6 +17,8 @@ AZ_LOGGER = logging.getLogger(f'{__name__}.AZ')
 IMPORTCLASSES_LOGGER = logging.getLogger(f'{__name__}.IMPORTCLASSES')
 
 DEFAULT_CONFIGPATH = Path(os.environ.get('XDG_CONFIG_HOME', '~/.config')).joinpath('ezaz').expanduser().resolve()
+DEFAULT_CONFIGFILE = 'config.json'
+
 DEFAULT_CACHEPATH = Path(os.environ.get('XDG_CACHE_HOME', '~/.cache')).joinpath('ezaz').expanduser().resolve()
 
 REQUIRED_PACKAGES = [

@@ -1,6 +1,4 @@
 
-from functools import cached_property
-
 from ..argutil import ArgMap
 from ..argutil import YesBoolArgConfig
 from ..config import Config
@@ -19,9 +17,9 @@ class ConfigCommand(ActionCommand):
                 cls.make_action_config('show', description='Show configuration'),
                 cls.make_action_config('remove', description='Remove configuration file', argconfigs=[YesBoolArgConfig()])]
 
-    @cached_property
+    @property
     def config(self):
-        return Config(self.options.configfile)
+        return Config.get_global_config()
 
     def show(self, **opts):
         print(self.config)

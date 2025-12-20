@@ -9,12 +9,10 @@ from functools import partial
 from pathlib import Path
 
 from . import DEFAULT_CONFIGPATH
+from . import DEFAULT_CONFIGFILE
 from .objproxy import BaseProxy
 from .objproxy import DictProxy
 from .objproxy import ListProxy
-
-
-DEFAULT_FILENAME = 'config.json'
 
 
 class BaseSubConfig(BaseProxy, ABC):
@@ -126,11 +124,24 @@ class ListSubConfig(BaseSubConfig, ListProxy):
 
 
 class Config(DictSubConfig):
+    GLOBAL_CONFIG = None
+
     @classmethod
-    def add_argument_to_parser(cls, parser, *args, **kwargs):
-        if 'help' not in kwargs:
-            kwargs['help'] = 'Path to the config file, or filename in standard config dir'
-        parser.add_argument(*args, **kwargs).completer = cls.completer
+    def get_global_config(cls):
+        # main should have set this already, fail immediately if not
+        assert cls.GLOBAL_CONFIG is not None
+        return cls.GLOBAL_CONFIG
+
+    @classmethod
+    def set_global_config(cls, configfile):
+        assert cls.GLOBAL_CONFIG is None
+        cls.GLOBAL_CONFIG = cls(configfile)
+
+    @classmethod
+    def add_argument_to_parser(cls, parser, *args, default=DEFAULT_CONFIGFILE, help=None, **kwargs):
+        if help is None:
+            help = 'Path to the config file, or filename in standard config dir'
+        parser.add_argument(*args, default=default, help=help, **kwargs).completer = cls.completer
 
     @classmethod
     def completer(cls, *, prefix, **kwargs):
@@ -161,8 +172,8 @@ class Config(DictSubConfig):
             raise InvalidArgumentValue(f'Invalid path for configfile: {configfile}') from ve
         return configpath
 
-    def __init__(self, configfile=None):
-        self._configfile = self.get_configfile_path(configfile or DEFAULT_FILENAME)
+    def __init__(self, configfile):
+        self._configfile = self.get_configfile_path(configfile)
         self._file_content = self._read_config()
         super().__init__(self, self._file_content)
         # TODO - check with jsonschema

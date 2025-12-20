@@ -553,10 +553,9 @@ class AzObject(AzAction, TreeObject):
     def cache_expiry_key(cls, name):
         return f'cache_expiry_{name}'
 
-    def __init__(self, *, azobject_id, cachedir=None, configfile=None, no_cache=False, is_null=False, **kwargs):
+    def __init__(self, *, azobject_id, cachedir=None, no_cache=False, is_null=False, **kwargs):
         super().__init__(**kwargs)
         self._cachedir = cachedir
-        self._configfile = configfile
         self._no_cache = no_cache
         self._azobject_id = azobject_id
         self.is_null = is_null
@@ -605,7 +604,7 @@ class AzObject(AzAction, TreeObject):
     def config(self):
         if self.is_null:
             raise NullAzObject('config')
-        return Config(self._configfile).get_object(self.azobject_key(self.azobject_id))
+        return Config.get_global_config().get_object(self.azobject_key(self.azobject_id))
 
     @property
     def azobject_id(self):
