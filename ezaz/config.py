@@ -174,8 +174,7 @@ class Config(DictSubConfig):
 
     def __init__(self, configfile):
         self._configfile = self.get_configfile_path(configfile)
-        self._file_content = self._read_config()
-        super().__init__(self, self._file_content)
+        super().__init__(self, self._read_config())
         # TODO - check with jsonschema
 
     def _read_config(self):
@@ -189,14 +188,8 @@ class Config(DictSubConfig):
         return self._configfile
 
     def save(self):
-        content = self.clean() or {}
-        if content == self._file_content:
-            # No need to save
-            return
-
-        self._file_content = content
         self.configfile.parent.mkdir(parents=True, exist_ok=True)
-        self.configfile.write_text(json.dumps(self._file_content) + '\n')
+        self.configfile.write_text(json.dumps(self.clean() or {}) + '\n')
 
     def remove(self):
         self.configfile.unlink(missing_ok=True)
