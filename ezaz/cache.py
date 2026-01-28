@@ -146,7 +146,7 @@ class BaseCache:
 
     def _quote(self, objid):
         from urllib.parse import quote
-        return quote(objid) if objid else None
+        return quote(objid, safe='') if objid else None
 
 
 class ShowCache(BaseCache):
