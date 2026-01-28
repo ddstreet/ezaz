@@ -9,6 +9,7 @@ from datetime import timezone
 from pathlib import Path
 
 from . import DEFAULT_CACHEPATH
+from . import quote
 from .dictnamespace import DictNamespace
 from .exception import CacheExpired
 from .exception import CacheMiss
@@ -142,11 +143,7 @@ class BaseCache:
         return self.cachepath / '_'.join(args)
 
     def _file(self, *, cachetype, classname, objid=None, tag=None):
-        return self.__file(*filter(None, (cachetype, tag, classname, self._quote(objid))))
-
-    def _quote(self, objid):
-        from urllib.parse import quote
-        return quote(objid, safe='') if objid else None
+        return self.__file(*filter(None, (cachetype, tag, classname, quote(objid))))
 
 
 class ShowCache(BaseCache):
@@ -232,7 +229,7 @@ class InfoCache(ShowCache, ListCache):
 
 class ParentCache(BaseCache):
     def _child_cache_dir(self, *, classname, objid):
-        return self.cachepath / f'cache_{classname}_{self._quote(objid)}'
+        return self.cachepath / f'cache_{classname}_{quote(objid)}'
 
 
 class BaseClassCache(BaseCache):

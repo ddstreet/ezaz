@@ -63,3 +63,9 @@ DISTRO_IMAGES = {
     'sles-15.6-arm64': 'SUSE:sles-15-sp6-arm64:gen2:latest',
     'sles-15.7-arm64': 'SUSE:sles-15-sp7-arm64:gen2:latest',
 }
+
+
+'''Return safely quoted content string. If content is empty string or None, it is returned unchanged.'''
+def quote(content):
+    import urllib.parse
+    return urllib.parse.quote_plus(content) if content else content
