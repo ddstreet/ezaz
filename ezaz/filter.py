@@ -101,6 +101,15 @@ class PrefixFilter(Filter):
         return value.startswith(self.value)
 
 
+class ValueFilter(Filter):
+    @classmethod
+    def FILTER_TYPE(cls):
+        return 'value'
+
+    def _check_value(self, value):
+        return value == self.value
+
+
 class SuffixFilter(Filter):
     @classmethod
     def FILTER_TYPE(cls):
