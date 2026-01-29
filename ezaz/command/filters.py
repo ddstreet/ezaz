@@ -11,7 +11,6 @@ from ..argutil import ExclusiveGroupArgConfig
 from ..exception import DefaultConfigNotFound
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
-from ..filter import FILTER_TYPES
 from ..filter import Filter
 from .command import AzObjectActionCommand
 
@@ -60,7 +59,7 @@ class FiltersCommand(AzObjectActionCommand):
                 ChoicesArgConfig('type',
                                  required=True,
                                  dest='filter_type',
-                                 choices=FILTER_TYPES,
+                                 choices=Filter.FILTER_TYPES().keys(),
                                  help='Type of filter to add'),
                 ArgConfig('field',
                           dest='filter_field',
@@ -78,7 +77,7 @@ class FiltersCommand(AzObjectActionCommand):
                 ChoicesArgConfig('type',
                                  required=True,
                                  dest='filter_type',
-                                 choices=FILTER_TYPES,
+                                 choices=Filter.FILTER_TYPES().keys(),
                                  help='Type of filter to remove'),
                 ArgConfig('field',
                           dest='filter_field',

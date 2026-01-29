@@ -11,28 +11,38 @@ from .exception import InvalidFilterRegex
 from .exception import InvalidFilterType
 
 
-FILTER_TYPES = ['prefix', 'suffix', 'regex']
-
-
 class Filter(DictNamespace, ABC):
+    @classmethod
+    def FILTER_CLASSES(cls):
+        return [PrefixFilter, ValueFilter, SuffixFilter, RegexFilter, ContainsFilter]
+
+    @classmethod
+    def FILTER_TYPES(cls):
+        return {filter_cls.FILTER_TYPE(): filter_cls for filter_cls in cls.FILTER_CLASSES()}
+
+    @classmethod
+    @abstractmethod
+    def FILTER_TYPE(cls):
+        pass
+
+    @classmethod
+    def get_filter_class(cls, filter_type):
+        try:
+            return cls.FILTER_TYPES()[filter_type]
+        except KeyError:
+            raise InvalidFilterType(filter_type)
+
     @classmethod
     def create_filter(cls, config=None, *, filter_type=None, filter_field=None, filter_value=None):
         filter_type = filter_type or (config or {}).get('type')
         if not filter_type:
             raise InvalidFilterType(filter_type)
-        filter_cls = {
-            'prefix': PrefixFilter,
-            'suffix': SuffixFilter,
-            'regex': RegexFilter,
-        }.get(filter_type)
-        if not filter_cls:
-            raise InvalidFilterType(filter_type)
-        return filter_cls(config, filter_field=filter_field, filter_value=filter_value)
+        return cls.get_filter_class(filter_type)(config, filter_field=filter_field, filter_value=filter_value)
 
-    def __init__(self, config=None, *, filter_type=None, filter_field=None, filter_value=None):
+    def __init__(self, config=None, *, filter_field=None, filter_value=None):
         super().__init__(config or {})
 
-        self.type = filter_type or getattr(self, 'type', None)
+        self.type = self.FILTER_TYPE()
         self.field = filter_field or getattr(self, 'field', None)
         self.value = filter_value or getattr(self, 'value', None)
 
@@ -77,8 +87,9 @@ class Filter(DictNamespace, ABC):
 
 
 class PrefixFilter(Filter):
-    def __init__(self, config=None, *, filter_type='prefix', filter_field=None, filter_value=None):
-        super().__init__(config, filter_type=filter_type, filter_field=filter_field, filter_value=filter_value)
+    @classmethod
+    def FILTER_TYPE(cls):
+        return 'prefix'
 
     def _check_filter_value(self, value):
         # Prefix filter with no value is invalid since it would match everything
@@ -91,8 +102,9 @@ class PrefixFilter(Filter):
 
 
 class SuffixFilter(Filter):
-    def __init__(self, config=None, *, filter_type='suffix', filter_field=None, filter_value=None):
-        super().__init__(config, filter_type=filter_type, filter_field=filter_field, filter_value=filter_value)
+    @classmethod
+    def FILTER_TYPE(cls):
+        return 'suffix'
 
     def _check_filter_value(self, value):
         # Suffix filter with no value is invalid since it would match everything
@@ -105,8 +117,9 @@ class SuffixFilter(Filter):
 
 
 class RegexFilter(Filter):
-    def __init__(self, config=None, *, filter_type='regex', filter_field=None, filter_value=None):
-        super().__init__(config, filter_type=filter_type, filter_field=filter_field, filter_value=filter_value)
+    @classmethod
+    def FILTER_TYPE(cls):
+        return 'regex'
 
     def _check_filter_value(self, value):
         # Regex filter value can be the empty string, but cannot be None
