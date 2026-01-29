@@ -142,3 +142,20 @@ class RegexFilter(Filter):
 
     def _check_value(self, value):
         return re.search(self.value, value)
+
+
+# This could be changed to an abstract ContainsFilter that only handles checking each list item,
+# e.g. ContainsFilter(Filter), ContainsValueFilter(ContainsFilter, ValueFilter),
+#      ContainsRegexFilter(ContainsFilter, RegexFilter), etc.
+class ContainsFilter(ValueFilter):
+    @classmethod
+    def FILTER_TYPE(cls):
+        return 'contains'
+
+    def _check_filter_value(self, value):
+        super()._check_filter_value(value)
+        if ',' in value:
+            raise InvalidFilter(f"{self.__class__.__name__} value cannot contain comma: {value}")
+
+    def _check_value(self, value):
+        return any((super()._check_value(v) for v in value.split(',')))
