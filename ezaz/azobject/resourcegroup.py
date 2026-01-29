@@ -43,12 +43,12 @@ class ResourceGroup(AzCommonActionable, AzSubObjectContainer):
     def get_create_action_argconfigs(cls):
         from .location import Location
         return [AzObjectArgConfig('location', azclass=Location, help='Location'),
-                BoolArgConfig('no_rbac', noncmd=True, help='Do not add RBAC owner/contributor roles for the signed in user')]
+                BoolArgConfig('rbac', noncmd=True, help='Add RBAC owner/contributor roles for the signed in user')]
 
     def create_post(self, result, opts):
         result = super().create_post(result, opts)
 
-        if not opts.get('no_rbac'):
+        if opts.get('rbac'):
             # Add owner and contributor RBAC for the signed-in user
             roleassignment = self.parent.get_null_child('role_assignment')
             roleassignment.create(role='Owner', resource_group=self.azobject_id)
