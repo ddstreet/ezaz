@@ -12,7 +12,9 @@ from ..argutil import FlagArgConfig
 from ..exception import InvalidFilter
 from ..exception import TooLongForArgcomplete
 from ..filter import Filter
+from ..filter import ContainsFilter
 from ..filter import RegexFilter
+from ..filter import ValueFilter
 from ..schema import *
 from .azobject import AzEmulateShowable
 from .azobject import AzListable
@@ -47,20 +49,17 @@ class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
     @classmethod
     def get_list_action_filter_group_argconfigs(cls):
         return [*super().get_list_action_filter_group_argconfigs(),
-                ArgConfig('filter_capability',
-                          dest='capability',
+                ArgConfig('filter_capability_value',
                           multiple=True,
                           noncmd=True,
                           completer=CapabilityCompleter(azclass=cls),
                           help=f'List only {cls.azobject_text()}s that exactly match the capability'),
-                ArgConfig('filter_capability_list_item',
-                          dest='capability_list_item',
+                ArgConfig('filter_capability_contains',
                           multiple=True,
                           noncmd=True,
                           completer=CapabilityCompleter(azclass=cls),
                           help=f'List only {cls.azobject_text()}s that exactly match the capability as one of (or the only) item in a comma-separated list'),
                 ArgConfig('filter_capability_regex',
-                          dest='capability_regex',
                           multiple=True,
                           noncmd=True,
                           completer=CapabilityCompleter(azclass=cls),
@@ -165,18 +164,26 @@ class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
         if IS_ARGCOMPLETE and opts.get('_capabilities'):
             # No filters when getting cached capabilities, which are used only for shell completion
             return []
-        return [*super().list_filters(opts),
-                *(CapabilityEqualFilter(c) for c in opts.get('capability') or []),
-                *(CapabilityListItemFilter(c) for c in opts.get('capability_list_item') or []),
-                *(CapabilityRegexFilter(c) for c in opts.get('capability_regex') or [])]
+        return super().list_filters(opts) + self.list_capability_filters(opts)
+
+    def list_capability_filters(self, opts):
+        return [CapabilityFilter.create_filter(filter_type, filter_capability)
+                for filter_type in CapabilityFilter.FILTER_TYPES().keys()
+                for filter_capability in (opts.get(filter_type) or [])]
 
 
 class CapabilityFilter(Filter):
-    def __init__(self, capability, *, filter_type):
-        if '=' not in capability:
-            raise InvalidFilter("Capability filter requires 'field=value' format")
-        field, _, value = capability.partition('=')
-        super().__init__(filter_type=filter_type, filter_field=field, filter_value=value)
+    @classmethod
+    def FILTER_CLASSES(cls):
+        return [CapabilityValueFilter, CapabilityContainsFilter, CapabilityRegexFilter]
+
+    @classmethod
+    def create_filter(cls, filter_type, filter_capability):
+        if filter_capability:
+            filter_field, eq, filter_value = capability.partition('=')
+            if eq != '=':
+                raise InvalidFilter("Capability filter requires 'field=value' format")
+        return super().create_filter(filter_type=filter_type, filter_field=filter_field, filter_value=filter_value)
 
     def _get_field_value(self, info):
         with suppress(AttributeError):
@@ -186,28 +193,16 @@ class CapabilityFilter(Filter):
         return None
 
 
-class CapabilityEqualFilter(CapabilityFilter):
-    def __init__(self, capability, *, filter_type='capability_equal'):
-        super().__init__(capability, filter_type=filter_type)
-
-    def _check_value(self, value):
-        return value == self.value
+class CapabilityValueFilter(CapabilityFilter, ValueFilter):
+    pass
 
 
-class CapabilityListItemFilter(CapabilityFilter):
-    def __init__(self, capability, *, filter_type='capability_list_item'):
-        super().__init__(capability, filter_type=filter_type)
-        if ',' in self.value:
-            raise InvalidFilter(f"Capability list-item value cannot contain comma: {self.value}")
-
-    def _check_value(self, value):
-        values = value.split(',')
-        return self.value in values
+class CapabilityContainsFilter(CapabilityFilter, ContainsFilter):
+    pass
 
 
 class CapabilityRegexFilter(CapabilityFilter, RegexFilter):
-    def __init__(self, capability, *, filter_type='capability_regex'):
-        super().__init__(capability, filter_type=filter_type)
+    pass
 
 
 class CapabilityInfo(Info):
