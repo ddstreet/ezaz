@@ -43,7 +43,6 @@ from ..exception import NullAzObject
 from ..exception import RequiredArgument
 from ..exception import RequiredArgumentGroup
 from ..exception import UnsupportedAction
-from ..filter import FILTER_TYPES
 from ..filter import Filter
 from ..timing import TIMESTAMP
 from .info import Info
@@ -957,7 +956,7 @@ class AzListable(AzObject):
 
     def list_filters(self, opts):
         filters = []
-        for filter_type in FILTER_TYPES:
+        for filter_type in Filter.FILTER_TYPES():
             for value in opts.get(filter_type) or []:
                 if '=' not in value:
                     value = '=' + value
