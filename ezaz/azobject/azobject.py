@@ -929,17 +929,14 @@ class AzListable(AzObject):
                               noncmd=True,
                               help=f'Do not use any configured filters (other than the command line filters)'),
                 ArgConfig('filter_prefix',
-                          dest='prefix',
                           multiple=True,
                           noncmd=True,
                           help=f'List only {cls.azobject_text()}s that start with the prefix'),
                 ArgConfig('filter_suffix',
-                          dest='suffix',
                           multiple=True,
                           noncmd=True,
                           help=f'List only {cls.azobject_text()}s that end with the suffix'),
                 ArgConfig('filter_regex',
-                          dest='regex',
                           multiple=True,
                           noncmd=True,
                           help=f'List only {cls.azobject_text()}s that match the regular expression')]
@@ -957,7 +954,7 @@ class AzListable(AzObject):
     def list_filters(self, opts):
         filters = []
         for filter_type in Filter.FILTER_TYPES():
-            for value in opts.get(filter_type) or []:
+            for value in opts.get(f'filter_{filter_type}') or []:
                 if '=' not in value:
                     value = '=' + value
                 filter_field, _, filter_value = value.partition('=')
