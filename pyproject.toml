@@ -1,0 +1,17 @@
+[project]
+name = "ezaz"
+version = "0.0.1"
+description = "Eazy Azure CLI"
+requires-python = ">=3.8"
+license = { text = "GPLv3" }
+authors = [{ name = "Dan Streetman" }, { email = "ddstreet@ieee.org" }]
+
+[project.scripts]
+ezaz = "ezaz.main:main"
+
+[project.urls]
+"Homepage" = "https://github.com/ddstreet/ezaz"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
