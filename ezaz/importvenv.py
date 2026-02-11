@@ -63,19 +63,10 @@ class ImportVenv:
         return self.venvdir / 'lib'
 
     @cached_property
-    def sitepackagesdir(self):
+    def syspath(self):
         syspath = subprocess.run([str(self.bindir / 'python'), '-c' 'import sys; print(sys.path)'],
-                                text=True, check=True, stdout=subprocess.PIPE).stdout
-        paths = [p for p in ast.literal_eval(syspath) if p.startswith(str(self.libdir)) and p.endswith('site-packages')]
-        if len(paths) < 1:
-            raise FileNotFoundError('no venv python site-packages dir found')
-        if len(paths) == 1:
-            return Path(paths[0])
-        if len(paths) > 2:
-            raise RuntimeError('multiple venv python site-packages dirs found, try refreshing the venv with --refresh-venv')
-
-    def pythonpackagedir(self, package):
-        return self.sitepackagesdir / package.replace('-', '/')
+                                 text=True, check=True, stdout=subprocess.PIPE).stdout
+        return (p for p in ast.literal_eval(syspath) if p)
 
     def run_pip(self, package):
         # We explicitly print everything here, as it might take a while
@@ -96,8 +87,8 @@ class ImportVenv:
         self.oldpath = os.environ['PATH']
         self.oldsyspath = sys.path
 
-        os.environ['PATH'] = f"{self.bindir}:{os.environ['PATH']}"
-        sys.path = [str(self.sitepackagesdir)] + sys.path
+        os.environ['PATH'] = os.path.pathsep.join((os.environ['PATH'], str(self.bindir)))
+        sys.path += [p for p in self.syspath if p not in sys.path]
 
         missing_packages = []
         for p in self.venv_packages:
