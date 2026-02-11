@@ -87,8 +87,11 @@ class ImportVenv:
         self.oldpath = os.environ['PATH']
         self.oldsyspath = sys.path
 
-        os.environ['PATH'] = os.path.pathsep.join((os.environ['PATH'], str(self.bindir)))
-        sys.path += [p for p in self.syspath if p not in sys.path]
+        # We need to put the venv path/syspath first, so venv packages
+        # have priority. This is specifically required for packages
+        # with a minimum version, where the system version is too old.
+        os.environ['PATH'] = os.path.pathsep.join((str(self.bindir), os.environ['PATH']))
+        sys.path = [p for p in self.syspath if p not in sys.path] + sys.path
 
         missing_packages = []
         for p in self.venv_packages:
