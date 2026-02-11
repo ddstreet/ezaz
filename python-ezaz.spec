@@ -4,7 +4,7 @@ Version:       0.0.1
 Release:       %autorelease
 License:       GPLv3
 URL:           https://github.com/ddstreet/ezaz
-Source0:       ezaz-%{version}.tar.gz
+Source0:       %{url}/archive/refs/tags/%{version}.tar.gz#/ezaz-%{version}.tar.gz
 
 BuildRequires: python3-devel
 
