@@ -3,7 +3,7 @@ name = "ezaz"
 version = "0.0.2"
 description = "Eazy Azure CLI"
 requires-python = ">=3.8"
-license = { text = "GPLv3" }
+license = "GPL-3.0-or-later"
 authors = [{ name = "Dan Streetman" }, { email = "ddstreet@ieee.org" }]
 dependencies = [ "argcomplete >= 3" ]
 
