@@ -1,12 +1,17 @@
 
 import re
+import tempfile
 
+from pathlib import Path
+
+from .. import LOGGER
 from ..argutil import ArgConfig
 from ..argutil import ArgMap
 from ..argutil import AzObjectArgConfig
 from ..argutil import BoolArgConfig
 from ..argutil import X509DERFileArgConfig
 from ..exception import RequiredArgument
+from ..qemuimg import QemuImg
 from .command import ActionCommand
 
 
@@ -37,8 +42,10 @@ class ImageCommand(ActionCommand):
         from ..azobject.imagedefinition import ImageDefinition
         from ..azobject.storageaccount import StorageAccount
         from ..azobject.storagecontainer import StorageContainer
-        return [ArgConfig('f', 'file', required=True, help='VHD file'),
+        return [ArgConfig('f', 'file', required=True, help='Image filename'),
                 ArgConfig('version', help='Image version'),
+                BoolArgConfig('no-convert',
+                              help='Do not convert to Azure VHD format before uploading'),
                 BoolArgConfig('overwrite',
                               help='Overwrite existing storage blob (will not overwrite image version)'),
                 BoolArgConfig('uefi_extend',
@@ -66,24 +73,42 @@ class ImageCommand(ActionCommand):
                 AzObjectArgConfig('image_gallery', azclass=ImageGallery, hidden=True),
                 AzObjectArgConfig('image_definition', azclass=ImageDefinition, hidden=True)]
 
-    def create(self, **opts):
-        filename = self.required_arg_value('file', opts)
-        version = self.optional_arg_value('version', opts) or self.parse_file_version(filename)
+    def create(self, file, version=None, no_convert=False, **opts):
+        img = QemuImg(file, dry_run=self.dry_run)
+        filename = img.filepath.name
+        if not version:
+            version = self._parse_file_version(filename)
         if not version:
             raise RequiredArgument('version', 'create')
 
+        if img.is_azure_vhd_format:
+            LOGGER.info(f"Image '{file}' in Azure VHD format, uploading")
+        elif no_convert:
+            LOGGER.warning(f"Image '{file}' not in Azure VHD format, uploading without converting")
+        else:
+            LOGGER.info(f"Converting image '{file}' to Azure VHD before uploading")
+            with tempfile.TemporaryDirectory() as tempdir:
+                vhd = Path(tempdir) / img.filepath.with_suffix('.vhd').name
+                img.convert_to_azure_vhd(vhd)
+                self._create(vhd.name, str(vhd), version, **opts)
+                return
+
+        self._create(filename, file, version, **opts)
+
+    def _create(self, storage_blob, file, image_version, **opts):
+        LOGGER.info(f"Uploading image '{file}'")
+
         from ..azobject.storageblob import StorageBlob
-        opts['storage_blob'] = filename
-        blob = StorageBlob.get_instance(**opts)
-        blob.create(**opts)
+        blob = StorageBlob.get_instance(storage_blob=storage_blob, **opts)
+        blob.create(storage_blob=storage_blob, file=file, **opts)
+
+        LOGGER.info(f"Creating image version '{image_version}'")
 
         from ..azobject.imageversion import ImageVersion
-        opts['storage_account'] = blob.parent.parent.azobject_id
-        opts['image_version'] = version
-        iv = ImageVersion.get_instance(**opts)
-        iv.create(**opts)
+        iv = ImageVersion.get_instance(image_version=image_version, **opts)
+        iv.create(image_version=image_version, storage_blob=storage_blob, **opts)
 
-    def parse_file_version(self, filename):
+    def _parse_file_version(self, filename):
         match = re.search(r'(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<release>\d+))?', filename)
         if match:
             return f"{match['major']}.{match['minor']}.{match['release'] or '0'}"
