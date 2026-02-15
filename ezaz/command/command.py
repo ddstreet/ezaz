@@ -173,7 +173,7 @@ class AzObjectActionCommand(AzObjectCommand, ActionCommand):
     def get_portal_url_action_configs(cls):
         if not cls.has_portal_url():
             return []
-        return [cls.make_action_config('portal_url',
+        return [cls.make_action_config('portal-url',
                                        description='Show the Azure portal URL to manage this object',
                                        argconfigs=cls.get_portal_url_action_argconfigs())]
 
@@ -216,7 +216,7 @@ class CommandActionConfig(ActionConfig):
     def __init__(self, action, command_class, *, func=None, **kwargs):
         super().__init__(action, **kwargs)
         self.command_class = command_class
-        self.func = func or action
+        self.func = func or action.replace('-', '_')
 
     def _do_action(self, **opts):
         command = self.command_class(**opts)
