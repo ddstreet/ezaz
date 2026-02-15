@@ -26,7 +26,9 @@ class ImageCommand(ActionCommand):
 
     @classmethod
     def get_action_configs(cls):
-        return [*super().get_action_configs(), cls.get_create_action_config()]
+        return [*super().get_action_configs(),
+                cls.get_create_action_config(),
+                cls.get_convert_action_config()]
 
     @classmethod
     def get_create_action_config(cls):
@@ -73,6 +75,18 @@ class ImageCommand(ActionCommand):
                 AzObjectArgConfig('image_gallery', azclass=ImageGallery, hidden=True),
                 AzObjectArgConfig('image_definition', azclass=ImageDefinition, hidden=True)]
 
+    @classmethod
+    def get_convert_action_config(cls):
+        return cls.make_action_config('convert',
+                                      description='Convert an image file to an Azure-acceptable VHD image file',
+                                      argconfigs=cls.get_convert_action_argconfigs())
+
+    @classmethod
+    def get_convert_action_argconfigs(cls):
+        return [ArgConfig('f', 'file', required=True, help='Input image filename'),
+                ArgConfig('o', 'output', required=True, help='Output image filename'),
+                BoolArgConfig('force', help='Convert even if input image is already in Azure VHD format')]
+
     def create(self, file, version=None, no_convert=False, **opts):
         img = QemuImg(file, dry_run=self.dry_run)
         filename = img.filepath.name
@@ -113,3 +127,10 @@ class ImageCommand(ActionCommand):
         if match:
             return f"{match['major']}.{match['minor']}.{match['release'] or '0'}"
         return None
+
+    def convert(self, file, output, force=False, **opts):
+        img = QemuImg(file, dry_run=self.dry_run)
+        if img.is_azure_vhd_format and not force:
+            LOGGER.warning(f"Image already in Azure VHD format: '{file}'")
+        else:
+            img.convert_to_azure_vhd(output)
