@@ -34,7 +34,6 @@ class ImageVersion(AzCommonActionable, AzSubObject):
                                   azclass=StorageAccount,
                                   cmdattr='id',
                                   cmddest='os_vhd_storage_account',
-                                  required=True,
                                   help='Storage account containing OS disk image VHD'),
                 AzObjectArgConfig('storage_container',
                                   azclass=StorageContainer,
