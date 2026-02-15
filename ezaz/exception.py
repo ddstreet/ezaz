@@ -4,6 +4,10 @@ class EzazException(Exception):
     pass
 
 
+class RequiredCommand(EzazException):
+    pass
+
+
 class NoDefaultAction(EzazException):
     pass
 
@@ -17,6 +21,19 @@ class NoChoices(ChoiceError):
 
 
 class NoneOfTheAboveChoice(ChoiceError):
+    pass
+
+
+class ImageError(EzazException):
+    pass
+
+
+class UnknownImageFormat(ImageError):
+    def __init__(self, filename):
+        super().__init__(f"Unknown image format for '{filename}'")
+
+
+class ImageConversionFailed(ImageError):
     pass
 
 
