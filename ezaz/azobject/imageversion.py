@@ -50,12 +50,9 @@ class ImageVersion(AzCommonActionable, AzSubObject):
 
     @classmethod
     def os_vhd_uri(cls, storage_blob, opts):
-        opts['storage_blob'] = storage_blob
-        parent = cls.get_parent_instance(**opts)
-
         from .storageblob import StorageBlob
+        opts['storage_blob'] = storage_blob
         blob = StorageBlob.get_instance(**opts)
-
         return blob.url(**opts)
 
     @classmethod
