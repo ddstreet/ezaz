@@ -28,7 +28,8 @@ class ImageCommand(ActionCommand):
     def get_action_configs(cls):
         return [*super().get_action_configs(),
                 cls.get_create_action_config(),
-                cls.get_convert_action_config()]
+                cls.get_convert_action_config(),
+                cls.get_detect_format_action_config()]
 
     @classmethod
     def get_create_action_config(cls):
@@ -87,6 +88,16 @@ class ImageCommand(ActionCommand):
                 ArgConfig('o', 'output', required=True, help='Output image filename'),
                 BoolArgConfig('force', help='Convert even if input image is already in Azure VHD format')]
 
+    @classmethod
+    def get_detect_format_action_config(cls):
+        return cls.make_action_config('detect-format',
+                                      description='Detect the image format (this requires qemu-img)',
+                                      argconfigs=cls.get_detect_format_action_argconfigs())
+
+    @classmethod
+    def get_detect_format_action_argconfigs(cls):
+        return [ArgConfig('f', 'file', required=True, help='Image file')]
+
     def create(self, file, version=None, no_convert=False, **opts):
         img = QemuImg(file, dry_run=self.dry_run)
         filename = img.filepath.name
@@ -134,3 +145,8 @@ class ImageCommand(ActionCommand):
             LOGGER.warning(f"Image already in Azure VHD format: '{file}'")
         else:
             img.convert_to_azure_vhd(output)
+
+    def detect_format(self, file, **opts):
+        fmt = QemuImg(file, dry_run=self.dry_run).format
+        # qemu-img calls 'vhd' format 'vpc'
+        return 'vhd' if fmt == 'vpc' else fmt
