@@ -8,6 +8,9 @@ Source0:       %{url}/archive/refs/tags/%{version}.tar.gz#/ezaz-%{version}.tar.g
 
 BuildRequires: python3-devel
 
+Recommends:    qemu-img
+Recommends:    /usr/bin/blkid
+
 BuildArch:     noarch
 
 %define _description Eazy interface to the Azure CLI. This is significantly eazier, but also significantly less comprehensive.
