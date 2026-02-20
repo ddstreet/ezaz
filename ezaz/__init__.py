@@ -40,6 +40,11 @@ LOGIN_REQUIRED_MESSAGES = [
 DISTRO_IMAGES = {
     # x86
     'azl3': 'MicrosoftCBLMariner:azure-linux-3:azure-linux-3-gen2:latest',
+    'fedora-eln': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-ELN-x64/Versions/latest',
+    'fedora-42': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-42-x64/Versions/latest',
+    'fedora-43': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-43-x64/Versions/latest',
+    'fedora-44': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-44-x64/Versions/latest',
+    'fedora-rawhide': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-Rawhide-x64/Versions/latest',
     'opensuse-15.6': 'SUSE:opensuse-leap-15-6:gen2:latest',
     'rhel-10.0': 'RedHat:rhel-raw:100-raw-gen2:latest',
     'rhel-10.1': 'RedHat:rhel-raw:101-raw-gen2:latest',
@@ -52,6 +57,11 @@ DISTRO_IMAGES = {
     'ubuntu-lts': 'Canonical:ubuntu-24_04-lts:server:latest',
     # Arm
     'azl3-arm': 'MicrosoftCBLMariner:azure-linux-3:azure-linux-3-arm64:latest',
+    'fedora-eln-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-ELN-Arm64/Versions/latest',
+    'fedora-42-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-42-Arm64/Versions/latest',
+    'fedora-43-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-43-Arm64/Versions/latest',
+    'fedora-44-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-44-Arm64/Versions/latest',
+    'fedora-rawhide-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-Rawhide-Arm64/Versions/latest',
     'opensuse-15.6-arm': 'SUSE:opensuse-leap-15-6-arm64:gen2:latest',
     'rhel-10.0-arm': 'RedHat:rhel-arm64:10_0-arm64:latest',
     'rhel-10.1-arm': 'RedHat:rhel-arm64:10_1-arm64:latest',
