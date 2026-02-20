@@ -134,7 +134,7 @@ class ComputeSku(AzEmulateShowable, AzListable, AzSubObject):
         if result is None:
             if IS_ARGCOMPLETE:
                 raise TooLongForArgcomplete(self.azobject_short_name(), 'list')
-            LOGGER.warning('This command takes a long time, please be patient...')
+            LOGGER.warning('Getting VM SKU list; this command takes a long time, please be patient...')
         return result
 
     def list_write_cache(self, infolist):
