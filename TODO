@@ -4,6 +4,13 @@
 
 - add notice telling user to install system argcomplete (if needed) with config option to disable notice
 
+- setup user-configurable image aliases, kept in file on disk
+- remove all hardcoded image aliases, setup defaults file that can be package-installed
+
+- add 'shell' option to create subshell with alternate ezaz config for temporary use
+- possibly display config in use in subshell
+- set config files to all suffix with .json
+
 
 LATER/CLEANUP:
 
