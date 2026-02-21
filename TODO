@@ -37,6 +37,16 @@ LATER/CLEANUP:
 
 - add support for displaying vm usage (az vm usage)
 
+- show clarifying error msg during 'setup' if no local ssh key to upload
+- in setup, do not create image gallery or storage account
+- in 'image create', automatically create image gallery and/or storage
+  account if needed, possibly requring parameter to do so (default to
+  not creating them?)
+- in setup, change naming to include local hostname
+- in setup, change sshkey naming to include key type
+
+- check all node types for name restrictions (max length, chars allowed, etc)
+
 DOCS:
 
 - filtering
