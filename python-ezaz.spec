@@ -1,6 +1,6 @@
 Name:          python-ezaz
 Summary:       Eazy Azure CLI
-Version:       0.0.4
+Version:       0.0.5
 Release:       %autorelease
 License:       GPLv3
 URL:           https://github.com/ddstreet/ezaz
