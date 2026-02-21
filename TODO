@@ -37,6 +37,8 @@ LATER/CLEANUP:
 
 - add support for displaying vm usage (az vm usage)
 
+- fix marketplace image version 'show' details - content is different between 'show' and 'list'
+
 - show clarifying error msg during 'setup' if no local ssh key to upload
 - in setup, do not create image gallery or storage account
 - in 'image create', automatically create image gallery and/or storage
