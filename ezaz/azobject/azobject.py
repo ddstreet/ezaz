@@ -33,6 +33,7 @@ from ..exception import AzCommandError
 from ..exception import AzObjectExists
 from ..exception import CacheError
 from ..exception import DefaultConfigNotFound
+from ..exception import InteractiveLoginRequired
 from ..exception import InvalidAzObjectName
 from ..exception import NoAncestorInstance
 from ..exception import NoAzObjectExists
@@ -102,6 +103,8 @@ class AzAction(ArgUtil, ABC):
 
         if any((s in stderr for s in LOGIN_REQUIRED_MESSAGES)):
             raise NotLoggedIn()
+        if 'Your device is required to be compliant to access this resource' in stderr:
+            raise InteractiveLoginRequired(stderr)
         raise AzCommandError(process.args, stdout, stderr)
 
     def _exec(self, *args, cmd_args={}, dry_runnable=True, text=True, capture_output=False):

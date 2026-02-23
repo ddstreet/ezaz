@@ -147,8 +147,13 @@ class AlreadyLoggedOut(EzazException):
 
 
 class NotLoggedIn(EzazException):
-    def __init__(self):
-        super().__init__('Not logged in, please login and try again.')
+    def __init__(self, msg='please login and try again.'):
+        super().__init__(f'Not logged in: {msg}')
+
+
+class InteractiveLoginRequired(NotLoggedIn):
+    def __init__(self, msg):
+        super().__init__(f'Azure reported that interactive/special login is required, see below:\n{msg}')
 
 
 class UnsupportedAction(EzazException):

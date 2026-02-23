@@ -31,10 +31,8 @@ REQUIRED_PACKAGES = [
 ]
 
 LOGIN_REQUIRED_MESSAGES = [
-    "az login",
+    "Please run 'az login' to setup account",
     "has expired due to inactivity",
-    "Interactive authentication is needed",
-    "InteractionRequired",
 ]
 
 DISTRO_IMAGES = {
