@@ -5,6 +5,7 @@ from functools import cache
 from functools import cached_property
 
 from .. import LOGGER
+from ..argutil import ArgConfig
 from ..argutil import FlagArgConfig
 from ..cache import CacheExpiry
 from ..exception import AlreadyLoggedIn
@@ -85,14 +86,18 @@ class User(AzShowable, AzListable, AzObjectContainer):
                                        get_instance=cls.get_signed_in_user_instance,
                                        cmd=['login'],
                                        azobject_id_argconfigs=[],
-                                       description='Login',
-                                       argconfigs=[FlagArgConfig('use_device_code',
-                                                                 help='Instead of opening a browser window, show the URL and code')]),
+                                       description='Login'),
                 cls.make_action_config('logout',
                                        get_instance=cls.get_signed_in_user_instance,
                                        cmd=['logout'],
                                        azobject_id_argconfigs=[],
                                        description='Logout')]
+
+    @classmethod
+    def get_login_action_argconfigs(cls):
+        return [FlagArgConfig('use_device_code', help='Instead of opening a browser window, show the URL and code'),
+                ArgConfig('tenant', help='Tenant to use'),
+                ArgConfig('scope', help='Scope to use')]
 
     @classmethod
     def get_list_action_get_instance(cls):
