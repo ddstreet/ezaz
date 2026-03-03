@@ -1,5 +1,6 @@
 
 import re
+import shutil
 import tempfile
 
 from pathlib import Path
@@ -117,6 +118,17 @@ class ImageCommand(ActionCommand):
                 img.convert_to_azure_vhd(vhd)
                 self._create(vhd.name, str(vhd), version, **opts)
                 return
+
+        if img.filepath.suffix != '.vhd':
+            if no_convert:
+                LOGGER.warning(f"Image '{file}' suffix is not 'vhd', uploading anyway")
+            else:
+                LOGGER.warning(f"Changing image '{file}' suffix to 'vhd' before uploading")
+                with tempfile.TemporaryDirectory() as tempdir:
+                    vhd = Path(tempdir) / img.filepath.with_suffix('.vhd').name
+                    shutil.copy(img.filepath, vhd)
+                    self._create(vhd.name, str(vhd), version, **opts)
+                    return
 
         self._create(filename, file, version, **opts)
 
