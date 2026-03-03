@@ -111,7 +111,7 @@ class ImageCommand(ActionCommand):
         elif no_convert:
             LOGGER.warning(f"Image '{file}' not in Azure VHD format, uploading without converting")
         else:
-            LOGGER.info(f"Converting image '{file}' to Azure VHD before uploading")
+            LOGGER.warning(f"Converting image '{file}' to Azure VHD before uploading")
             with tempfile.TemporaryDirectory() as tempdir:
                 vhd = Path(tempdir) / img.filepath.with_suffix('.vhd').name
                 img.convert_to_azure_vhd(vhd)
