@@ -47,7 +47,7 @@ class ImageCommand(ActionCommand):
         from ..azobject.storagecontainer import StorageContainer
         return [ArgConfig('f', 'file', required=True, help='Image filename'),
                 ArgConfig('version', help='Image version'),
-                BoolArgConfig('no-convert',
+                BoolArgConfig('no_convert',
                               help='Do not convert to Azure VHD format before uploading'),
                 BoolArgConfig('overwrite',
                               help='Overwrite existing storage blob (will not overwrite image version)'),
