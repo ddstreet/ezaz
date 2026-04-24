@@ -8,7 +8,7 @@ authors = [{ name = "Dan Streetman" }, { email = "ddstreet@ieee.org" }]
 dependencies = [ "argcomplete >= 3" ]
 
 [project.scripts]
-ezaz = "ezaz.main:main"
+ezaz = "ezaz:__main__"
 
 [project.urls]
 "Homepage" = "https://github.com/ddstreet/ezaz"
