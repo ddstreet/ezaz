@@ -64,6 +64,7 @@ class Vm(AzCommonActionable, AzSubObjectContainer):
         from .imagedefinition import ImageDefinition
         from .imagegallery import ImageGallery
         from .imageversion import ImageVersion
+        from .location import Location
         from .marketplaceimage import MarketplaceImage
         from .marketplaceimageversion import MarketplaceImageVersion
         from .marketplaceoffer import MarketplaceOffer
@@ -114,6 +115,9 @@ class Vm(AzCommonActionable, AzSubObjectContainer):
                                                  dest='ssh_key_name',
                                                  azclass=SshKey,
                                                  help='ssh key to use for authentication'),
+                               AzObjectArgConfig('location',
+                                                 azclass=Location,
+                                                 help='VM location'),
                                ChoicesArgConfig('security_type',
                                                 choices=['Standard', 'TrustedLaunch', 'ConfidentialVM'],
                                                 default='TrustedLaunch',
