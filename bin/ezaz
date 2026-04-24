@@ -1,15 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env bash
 # PYTHON_ARGCOMPLETE_OK
 
-import os
-import sys
-import time
-
-from pathlib import Path
-
-
-os.environ['EZAZ_START_TIMESTAMP'] = str(time.perf_counter())
-
-sys.path.append(str(Path(__file__).resolve(strict=True).parent.parent))
-
-import ezaz.__main__
+env PYTHONPATH="$(dirname "$(dirname "$(realpath "$0")")")" python3 -m ezaz "$@"

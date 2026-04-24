@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
+import os
+import time
+os.environ['EZAZ_START_TIMESTAMP'] = str(time.perf_counter())
+
 import argparse
 import sys
 import traceback
