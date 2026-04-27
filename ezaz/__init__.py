@@ -55,7 +55,7 @@ DISTRO_IMAGES = {
     'ubuntu-lts': 'Canonical:ubuntu-24_04-lts:server:latest',
     # Arm
     'azl3-arm': 'MicrosoftCBLMariner:azure-linux-3:azure-linux-3-arm64:latest',
-    'azl4-alpha2': '/subscriptions/e4ab81f8-030f-4593-a8f2-3ea2c7630a19/resourceGroups/azl-acg-preview-publishing/providers/Microsoft.Compute/galleries/azlpubDevGallery2mruiyvi/images/azure-linux-4-arm64/versions/4.0.2',
+    'azl4-alpha2-arm': '/subscriptions/e4ab81f8-030f-4593-a8f2-3ea2c7630a19/resourceGroups/azl-acg-preview-publishing/providers/Microsoft.Compute/galleries/azlpubDevGallery2mruiyvi/images/azure-linux-4-arm64/versions/4.0.2',
     'fedora-eln-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-ELN-Arm64/Versions/latest',
     'fedora-42-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-42-Arm64/Versions/latest',
     'fedora-43-arm': '/CommunityGalleries/Fedora-5e266ba4-2250-406d-adad-5d73860d958f/Images/Fedora-Cloud-43-Arm64/Versions/latest',
