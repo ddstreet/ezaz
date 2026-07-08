@@ -1,0 +1,25 @@
+Source: ezaz
+Section: unknown
+Priority: optional
+Maintainer: Dan Streetman <ddstreet@ieee.org>
+Rules-Requires-Root: no
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-sequence-python3,
+ pybuild-plugin-pyproject,
+ python3-all,
+ python3-build,
+ python3-setuptools,
+ python3-wheel,
+Standards-Version: 4.7.2
+Homepage: https://github.com/ddstreet/ezaz.git
+
+Package: python3-ezaz
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ ${python3:Depends},
+Description: Eazy interface to the Azure CLI.
+ This is significantly eazier, but also significantly less
+ comprehensive.
