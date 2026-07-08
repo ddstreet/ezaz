@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/ddstreet/ezaz.git
+Upstream-Name: ezaz
+Upstream-Contact: Dan Streetman <ddstreet@ieee.org>
+
+Files:
+ *
+Copyright:
+ 2026 Dan Streetman <ddstreet@ieee.org>
+License: GPL-3+
