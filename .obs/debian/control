@@ -15,6 +15,7 @@ Standards-Version: 4.7.2
 Homepage: https://github.com/ddstreet/ezaz.git
 
 Package: python3-ezaz
+Provides: ezaz
 Architecture: any
 Depends:
  ${shlibs:Depends},
