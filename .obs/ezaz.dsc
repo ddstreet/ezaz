@@ -1,8 +1,10 @@
 Format: 3.0 (quilt)
 Source: ezaz
 Binary: python3-ezaz
-Architecture: any
-Version: 0.0.1-1
+Architecture: all
+Version: @VERSION@
+DEBTRANSFORM-TAR: ezaz_@VERSION@.orig.tar.xz
+DEBTRANSFORM-RELEASE: 1
 Maintainer: Dan Streetman <ddstreet@ieee.org>
 Homepage: https://github.com/ddstreet/ezaz.git
 Standards-Version: 4.7.2
