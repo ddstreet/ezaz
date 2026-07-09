@@ -16,9 +16,8 @@ Homepage: https://github.com/ddstreet/ezaz.git
 
 Package: python3-ezaz
 Provides: ezaz
-Architecture: any
+Architecture: all
 Depends:
- ${shlibs:Depends},
  ${misc:Depends},
  ${python3:Depends},
 Description: Eazy interface to the Azure CLI.
