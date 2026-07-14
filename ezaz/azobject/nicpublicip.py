@@ -12,7 +12,7 @@ class NicPublicIp(PublicIp):
         from .nicipaddr import NicIpAddr
         return NicIpAddr
 
-    def id_list_supported(self, **opts):
+    def id_list_supported(self, filters, opts):
         return False
 
     @classmethod
